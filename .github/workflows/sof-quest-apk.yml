@@ -1,13 +1,11 @@
 # Builds the SoF Quest APK (Soldier of Fortune on the Quake2Quest engine).
 #
-# Needs one repository secret or variable:
-#   SOF_SDK_URL   - a direct download URL of a zip with the Raven SoF SDK (containing Source/Game)
-# and the 64-bit port patch, either committed at tools/sof/sdk/sof-sdk-64bit.patch or given as
-#   SOF_PATCH_URL - a direct download URL of sof-sdk-64bit.patch (secret)
+# The Raven SoF SDK comes from the sof-sdk branch of this repository (sof-sdk-master.zip), or
+# from SOF_SDK_URL (secret or variable) when that is set. The 64-bit port patch is
+# tools/sof/sdk/sof-sdk-64bit.patch (or SOF_PATCH_URL).
 #
 # It runs on every push to the SoF branch (and can be started by hand once the file is on the
-# default branch); the APK is attached to the run as an artifact. Without the secret the run
-# just stops early with a notice.
+# default branch); the APK is attached to the run as an artifact.
 name: SoF Quest APK
 
 on:
@@ -19,14 +17,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HAVE_SDK: ${{ secrets.SOF_SDK_URL != '' || vars.SOF_SDK_URL != '' }}
+      HAVE_SDK: 'true'
     steps:
-      - name: Check secrets
-        if: env.HAVE_SDK != 'true'
-        run: echo "::notice::SOF_SDK_URL secret not set - skipping the SoF Quest build"
+      - uses: actions/checkout@v4
 
       - uses: actions/checkout@v4
-        if: env.HAVE_SDK == 'true'
+        with:
+          ref: sof-sdk
+          path: sofsdk-branch
 
       - uses: actions/setup-java@v4
         if: env.HAVE_SDK == 'true'
@@ -48,8 +46,11 @@ jobs:
           SOF_SDK_URL: ${{ secrets.SOF_SDK_URL || vars.SOF_SDK_URL }}
           SOF_PATCH_URL: ${{ secrets.SOF_PATCH_URL }}
         run: |
-          test -n "$SOF_SDK_URL" || { echo "::error::set the SOF_SDK_URL secret"; exit 1; }
-          curl -fsSL "$SOF_SDK_URL" -o sofsdk.zip
+          if [ -n "$SOF_SDK_URL" ]; then
+            curl -fsSL "$SOF_SDK_URL" -o sofsdk.zip
+          else
+            cp sofsdk-branch/sof-sdk-master.zip sofsdk.zip
+          fi
           mkdir sofsdk && unzip -q sofsdk.zip -d sofsdk
           GAME=$(find "$PWD/sofsdk" -type d -name gamecpp | head -1 | xargs dirname)
           test -d "$GAME" || { echo "::error::no Source/Game in the SDK zip"; exit 1; }
