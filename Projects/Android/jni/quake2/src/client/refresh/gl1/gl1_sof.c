@@ -95,6 +95,10 @@ R_DrawSoFEntity(entity_t *e)
 		glEnable(GL_BLEND);
 	}
 
+	/* GHOUL skins use alpha for cut-outs (hair, straps, ...) */
+	glEnable(GL_ALPHA_TEST);
+	glAlphaFunc(GL_GREATER, 0.5f);
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
@@ -134,6 +138,7 @@ R_DrawSoFEntity(entity_t *e)
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
+	glDisable(GL_ALPHA_TEST);
 
 	if (e->flags & RF_TRANSLUCENT)
 	{
