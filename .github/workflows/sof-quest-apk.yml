@@ -93,6 +93,28 @@ jobs:
             exit 1
           fi
 
+      - name: Check the APK's native libraries
+        if: success()
+        working-directory: Projects/Android
+        run: |
+          APK=$(ls build/outputs/apk/release/*.apk | head -1)
+          NDK=$ANDROID_HOME/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64
+          SYS=$NDK/sysroot/usr/lib/aarch64-linux-android/29
+          RE=$NDK/bin/llvm-readelf
+          { echo "=== APK $APK"; unzip -l "$APK" | grep "lib/"
+            rm -rf apkx && mkdir apkx && unzip -q "$APK" 'lib/*' -d apkx
+            L=apkx/lib/arm64-v8a
+            for f in $L/*.so $SYS/libc.so $SYS/libm.so $SYS/libdl.so $SYS/liblog.so $SYS/libandroid.so $SYS/libEGL.so $SYS/libGLESv1_CM.so $SYS/libGLESv2.so $SYS/libGLESv3.so $SYS/libOpenSLES.so $SYS/libz.so $SYS/libjnigraphics.so $SYS/libaaudio.so; do
+              [ -f "$f" ] && $RE --dyn-syms -W "$f" | awk '$7!="UND" && NR>3 {print $8}' | sed 's/@.*//'
+            done | sort -u > defined.txt
+            for f in $L/*.so; do
+              $RE --dyn-syms -W "$f" | awk '$7=="UND" && $5!="WEAK" {print $8}' | sed 's/@.*//' | grep -v '^$' | sort -u > und.txt
+              M=$(comm -23 und.txt defined.txt)
+              echo "=== $(basename $f): NEEDED $($RE -d $f | grep NEEDED | sed 's/.*\[\(.*\)\]/\1/' | tr '\n' ' ')"
+              [ -n "$M" ] && echo "UNRESOLVED in $(basename $f):" && echo "$M" | head -50
+            done; } >> build.log 2>&1
+          grep -A3 "UNRESOLVED" build.log || echo "no unresolved symbols" >> build.log
+
       - name: Publish the build log to the ci-logs branch
         if: always()
         run: |
