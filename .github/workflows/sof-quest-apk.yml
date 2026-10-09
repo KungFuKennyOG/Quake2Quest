@@ -13,6 +13,9 @@ on:
   push:
     branches: [ sof-bsp46-m32 ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -76,6 +79,18 @@ jobs:
             while IFS= read -r l; do echo "::error::${l:0:900}"; done < errs.txt
             exit 1
           fi
+
+      - name: Publish the build log to the ci-logs branch
+        if: always()
+        run: |
+          LOG=$PWD/Projects/Android/build.log
+          test -f "$LOG" || exit 0
+          D=$(mktemp -d); cd "$D"
+          git init -q && git checkout -q -b ci-logs
+          cp "$LOG" build.log
+          echo "${{ github.sha }} ${{ job.status }}" > STATUS
+          git add . && git -c user.name=ci -c user.email=ci@localhost commit -q -m "log ${{ github.run_id }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-logs
 
       - uses: actions/upload-artifact@v4
         if: env.HAVE_SDK == 'true'
