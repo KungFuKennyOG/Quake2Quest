@@ -35,6 +35,7 @@ REFGL1_OBJS_ := \
 	src/client/refresh/gl1/gl1_sdl.o \
 	src/client/refresh/gl1/gl1_md2.o \
 	src/client/refresh/gl1/gl1_sp2.o \
+	src/client/refresh/gl1/gl1_sof.o \
 	src/client/refresh/files/pcx.o \
 	src/client/refresh/files/stb.o \
 	src/client/refresh/files/wal.o \

@@ -1083,6 +1083,8 @@ public:
 						for (size_t k = 0; k < obj->skins.size(); k++)
 							if (obj->skins[k].mat == matId && obj->skins[k].channel == Diffuse) { skin = (GhoulID)(k + 1); break; }
 					if (skin) d.skin = obj->skins[skin - 1].name;
+					else if (sf.material >= 0 && sf.material < (int)m.materials.size())
+						d.skin = lower(m.materials[(size_t)sf.material].texture); /* the model's default texture */
 					out.push_back(d);
 					it = surfOut.insert(std::make_pair(si, out.size() - 1)).first;
 				}

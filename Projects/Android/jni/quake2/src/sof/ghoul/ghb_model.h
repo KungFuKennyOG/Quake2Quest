@@ -58,6 +58,8 @@ struct Sequence
 struct Material
 {
 	std::string name;
+	std::string texture;   /* default diffuse texture (base name, may name an .ifl list) */
+	std::string specular;  /* default specular texture */
 };
 
 struct Node

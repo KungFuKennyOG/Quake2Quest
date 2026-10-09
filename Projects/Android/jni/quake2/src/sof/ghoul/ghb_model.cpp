@@ -179,7 +179,9 @@ void readMaterial(Stream &s, Material &m)
 	s.b(); s.b(); s.i32(); s.i32();
 	for (int k = 0; k < 2; k++)
 	{
-		s.str(); s.str();
+		std::string tex = s.str();
+		s.str();
+		if (k == 0) m.texture = tex; else m.specular = tex;
 		s.b(); s.b(); s.b(); s.b();
 		s.constOrArray(1);
 		s.constOrArray(0x44);

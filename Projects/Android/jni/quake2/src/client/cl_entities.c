@@ -26,6 +26,18 @@
 
 #include <math.h>
 #include "header/client.h"
+#include "../sof/sof_client.h"
+
+/* Soldier of Fortune GHOUL drawing hooks, registered by the SoF game adapter */
+static sof_entitydraw_t sof_entitydraw;
+static sof_viewweapondraw_t sof_viewweapondraw;
+
+void
+CL_SoF_RegisterHooks(sof_entitydraw_t entity, sof_viewweapondraw_t viewweapon)
+{
+	sof_entitydraw = entity;
+	sof_viewweapondraw = viewweapon;
+}
 #include "../../../Quake2VR/mathlib.h"
 
 extern struct model_s *cl_mod_powerscreen;
@@ -337,6 +349,20 @@ CL_AddPacketEntities(frame_t *frame)
 		/* if set to invisible, skip */
 		if (!s1->modelindex)
 		{
+			continue;
+		}
+
+		/* Soldier of Fortune GHOUL model: meshes come from the game adapter */
+		if ((renderfx & RF_SOFGHOUL) && sof_entitydraw)
+		{
+			ent.sofdraw = sof_entitydraw(s1->number);
+			ent.model = NULL;
+			ent.flags &= ~RF_SOFGHOUL;
+			if (ent.sofdraw && ent.sofdraw->nummeshes)
+			{
+				V_AddEntity(&ent);
+			}
+			ent.sofdraw = NULL;
 			continue;
 		}
 
@@ -762,7 +788,16 @@ CL_AddViewWeapon(player_state_t *ps, player_state_t *ops)
 		return;
 	}
 
-	if (gun_model)
+	if (sof_viewweapondraw)
+	{
+		/* Soldier of Fortune: the view weapon is a GHOUL instance owned by the game */
+		gun.sofdraw = sof_viewweapondraw(cl.playernum + 1);
+		if (!gun.sofdraw || !gun.sofdraw->nummeshes)
+		{
+			return;
+		}
+	}
+	else if (gun_model)
 	{
 		gun.model = gun_model;
 	}
@@ -772,7 +807,7 @@ CL_AddViewWeapon(player_state_t *ps, player_state_t *ops)
 		gun.model = cl.model_draw[ps->gunindex];
 	}
 
-	if (!gun.model)
+	if (!gun.model && !gun.sofdraw)
 	{
 		return;
 	}

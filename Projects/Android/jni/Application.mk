@@ -19,6 +19,9 @@ OPENXR_SDK		:= $(APPLICATIONMK_PATH)/OpenXR-SDK
 APP_ALLOW_MISSING_DEPS=true
 
 APP_MODULES := yquake2 yquake2_game gl4es yquake2_gl1 openxr_loader
+ifeq ($(SOF),1)
+APP_MODULES += sofgame sofplayer
+endif
 APP_STL := c++_shared
 
 

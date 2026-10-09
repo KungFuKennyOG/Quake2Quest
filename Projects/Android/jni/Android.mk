@@ -6,5 +6,9 @@ include $(SUPPORT_LIBS)/libzip/Android.mk
 include $(SUPPORT_LIBS)/libpng/Android.mk
 include $(SUPPORT_LIBS)/sigc++/Android.mk
 include $(TOP_DIR)/quake2/Android.mk
+ifeq ($(SOF),1)
+include $(TOP_DIR)/quake2/Android_sof.mk
+else
 include $(TOP_DIR)/quake2/Android_game.mk
+endif
 include $(TOP_DIR)/quake2/Android_gl1.mk

@@ -355,6 +355,10 @@ R_DrawEntitiesOnList(void)
 		{
 			lasersight = currententity;
 		}
+		else if (currententity->sofdraw)
+		{
+			R_DrawSoFEntity(currententity);
+		}
 		else
 		{
 			currentmodel = currententity->model;
@@ -400,6 +404,10 @@ R_DrawEntitiesOnList(void)
 		if (currententity->flags & RF_BEAM)
 		{
 			R_DrawBeam(currententity);
+		}
+		else if (currententity->sofdraw)
+		{
+			R_DrawSoFEntity(currententity);
 		}
 		else
 		{

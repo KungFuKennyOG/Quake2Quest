@@ -74,6 +74,8 @@ typedef struct entity_s {
 
 	struct image_s	*skin; /* NULL for inline skin */
 	int		flags;
+
+	const struct sofdraw_s *sofdraw; /* Soldier of Fortune GHOUL meshes (model is NULL) */
 } entity_t;
 
 typedef struct {

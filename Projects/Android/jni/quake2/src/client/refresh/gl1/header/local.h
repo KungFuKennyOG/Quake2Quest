@@ -271,6 +271,7 @@ void Draw_InitLocal(void);
 void R_SubdivideSurface(msurface_t *fa);
 qboolean R_CullBox(vec3_t mins, vec3_t maxs);
 void R_RotateForEntity(entity_t *e);
+void R_DrawSoFEntity(entity_t *e);
 void R_MarkLeaves(void);
 
 glpoly_t *WaterWarpPolyVerts(glpoly_t *p);

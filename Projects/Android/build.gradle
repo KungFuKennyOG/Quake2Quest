@@ -50,6 +50,10 @@ android {
             ndkBuild {
                 def numProcs = Runtime.runtime.availableProcessors()
                 arguments "V=0", "-j$numProcs"
+                // Soldier of Fortune build: ./gradlew assembleDebug -PsofSdk=/path/to/ported/sdk/Game
+                if (project.hasProperty('sofSdk')) {
+                    arguments "SOF=1", "SOF_SDK_DIR=" + new File(project.getProperty('sofSdk')).absolutePath
+                }
                 abiFilters 'arm64-v8a'
             }
         }
