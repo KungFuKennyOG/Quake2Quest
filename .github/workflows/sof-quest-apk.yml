@@ -1,0 +1,61 @@
+# Builds the SoF Quest APK (Soldier of Fortune on the Quake2Quest engine).
+#
+# Needs one repository secret:
+#   SOF_SDK_URL   - a direct download URL of a zip with the Raven SoF SDK (containing Source/Game)
+# and the 64-bit port patch, either committed at tools/sof/sdk/sof-sdk-64bit.patch or given as
+#   SOF_PATCH_URL - a direct download URL of sof-sdk-64bit.patch (secret)
+#
+# Run it from the Actions tab ("Run workflow"); the APK is attached to the run as an artifact.
+name: SoF Quest APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK and NDK
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "ndk;26.1.10909125" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > Projects/Android/local.properties
+
+      - name: SoF SDK with the 64-bit patch
+        env:
+          SOF_SDK_URL: ${{ secrets.SOF_SDK_URL }}
+          SOF_PATCH_URL: ${{ secrets.SOF_PATCH_URL }}
+        run: |
+          test -n "$SOF_SDK_URL" || { echo "::error::set the SOF_SDK_URL secret"; exit 1; }
+          curl -fsSL "$SOF_SDK_URL" -o sofsdk.zip
+          mkdir sofsdk && unzip -q sofsdk.zip -d sofsdk
+          GAME=$(find "$PWD/sofsdk" -type d -name gamecpp | head -1 | xargs dirname)
+          test -d "$GAME" || { echo "::error::no Source/Game in the SDK zip"; exit 1; }
+          PATCH=tools/sof/sdk/sof-sdk-64bit.patch
+          if [ ! -f "$PATCH" ]; then
+            test -n "$SOF_PATCH_URL" || { echo "::error::no patch: commit $PATCH or set SOF_PATCH_URL"; exit 1; }
+            curl -fsSL "$SOF_PATCH_URL" -o sof-sdk-64bit.patch
+            PATCH=sof-sdk-64bit.patch
+          fi
+          PATCH=$(realpath "$PATCH")
+          (cd "$(dirname "$GAME")" && patch -p1 --forward < "$PATCH")
+          echo "SOF_GAME=$GAME" >> "$GITHUB_ENV"
+
+      - name: Build
+        working-directory: Projects/Android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease -PsofSdk="$SOF_GAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoFQuest-apk
+          path: Projects/Android/build/outputs/apk/release/*.apk
