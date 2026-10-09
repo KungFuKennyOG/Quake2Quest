@@ -5,24 +5,37 @@
 # and the 64-bit port patch, either committed at tools/sof/sdk/sof-sdk-64bit.patch or given as
 #   SOF_PATCH_URL - a direct download URL of sof-sdk-64bit.patch (secret)
 #
-# Run it from the Actions tab ("Run workflow"); the APK is attached to the run as an artifact.
+# It runs on every push to the SoF branch (and can be started by hand once the file is on the
+# default branch); the APK is attached to the run as an artifact. Without the secret the run
+# just stops early with a notice.
 name: SoF Quest APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ sof-bsp46-m32 ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAVE_SDK: ${{ secrets.SOF_SDK_URL != '' }}
     steps:
+      - name: Check secrets
+        if: env.HAVE_SDK != 'true'
+        run: echo "::notice::SOF_SDK_URL secret not set - skipping the SoF Quest build"
+
       - uses: actions/checkout@v4
+        if: env.HAVE_SDK == 'true'
 
       - uses: actions/setup-java@v4
+        if: env.HAVE_SDK == 'true'
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Android SDK and NDK
+        if: env.HAVE_SDK == 'true'
         run: |
           SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKM" --licenses > /dev/null || true
@@ -30,6 +43,7 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > Projects/Android/local.properties
 
       - name: SoF SDK with the 64-bit patch
+        if: env.HAVE_SDK == 'true'
         env:
           SOF_SDK_URL: ${{ secrets.SOF_SDK_URL }}
           SOF_PATCH_URL: ${{ secrets.SOF_PATCH_URL }}
@@ -50,12 +64,14 @@ jobs:
           echo "SOF_GAME=$GAME" >> "$GITHUB_ENV"
 
       - name: Build
+        if: env.HAVE_SDK == 'true'
         working-directory: Projects/Android
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease -PsofSdk="$SOF_GAME"
 
       - uses: actions/upload-artifact@v4
+        if: env.HAVE_SDK == 'true'
         with:
           name: SoFQuest-apk
           path: Projects/Android/build/outputs/apk/release/*.apk
