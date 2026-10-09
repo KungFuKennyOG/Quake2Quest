@@ -26,6 +26,10 @@
  */
 
 #include "header/common.h"
+#include "header/bsp_sof.h"
+
+/* in-memory v38 copy of a loaded SoF (v46) map, valid only inside CM_LoadMap */
+static unsigned char *sof_converted_bsp;
 
 typedef struct
 {
@@ -1716,7 +1720,33 @@ CM_LoadMap(char *name, qboolean clientload, unsigned *checksum)
 	last_checksum = LittleLong(Com_BlockChecksum(buf, length));
 	*checksum = last_checksum;
 
-	header = *(dheader_t *)buf;
+	/* Soldier of Fortune maps (IBSP v46) are converted in memory to the
+	   v38 layout, so everything below can read them unchanged. The
+	   checksum above is deliberately taken over the original file. */
+	{
+		unsigned char *converted = NULL;
+		int rawver;
+
+		memcpy(&rawver, (byte *)buf + 4, sizeof(rawver));
+
+		if (LittleLong(rawver) == BSP_SOF_VERSION)
+		{
+			int newlen = 0;
+			const char *err = NULL;
+
+			converted = BSP_ConvertSoF((const unsigned char *)buf, length, &newlen, &err);
+
+			if (!converted)
+			{
+				Com_Error(ERR_DROP, "CM_LoadMap: can't convert SoF map %s: %s",
+						name, err ? err : "unknown error");
+			}
+		}
+
+		sof_converted_bsp = converted;
+	}
+
+	header = *(dheader_t *)(sof_converted_bsp ? (void *)sof_converted_bsp : (void *)buf);
 
 	for (i = 0; i < sizeof(dheader_t) / 4; i++)
 	{
@@ -1730,7 +1760,7 @@ CM_LoadMap(char *name, qboolean clientload, unsigned *checksum)
 				name, header.version, BSPVERSION);
 	}
 
-	cmod_base = (byte *)buf;
+	cmod_base = sof_converted_bsp ? sof_converted_bsp : (byte *)buf;
 
 	/* load into heap */
 	CMod_LoadSurfaces(&header.lumps[LUMP_TEXINFO]);
@@ -1746,6 +1776,9 @@ CM_LoadMap(char *name, qboolean clientload, unsigned *checksum)
 	CMod_LoadVisibility(&header.lumps[LUMP_VISIBILITY]);
 	/* From kmquake2: adding an extra parameter for .ent support. */
 	CMod_LoadEntityString(&header.lumps[LUMP_ENTITIES], name);
+
+	free(sof_converted_bsp);
+	sof_converted_bsp = NULL;
 
 	FS_FreeFile(buf);
 

@@ -25,6 +25,7 @@
  */
 
 #include "header/local.h"
+#include "../../../common/header/bsp_sof.h"
 
 #define MAX_MOD_KNOWN 512
 
@@ -410,9 +411,18 @@ Mod_LoadTexinfo(lump_t *l)
 			out->next = NULL;
 		}
 
-		Com_sprintf(name, sizeof(name), "textures/%s.wal", in->texture);
+		/* Soldier of Fortune stores its textures as .m32; try that first and
+		   fall back to the Quake 2 .wal name. */
+		Com_sprintf(name, sizeof(name), "textures/%s.m32", in->texture);
 
 		out->image = R_FindImage(name, it_wall);
+
+		if (!out->image)
+		{
+			Com_sprintf(name, sizeof(name), "textures/%s.wal", in->texture);
+
+			out->image = R_FindImage(name, it_wall);
+		}
 
 		if (!out->image)
 		{
@@ -929,8 +939,43 @@ static int calcLumpHunkSize(const lump_t *l, int inSize, int outSize)
 	return size;
 }
 
+static void Mod_LoadBrushModelV38(model_t *mod, void *buffer, int modfilelen);
+
+/*
+ * Entry point for BSP loading. Soldier of Fortune maps (IBSP v46) are
+ * converted in memory to the v38 layout first, so the stock loaders
+ * below can read them unchanged.
+ */
 void
 Mod_LoadBrushModel(model_t *mod, void *buffer, int modfilelen)
+{
+	int ver;
+
+	memcpy(&ver, (byte *)buffer + 4, sizeof(ver));
+	ver = LittleLong(ver);
+
+	if (ver == BSP_SOF_VERSION)
+	{
+		int newlen = 0;
+		const char *err = NULL;
+		byte *conv = BSP_ConvertSoF((const byte *)buffer, modfilelen, &newlen, &err);
+
+		if (!conv)
+		{
+			ri.Sys_Error(ERR_DROP, "%s: can't convert SoF map %s: %s",
+					__func__, mod->name, err ? err : "unknown error");
+		}
+
+		Mod_LoadBrushModelV38(mod, conv, newlen);
+		free(conv);
+		return;
+	}
+
+	Mod_LoadBrushModelV38(mod, buffer, modfilelen);
+}
+
+static void
+Mod_LoadBrushModelV38(model_t *mod, void *buffer, int modfilelen)
 {
 	int i;
 	dheader_t *header;

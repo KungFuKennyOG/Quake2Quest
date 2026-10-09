@@ -1080,6 +1080,75 @@ LoadWal(char *origname, imagetype_t type)
 }
 
 /*
+ * Soldier of Fortune M32 texture ("MIP32", version 4): a 968 byte header
+ * (miptex32_t in the SoF SDK) followed by RGBA mip levels at absolute
+ * offsets. Only the first (largest) level is used here.
+ *
+ * Header field offsets: version 0, width[16] 516, height[16] 580,
+ * offsets[16] 644.
+ */
+#define M32_HEADER_SIZE 968
+#define M32_VERSION 4
+#define M32_OFS_WIDTH 516
+#define M32_OFS_HEIGHT 580
+#define M32_OFS_OFFSETS 644
+
+static image_t *
+LoadM32(char *origname, imagetype_t type)
+{
+	byte *mt;
+	int version, width, height, ofs, size;
+	image_t *image;
+	char name[256];
+
+	Q_strlcpy(name, origname, sizeof(name));
+
+	if (strcmp(COM_FileExtension(name), "m32"))
+	{
+		Q_strlcat(name, ".m32", sizeof(name));
+	}
+
+	size = ri.FS_LoadFile(name, (void **)&mt);
+
+	if (!mt)
+	{
+		return NULL;
+	}
+
+	if (size < M32_HEADER_SIZE)
+	{
+		R_Printf(PRINT_ALL, "LoadM32: can't load %s, small header\n", name);
+		ri.FS_FreeFile((void *)mt);
+		return r_notexture;
+	}
+
+	memcpy(&version, mt, 4);
+	memcpy(&width, mt + M32_OFS_WIDTH, 4);
+	memcpy(&height, mt + M32_OFS_HEIGHT, 4);
+	memcpy(&ofs, mt + M32_OFS_OFFSETS, 4);
+	version = LittleLong(version);
+	width = LittleLong(width);
+	height = LittleLong(height);
+	ofs = LittleLong(ofs);
+
+	if (version != M32_VERSION || width <= 0 || height <= 0 ||
+	    width > 4096 || height > 4096 || ofs < M32_HEADER_SIZE ||
+	    (long long)ofs + (long long)width * height * 4 > size)
+	{
+		R_Printf(PRINT_ALL, "LoadM32: can't load %s (version %i, %ix%i, ofs %i, size %i)\n",
+				name, version, width, height, ofs, size);
+		ri.FS_FreeFile((void *)mt);
+		return r_notexture;
+	}
+
+	image = R_LoadPic(name, mt + ofs, width, 0, height, 0, type, 32);
+
+	ri.FS_FreeFile((void *)mt);
+
+	return image;
+}
+
+/*
  * Finds or loads the given image
  */
 image_t *
@@ -1181,6 +1250,16 @@ R_FindImage(char *name, imagetype_t type)
 			}
 
 			image = R_LoadPic(name, pic, width, 0, height, 0, type, 8);
+		}
+	}
+	else if (strcmp(ext, "m32") == 0)
+	{
+		/* Soldier of Fortune 32 bit texture */
+		image = LoadM32(name, type);
+
+		if (!image)
+		{
+			return NULL;
 		}
 	}
 	else if (strcmp(ext, "wal") == 0)
