@@ -15,3 +15,6 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+
+# SoF SDK patch must keep the SDK's CRLF line endings byte for byte
+tools/sof/sdk/*.patch -text
