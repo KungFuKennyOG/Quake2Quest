@@ -200,7 +200,23 @@ import static android.system.Os.setenv;
 		//Configuration files
 		copy_asset(BuildConfig.DATA_DIR, "config.cfg");
 		copy_asset(BuildConfig.DATA_DIR, "autoexec.cfg");
-		copy_asset(BuildConfig.DATA_DIR, "commandline.txt");
+		if (BuildConfig.SOF) {
+			// No SoF menus yet: start straight into the training level. Edit
+			// /sdcard/SoFQuest/commandline.txt to pick another map (e.g. "quake2 +map tsr1").
+			File cl = new File(BuildConfig.DATA_DIR + "/commandline.txt");
+			if (!cl.exists()) {
+				try {
+					new File(BuildConfig.DATA_DIR).mkdirs();
+					java.io.FileWriter w = new java.io.FileWriter(cl);
+					w.write("quake2 +set developer 1 +map trn1\n");
+					w.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		} else {
+			copy_asset(BuildConfig.DATA_DIR, "commandline.txt");
+		}
 
 		//Comfort Vignette Mask
 		copy_asset(BuildConfig.DATA_DIR, "vignette.tga");
