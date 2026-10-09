@@ -43,6 +43,19 @@ jobs:
           "$SDKM" "ndk;26.1.10909125" "platforms;android-34" "build-tools;34.0.0" > /dev/null
           echo "sdk.dir=$ANDROID_HOME" > Projects/Android/local.properties
 
+      - name: Khronos OpenXR loader (gitignored upstream)
+        run: |
+          DST=Projects/Android/jni/AndroidPrebuilt/jni/libopenxr_loader.so
+          test -f "$DST" && exit 0
+          M=https://repo1.maven.org/maven2/org/khronos/openxr/openxr_loader_for_android
+          V=1.1.59
+          curl -fsSL "$M/$V/openxr_loader_for_android-$V.aar" -o loader.aar || {
+            V=$(curl -fsSL "$M/maven-metadata.xml" | sed -n 's:.*<release>\(.*\)</release>.*:\1:p')
+            curl -fsSL "$M/$V/openxr_loader_for_android-$V.aar" -o loader.aar; }
+          echo "OpenXR loader $V"
+          mkdir loader && unzip -q loader.aar -d loader
+          cp "$(find loader -path '*arm64-v8a*' -name libopenxr_loader.so | head -1)" "$DST"
+
       - name: SoF SDK with the 64-bit patch
         if: env.HAVE_SDK == 'true'
         env:
