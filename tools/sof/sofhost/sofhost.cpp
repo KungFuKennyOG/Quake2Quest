@@ -18,6 +18,7 @@
 #include "../ghoul/ighoul.h"
 #include "ghoul_engine.h"
 #include "cm_shim.h"
+#include "pm_shim.h"
 #include "ghb_model.h"
 
 #include <dlfcn.h>
@@ -710,11 +711,71 @@ static void I_Sys_UnloadPlayer(int) {}
 static float I_flrand(float min, float max) { return min + (max - min) * ((float)rand() / (float)RAND_MAX); }
 static int I_irand(int min, int max) { if (max <= min) return min; return min + rand() % (max - min + 1); }
 
+/* player movement: Yamagi's pmove.c through pm_shim (Q2 semantics, SoF state layout) */
+static pmove_t *g_pm;
+static void pmTrace(const float *start, const float *mins, const float *maxs, const float *end, pms_trace_t *out)
+{
+	trace_t t = g_pm->trace((float *)start, (float *)mins, (float *)maxs, (float *)end);
+	out->allsolid = t.allsolid; out->startsolid = t.startsolid; out->fraction = t.fraction;
+	for (int i = 0; i < 3; i++) { out->endpos[i] = t.endpos[i]; out->normal[i] = t.plane.normal[i]; }
+	out->dist = t.plane.dist; out->planetype = t.plane.type; out->signbits = t.plane.signbits;
+	out->surfflags = t.surface ? t.surface->flags : 0;
+	out->contents = t.contents;
+	out->ent = t.ent;
+}
+static int pmContents(const float *p) { return g_pm->pointcontents((float *)p); }
+
 static void I_Pmove(pmove_t *pm)
 {
-	/* no clients in the headless host yet */
-	pm->numtouch = 0;
-	pm->groundentity = 0;
+	pms_t p;
+	memset(&p, 0, sizeof(p));
+	switch (pm->s.pm_type)
+	{
+	case PM_NORMAL: p.pm_type = 0; break;
+	case PM_NOCLIP: case PM_SPECTATOR: p.pm_type = 1; break;
+	case PM_DEAD: p.pm_type = 2; break;
+	case PM_GIB: p.pm_type = 3; break;
+	default: p.pm_type = 4; break;
+	}
+	for (int i = 0; i < 3; i++)
+	{
+		p.origin[i] = pm->s.origin[i];
+		p.velocity[i] = pm->s.velocity[i];
+		p.delta_angles[i] = pm->s.delta_angles[i];
+		p.angles[i] = pm->cmd.angles[i];
+	}
+	/* SoF moved NO_PREDICTION to 128 and uses 64 for fatigue; Q2 uses 64 for NO_PREDICTION */
+	p.pm_flags = (pm->s.pm_flags & 63) | ((pm->s.pm_flags & PMF_NO_PREDICTION) ? 64 : 0);
+	p.pm_time = pm->s.pm_time;
+	p.gravity = pm->s.gravity;
+	p.msec = pm->cmd.msec;
+	p.buttons = pm->cmd.buttons;
+	p.forwardmove = pm->cmd.forwardmove;
+	p.sidemove = pm->cmd.sidemove;
+	p.upmove = pm->cmd.upmove;
+	p.snapinitial = pm->snapinitial;
+	p.trace = pmTrace;
+	p.pointcontents = pmContents;
+	g_pm = pm;
+	pms_run(&p);
+	g_pm = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		pm->s.origin[i] = (short)lrintf(p.origin[i]);
+		pm->s.velocity[i] = (short)lrintf(p.velocity[i]);
+		pm->s.delta_angles[i] = (short)lrintf(p.delta_angles[i]);
+		pm->viewangles[i] = p.viewangles[i];
+		pm->mins[i] = p.mins[i];
+		pm->maxs[i] = p.maxs[i];
+	}
+	pm->s.pm_flags = (byte)((p.pm_flags & 63) | ((p.pm_flags & 64) ? PMF_NO_PREDICTION : 0) | (pm->s.pm_flags & PMF_FATIGUED));
+	pm->s.pm_time = (byte)p.pm_time;
+	pm->numtouch = p.numtouch;
+	for (int i = 0; i < p.numtouch && i < MAXTOUCH; i++) pm->touchents[i] = (edict_t *)p.touchents[i];
+	pm->viewheight = p.viewheight;
+	pm->groundentity = (edict_t *)p.groundentity;
+	pm->watertype = p.watertype;
+	pm->waterlevel = p.waterlevel;
 }
 
 static qboolean I_AppendToSavegame(unsigned long, void *, int) { return true; }
@@ -918,12 +979,39 @@ int main(int argc, char **argv)
 	printf("SpawnEntities done: num_edicts %d, in use %d\n", ge->num_edicts, inuse);
 
 	int frames = atoi(argv[4]);
+	/* connect one local player */
+	edict_t *pl = EDICT_NUM(1);
+	char userinfo[512] = "\\name\\Kenny\\skin\\mullins\\teamname\\noteam\\fov\\95\\hand\\0\\gender\\male";
+	qboolean ok = ge->ClientConnect(pl, userinfo);
+	printf("ClientConnect: %d\n", ok);
+	if (ok)
+	{
+		ge->ClientBegin(pl);
+		printf("ClientBegin: player at %.1f %.1f %.1f, health %d\n", pl->s.origin[0], pl->s.origin[1], pl->s.origin[2],
+		       pl->client ? 0 : -1);
+	}
+	float start[3] = { pl->s.origin[0], pl->s.origin[1], pl->s.origin[2] };
 	for (int f = 0; f < frames; f++)
 	{
+		if (ok && pl->client)
+		{
+			usercmd_t cmd;
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.msec = 100;
+			cmd.forwardmove = f < frames / 2 ? 200 : 0;
+			cmd.angles[1] = (short)(f * 300);
+			if (f > frames / 2 && (f & 1)) cmd.buttons = BUTTON_ATTACK;
+			ge->ClientThink(pl, &cmd);
+		}
 		ge->RunFrame(f);
+		if (ok && (f % 10) == 0)
+			printf("frame %d: player %.1f %.1f %.1f pm_type %d\n", f, pl->s.origin[0], pl->s.origin[1], pl->s.origin[2], pl->client ? ((player_state_t *)pl->client)->pmove.pm_type : -1);
 		for (size_t c = 0; c < g_cmdQueue.size(); c++) if (g_dev) printf("cmd: %s\n", g_cmdQueue[c].c_str());
 		g_cmdQueue.clear();
 	}
+	if (ok)
+		printf("player moved %.1f units\n", sqrtf((pl->s.origin[0] - start[0]) * (pl->s.origin[0] - start[0]) +
+		       (pl->s.origin[1] - start[1]) * (pl->s.origin[1] - start[1]) + (pl->s.origin[2] - start[2]) * (pl->s.origin[2] - start[2])));
 	inuse = 0;
 	for (int i = 0; i < ge->num_edicts; i++) if (EDICT_NUM(i)->inuse) inuse++;
 	printf("ran %d frames: num_edicts %d in use %d, sounds %d, multicasts %d\n", frames, ge->num_edicts, inuse, g_sounds, g_multicasts);

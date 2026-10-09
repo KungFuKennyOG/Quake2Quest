@@ -709,7 +709,11 @@ Qcommon_Frame(int usec)
 
 
 	// Target framerate.
+#ifdef DEDICATED_ONLY
+	pfps = 60;
+#else
 	pfps = (int)cl_maxfps->value;
+#endif
 
 
 	// Calculate timings.
