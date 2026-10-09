@@ -61,7 +61,7 @@ jobs:
             PATCH=sof-sdk-64bit.patch
           fi
           PATCH=$(realpath "$PATCH")
-          (cd "$(dirname "$GAME")" && patch -p1 --forward < "$PATCH")
+          (cd "$(dirname "$GAME")" && patch -p1 --forward < "$PATCH" > patch.log) || { grep -iE "fail|reject|can't" "$(dirname "$GAME")/patch.log" | head -20 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
           echo "SOF_GAME=$GAME" >> "$GITHUB_ENV"
 
       - name: Build
@@ -69,7 +69,13 @@ jobs:
         working-directory: Projects/Android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease -PsofSdk="$SOF_GAME"
+          set -o pipefail
+          if ! ./gradlew --no-daemon assembleRelease -PsofSdk="$SOF_GAME" 2>&1 | tee build.log; then
+            # surface the first compiler/linker errors as annotations (readable without the log)
+            grep -nE "error:|undefined reference|What went wrong|FAILED" build.log | head -40 > errs.txt || true
+            while IFS= read -r l; do echo "::error::${l:0:900}"; done < errs.txt
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         if: env.HAVE_SDK == 'true'
