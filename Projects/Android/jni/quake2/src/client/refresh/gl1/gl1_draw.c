@@ -40,6 +40,11 @@ Draw_InitLocal(void)
 	draw_chars = R_FindImage("pics/conchars.pcx", it_pic);
 	if (!draw_chars)
 	{
+		/* Soldier of Fortune keeps its console font as an M32 texture */
+		draw_chars = R_FindImage("pics/console/conchars.m32", it_pic);
+	}
+	if (!draw_chars)
+	{
 		ri.Sys_Error(ERR_FATAL, "Couldn't load pics/conchars.pcx");
 	}
 }
@@ -113,6 +118,19 @@ RDraw_FindPic(char *name)
 	{
 		Com_sprintf(fullname, sizeof(fullname), "pics/%s.pcx", name);
 		gl = R_FindImage(fullname, it_pic);
+
+		if (!gl)
+		{
+			/* Soldier of Fortune: pics/<name>.m32, or pics/console/<name>.m32 */
+			Com_sprintf(fullname, sizeof(fullname), "pics/%s.m32", name);
+			gl = R_FindImage(fullname, it_pic);
+
+			if (!gl)
+			{
+				Com_sprintf(fullname, sizeof(fullname), "pics/console/%s.m32", name);
+				gl = R_FindImage(fullname, it_pic);
+			}
+		}
 	}
 	else
 	{

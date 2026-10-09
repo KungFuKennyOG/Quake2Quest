@@ -129,7 +129,8 @@ void OGG_RecoverState(void) {}
 
 /* ---- input / VR ---- */
 int sys_frame_time;
-void IN_Update(void) {}
+int Sys_Milliseconds(void);
+void IN_Update(void) { sys_frame_time = Sys_Milliseconds(); }
 void IN_Shutdown(void) {}
 void In_FlushQueue(void) {}
 vec3_t weaponangles, weaponoffset, hmdPosition;

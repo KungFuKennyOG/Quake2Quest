@@ -38,6 +38,12 @@ CL_SoF_RegisterHooks(sof_entitydraw_t entity, sof_viewweapondraw_t viewweapon)
 	sof_entitydraw = entity;
 	sof_viewweapondraw = viewweapon;
 }
+
+qboolean
+CL_SoF_Active(void)
+{
+	return sof_entitydraw != NULL;
+}
 #include "../../../Quake2VR/mathlib.h"
 
 extern struct model_s *cl_mod_powerscreen;

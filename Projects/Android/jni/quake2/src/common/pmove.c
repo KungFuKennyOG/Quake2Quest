@@ -1029,6 +1029,22 @@ PM_FlyMove(qboolean doclip)
 /*
  * Sets mins, maxs, and pm->viewheight
  */
+/* player box heights; Soldier of Fortune uses a taller player (see Pmove_SetSoFHeights) */
+static float pm_stand_maxs = 32, pm_stand_view = 22, pm_duck_maxs = 4, pm_duck_view = -2;
+
+void
+Pmove_SetSoFHeights(int sof)
+{
+	if (sof)
+	{
+		pm_stand_maxs = 40; pm_stand_view = 35; pm_duck_maxs = 14; pm_duck_view = 0;
+	}
+	else
+	{
+		pm_stand_maxs = 32; pm_stand_view = 22; pm_duck_maxs = 4; pm_duck_view = -2;
+	}
+}
+
 void
 PM_CheckDuck(void)
 {
@@ -1065,7 +1081,7 @@ PM_CheckDuck(void)
 		if (pm->s.pm_flags & PMF_DUCKED)
 		{
 			/* try to stand up */
-			pm->maxs[2] = 32;
+			pm->maxs[2] = pm_stand_maxs;
 			trace = pm->trace(pml.origin, pm->mins, pm->maxs, pml.origin);
 
 			if (!trace.allsolid)
@@ -1077,13 +1093,13 @@ PM_CheckDuck(void)
 
 	if (pm->s.pm_flags & PMF_DUCKED)
 	{
-		pm->maxs[2] = 4;
-		pm->viewheight = -2;
+		pm->maxs[2] = pm_duck_maxs;
+		pm->viewheight = pm_duck_view;
 	}
 	else
 	{
-		pm->maxs[2] = 32;
-		pm->viewheight = 22;
+		pm->maxs[2] = pm_stand_maxs;
+		pm->viewheight = pm_stand_view;
 	}
 }
 

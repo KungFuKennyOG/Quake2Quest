@@ -1802,9 +1802,43 @@ SCR_ExecuteLayoutString(char *s,float separation)
  * The status bar is a small layout program that
  * is based on the stats array
  */
+qboolean CL_SoF_Active(void);
+void DrawStringScaled(int x, int y, char *s, float factor);
+
+/* Soldier of Fortune: the game sends no layout; draw health / armor / ammo as text.
+   SoF stat slots: 1 health, 2 ammo in clip, 3 ammo, 5 armor */
+static void
+SCR_DrawSoFHud(float separation)
+{
+	char line[128];
+	float scale = SCR_GetHUDScale();
+	short *st = cl.frame.playerstate.stats;
+	int y = (int)(viddef.height - 24 * scale);
+	int x = (int)(16 * scale + separation);
+
+	(void)separation;
+
+	if (st[2] || st[3])
+	{
+		Com_sprintf(line, sizeof(line), "HEALTH %3d   ARMOR %3d   AMMO %3d / %d", st[1], st[5], st[2], st[3]);
+	}
+	else
+	{
+		Com_sprintf(line, sizeof(line), "HEALTH %3d   ARMOR %3d", st[1], st[5]);
+	}
+
+	DrawStringScaled(x, y, line, scale);
+}
+
 void
 SCR_DrawStats(float separation)
 {
+	if (CL_SoF_Active())
+	{
+		SCR_DrawSoFHud(separation);
+		return;
+	}
+
 	SCR_ExecuteLayoutString(cl.configstrings[CS_STATUSBAR], separation);
 }
 

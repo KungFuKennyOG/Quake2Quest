@@ -31,6 +31,7 @@
 
 static void registerClientHooks(void);
 static void clearDrawCache(void);
+extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
 extern "C" void CL_SoF_RegisterHooks(sof_entitydraw_t, sof_viewweapondraw_t) __attribute__((weak));
 
 static game_export_t *sge;          /* the SoF game */
@@ -719,6 +720,7 @@ extern "C" int sofb_init(int maxclients)
 extern "C" void sofb_shutdown(void)
 {
 	if (CL_SoF_RegisterHooks) CL_SoF_RegisterHooks(0, 0);
+	if (Pmove_SetSoFHeights) Pmove_SetSoFHeights(0);
 	clearDrawCache();
 	if (sge) sge->Shutdown();
 	sge = 0;
@@ -757,6 +759,18 @@ extern "C" void sofb_clientthink(int num, const sofb_usercmd_t *c)
 	g_thinkClient = num;
 	sge->ClientThink(edictOf(num), &cmd);
 	g_thinkClient = -1;
+	static const char *dbg = getenv("SOF_DEBUG");
+	static int n;
+	if (dbg && (n++ % 100) == 0)
+	{
+		edict_t *e = edictOf(num);
+		player_state_t *ps = e && e->client ? (player_state_t *)e->client : 0;
+		char b[256];
+		snprintf(b, sizeof(b), "[sofdbg] think %d: fwd %d side %d yaw %d btn %d msec %d -> pm_type %d origin %.0f %.0f %.0f\n",
+		         num, cmd.forwardmove, cmd.sidemove, cmd.angles[1], cmd.buttons, cmd.msec, ps ? ps->pmove.pm_type : -1,
+		         e ? e->s.origin[0] : 0, e ? e->s.origin[1] : 0, e ? e->s.origin[2] : 0);
+		q2b_dprint(b);
+	}
 }
 
 extern "C" void sofb_runframe(void)
@@ -822,6 +836,7 @@ extern "C" void sofb_syncmirrors(void)
 			o.pm_type = 4;
 		}
 		for (int k = 0; k < 4; k++) o.blend[k] = ps->blend[k];
+		for (int k = 0; k < MAX_STATS && k < 32; k++) o.stats[k] = ps->stats[k];
 		o.fov = ps->fov > 0 ? ps->fov : 90.0f;
 		o.rdflags = ps->rdflags;
 		q2b_setps(c, &o);
@@ -937,8 +952,10 @@ static const sofdraw_t *hookViewWeaponDraw(int client)
 	return buildDraw(-client, ((player_state_t *)e->client)->gun);
 }
 
+extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
 static void registerClientHooks(void)
 {
+	if (Pmove_SetSoFHeights) Pmove_SetSoFHeights(1);
 	if (CL_SoF_RegisterHooks) CL_SoF_RegisterHooks(hookEntityDraw, hookViewWeaponDraw);
 }
 
