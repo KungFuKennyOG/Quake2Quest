@@ -1,0 +1,2266 @@
+diff -ruN a/Game/gamecpp/CWeaponInfo.cpp b/Game/gamecpp/CWeaponInfo.cpp
+--- a/Game/gamecpp/CWeaponInfo.cpp	2026-10-09 15:43:36.098445569 -0400
++++ b/Game/gamecpp/CWeaponInfo.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -2641,7 +2641,7 @@
+ 	gi.ReadFromSavegame('PLPI', &temp, sizeof(temp));
+ 
+ 	m_pickup = temp.m_pickup;
+-	m_edict = GetEdictPtr((int)temp.m_edict);
++	m_edict = GetEdictPtr(*(int *)&temp.m_edict);
+ 	m_fadeStatus = temp.m_fadeStatus;
+ }
+ 
+diff -ruN a/Game/gamecpp/CWeaponInfo.h b/Game/gamecpp/CWeaponInfo.h
+--- a/Game/gamecpp/CWeaponInfo.h	2026-10-09 15:43:36.098507434 -0400
++++ b/Game/gamecpp/CWeaponInfo.h	2026-10-09 12:29:31.000000000 -0400
+@@ -2,7 +2,7 @@
+ #define __CWEAPONINFO_H_
+ 
+ #include "matrix4.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_types.h"
+ 
+ //---------------------------------------------------------------------------------------
+diff -ruN a/Game/gamecpp/ai.cpp b/Game/gamecpp/ai.cpp
+--- a/Game/gamecpp/ai.cpp	2026-10-09 15:43:36.098551303 -0400
++++ b/Game/gamecpp/ai.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -9,7 +9,7 @@
+ #include "m_snowcatai.h"
+ #include "fields.h"
+ #include "ai_pathfinding.h"
+-#include "..\strings\singleplr.h"
++#include "../strings/singleplr.h"
+ 
+ #if _DEBUG
+ char *decName;
+@@ -644,8 +644,8 @@
+ 
+ 	nodeData = orig->nodeData;
+ 
+-	ent = GetEdictPtr((int)orig->ent);
+-	curTarget = GetEdictPtr((int)orig->curTarget);
++	ent = GetEdictPtr(*(int *)&orig->ent);
++	curTarget = GetEdictPtr(*(int *)&orig->curTarget);
+ 
+ 	current_action.MakePtr(*(int *)&orig->current_action);
+ 	recycle_action.MakePtr(*(int *)&orig->recycle_action);
+diff -ruN a/Game/gamecpp/ai.h b/Game/gamecpp/ai.h
+--- a/Game/gamecpp/ai.h	2026-10-09 15:43:36.098589018 -0400
++++ b/Game/gamecpp/ai.h	2026-10-09 12:36:58.000000000 -0400
+@@ -177,7 +177,7 @@
+ 			int newShotAt = 0, int newFriendsKilled = 0, int newAttacked = 0, int newOutOfRange = 0,
+ 			int newTooClose = 0, int newExplosive = 0);
+ 
+-	void CAISkills::operator=(CAISkills &that);
++	void operator=(CAISkills &that);
+ 
+ 	float		getRangeMin(void){return idealRangeMin;}
+ 	float		getRangeMax(void){return idealRangeMax;}
+diff -ruN a/Game/gamecpp/ai_actions.cpp b/Game/gamecpp/ai_actions.cpp
+--- a/Game/gamecpp/ai_actions.cpp	2026-10-09 15:43:36.098613344 -0400
++++ b/Game/gamecpp/ai_actions.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -1,7 +1,7 @@
+ #include "g_local.h"
+ #include "ai_private.h"
+ #include "ds.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ //////////////////////////////////////////////////////////////////////////////
+ 
+@@ -1417,7 +1417,7 @@
+ 
+ void action_c::Evaluate(action_c *orig)
+ {
+-	anim = GetMmovePtr((int)orig->anim);
++	anim = GetMmovePtr(*(int *)&orig->anim);
+ 	
+ 	VectorCopy(orig->face, face);
+ 	VectorCopy(orig->dest, dest);
+@@ -1440,11 +1440,11 @@
+ 
+ 	jump_finish_time	= orig->jump_finish_time;
+ 	waitForAnim			= orig->waitForAnim;
+-	SignalEvent			= GetEventPtr((int)orig->SignalEvent);
++	SignalEvent			= GetEventPtr(*(int *)&orig->SignalEvent);
+ 	isLethal			= orig->isLethal;
+ 	NullTarget			= orig->NullTarget;
+ 
+-	action_target = GetEdictPtr((int)orig->action_target);
++	action_target = GetEdictPtr(*(int *)&orig->action_target);
+ }
+ 
+ /**********************************************************************************
+@@ -2032,7 +2032,7 @@
+ {
+ 	time_of_death = orig->time_of_death;
+ 	drip = orig->drip;
+-	anim2 = GetMmovePtr((int)orig->anim2);
++	anim2 = GetMmovePtr(*(int *)&orig->anim2);
+ 
+ 	action_c::Evaluate(orig);
+ }
+@@ -2104,7 +2104,7 @@
+ {
+ 	time_of_death = orig->time_of_death;
+ 	drip = orig->drip;
+-	anim2 = GetMmovePtr((int)orig->anim2);
++	anim2 = GetMmovePtr(*(int *)&orig->anim2);
+ 
+ 	action_c::Evaluate(orig);
+ }
+@@ -2224,7 +2224,7 @@
+ {
+ 	time_of_death = orig->time_of_death;
+ 	drip = orig->drip;
+-	anim2 = GetMmovePtr((int)orig->anim2);
++	anim2 = GetMmovePtr(*(int *)&orig->anim2);
+ 
+ 	action_c::Evaluate(orig);
+ }
+@@ -2692,7 +2692,7 @@
+ void fall_action::Evaluate(fall_action *orig)
+ {
+ 	started_falling = orig->started_falling;
+-	anim2 = GetMmovePtr((int)orig->anim2);
++	anim2 = GetMmovePtr(*(int *)&orig->anim2);
+ 
+ 	move_action::Evaluate(orig);
+ }
+@@ -3241,9 +3241,9 @@
+ 
+ void dog_walk_action::Evaluate(dog_walk_action *orig)
+ {
+-	m_MoveStraightAnim = GetMmovePtr((int)orig->m_MoveStraightAnim);
+-	m_MoveLeftAnim = GetMmovePtr((int)orig->m_MoveLeftAnim);
+-	m_MoveRightAnim = GetMmovePtr((int)orig->m_MoveRightAnim);
++	m_MoveStraightAnim = GetMmovePtr(*(int *)&orig->m_MoveStraightAnim);
++	m_MoveLeftAnim = GetMmovePtr(*(int *)&orig->m_MoveLeftAnim);
++	m_MoveRightAnim = GetMmovePtr(*(int *)&orig->m_MoveRightAnim);
+ 
+ 	move_action::Evaluate(orig);
+ }
+diff -ruN a/Game/gamecpp/ai_body.cpp b/Game/gamecpp/ai_body.cpp
+--- a/Game/gamecpp/ai_body.cpp	2026-10-09 15:43:36.098672219 -0400
++++ b/Game/gamecpp/ai_body.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -923,8 +923,8 @@
+ 
+ void body_c::Evaluate(body_c *orig)
+ {
+-	currentmove			 = GetMmovePtr((int)orig->currentmove);
+-	owner				 = GetEdictPtr((int)orig->owner);
++	currentmove			 = GetMmovePtr(*(int *)&orig->currentmove);
++	owner				 = GetEdictPtr(*(int *)&orig->owner);
+ 	currentMoveFinished	 = orig->currentMoveFinished; 
+ 	holdCode			 = orig->holdCode;            
+ 	frame_flags			 = orig->frame_flags;         
+@@ -1388,7 +1388,7 @@
+ 
+ void body_heli::Evaluate(body_heli *orig)
+ {
+-	m_heli = GetEdictPtr((int)orig->m_heli);
++	m_heli = GetEdictPtr(*(int *)&orig->m_heli);
+ 
+ 	m_gunBarrelInst.MakePtr(*(int *)&orig->m_gunBarrelInst);
+ 	m_gunBarrelNULLInst.MakePtr(*(int *)&orig->m_gunBarrelNULLInst);
+@@ -1453,7 +1453,7 @@
+ 	m_bRotorEOS = orig->m_bRotorEOS;
+ 	m_bFuselageEOS = orig->m_bFuselageEOS;
+ 
+-	m_target = GetEdictPtr((int)orig->m_target);
++	m_target = GetEdictPtr(*(int *)&orig->m_target);
+ 	VectorCopy(orig->m_vPos, m_vPos);
+ 	m_fArg = orig->m_fArg;
+ 
+@@ -1461,7 +1461,7 @@
+ 
+ 	m_iLastEntFoundIndex = orig->m_iLastEntFoundIndex;
+ 	m_fLastGetEntTime = orig->m_fLastGetEntTime;	
+-	m_AITarget = GetEdictPtr((int)orig->m_AITarget);
++	m_AITarget = GetEdictPtr(*(int *)&orig->m_AITarget);
+ 	m_fNewTargetTimer = orig->m_fNewTargetTimer;
+ 	m_fSideStrafeDist = orig->m_fSideStrafeDist;
+ 	m_iSideStrafeDir = orig->m_iSideStrafeDir;
+@@ -1583,11 +1583,11 @@
+ 
+ void body_tank::Evaluate(body_tank *orig)
+ {
+-	m_target = GetEdictPtr((int)orig->m_target);
++	m_target = GetEdictPtr(*(int *)&orig->m_target);
+ 	VectorCopy(orig->m_vPos, m_vPos);
+ 	m_fArg = orig->m_fArg;
+ 
+-	m_tank = GetEdictPtr((int)orig->m_tank);
++	m_tank = GetEdictPtr(*(int *)&orig->m_tank);
+ 
+ 	m_turretInst.MakePtr(*(int *)&orig->m_turretInst);
+ 	m_cannonInst.MakePtr(*(int *)&orig->m_cannonInst);
+diff -ruN a/Game/gamecpp/ai_bodycow.cpp b/Game/gamecpp/ai_bodycow.cpp
+--- a/Game/gamecpp/ai_bodycow.cpp	2026-10-09 15:43:36.098726642 -0400
++++ b/Game/gamecpp/ai_bodycow.cpp	2026-10-09 12:39:53.000000000 -0400
+@@ -1157,7 +1157,7 @@
+ 			cowToWorld.Identity();
+ 			cowToWorld.Rotate(rotateangs[2],rotateangs[0],-rotateangs[1]);//grr.
+ 			final.Concat(boltToCow,cowToWorld);
+-			final.GetRow(3,(Vect3)firePoint);
++			{ Vect3 portTmp(firePoint); final.GetRow(3,portTmp); }	// PORT: MSVC bound the temporary; firePoint was (and is) left unchanged
+ 			VectorAdd(monster.s.origin,firePoint,firePoint);
+ 
+ 			the_ai->GetAimVector(forward);
+diff -ruN a/Game/gamecpp/ai_bodycow.h b/Game/gamecpp/ai_bodycow.h
+--- a/Game/gamecpp/ai_bodycow.h	2026-10-09 15:43:36.098753264 -0400
++++ b/Game/gamecpp/ai_bodycow.h	2026-10-09 12:39:37.000000000 -0400
+@@ -72,7 +72,9 @@
+ 	virtual	attacks_e	GetBestWeapon(edict_t &monster);
+ 	virtual void		FirePrimaryWeapon(edict_t &monster, bool lethal = false, int NullTarget = 0, qboolean forceFireRate = false) { BiteMe(monster, forceFireRate); }
+ 
++#ifdef _WIN32
+ 	bodydog_c();
++#endif
+ 
+ 	virtual int			GetClassCode(void){return BODY_COW;}//this should be different for everybody in this class family
+ 
+diff -ruN a/Game/gamecpp/ai_bodydog.cpp b/Game/gamecpp/ai_bodydog.cpp
+--- a/Game/gamecpp/ai_bodydog.cpp	2026-10-09 15:43:36.098803053 -0400
++++ b/Game/gamecpp/ai_bodydog.cpp	2026-10-09 12:39:53.000000000 -0400
+@@ -1564,7 +1564,7 @@
+ 			dogToWorld.Identity();
+ 			dogToWorld.Rotate(rotateangs[2],rotateangs[0],-rotateangs[1]);//grr.
+ 			final.Concat(boltToDog,dogToWorld);
+-			final.GetRow(3,(Vect3)firePoint);
++			{ Vect3 portTmp(firePoint); final.GetRow(3,portTmp); }	// PORT: MSVC bound the temporary; firePoint was (and is) left unchanged
+ 			VectorAdd(monster.s.origin,firePoint,firePoint);
+ 
+ 			the_ai->GetAimVector(forward);
+diff -ruN a/Game/gamecpp/ai_bodyhuman.cpp b/Game/gamecpp/ai_bodyhuman.cpp
+--- a/Game/gamecpp/ai_bodyhuman.cpp	2026-10-09 15:43:36.098855750 -0400
++++ b/Game/gamecpp/ai_bodyhuman.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -3,7 +3,7 @@
+ #include "ai_private.h"
+ #include "callback.h"
+ #include "ai_pathfinding.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ #define GIB_HEALTH_LIMIT	-300
+ 
+diff -ruN a/Game/gamecpp/ai_decisions.cpp b/Game/gamecpp/ai_decisions.cpp
+--- a/Game/gamecpp/ai_decisions.cpp	2026-10-09 15:43:36.099226336 -0400
++++ b/Game/gamecpp/ai_decisions.cpp	2026-10-09 12:38:00.000000000 -0400
+@@ -2554,9 +2554,9 @@
+ 	VectorCopy(orig->path_fail_dir, path_fail_dir);
+ 
+ 	path_nextpoint = orig->path_nextpoint;
+-	path_nextpoint.targetEnt = GetEdictPtr((int)orig->path_nextpoint.targetEnt);
++	path_nextpoint.targetEnt = GetEdictPtr(*(int *)&orig->path_nextpoint.targetEnt);
+ 
+-	path_goalentity = GetEdictPtr((int)orig->path_goalentity);
++	path_goalentity = GetEdictPtr(*(int *)&orig->path_goalentity);
+ 
+ 	VectorCopy(orig->path_goalpos, path_goalpos);
+ 	path_goal_updatedtime = orig->path_goal_updatedtime;
+@@ -3003,11 +3003,11 @@
+ void pathcorner_decision::Evaluate(pathcorner_decision *orig)
+ {
+ 	reactivate_time = orig->reactivate_time;
+-	oldTarget = GetEdictPtr((int)orig->oldTarget);
++	oldTarget = GetEdictPtr(*(int *)&orig->oldTarget);
+ 	curWaitActionNum = orig->curWaitActionNum;
+ 	firstActionAtWait = orig->firstActionAtWait;
+ 	isAtCorner = orig->isAtCorner;
+-	curMoveAction = GetMmovePtr((int)orig->curMoveAction);
++	curMoveAction = GetMmovePtr(*(int *)&orig->curMoveAction);
+ 
+ 	path_decision::Evaluate(orig);
+ }
+@@ -3708,7 +3708,7 @@
+ 
+ 			//we want our guy to look at each possible spot for 4 seconds, but I don't feel like adding a counter
+ 			//the addition of monster will add a bit of randomness if two guys are at the same node (icky, though)
+-			if(aiPoints.getLookSpot(monster.s.origin, lookSpot, ((int)(level.time/4.0)+(int)(&monster))))
++			if(aiPoints.getLookSpot(monster.s.origin, lookSpot, ((int)(level.time/4.0)+(int)(intptr_t)(&monster))))
+ 			{
+ 				body_c *body = which_ai.GetBody();
+ 
+@@ -4856,14 +4856,14 @@
+ void scripted_decision::Evaluate(scripted_decision *orig)
+ {
+ 	scriptDone = orig->scriptDone;
+-	self = GetEdictPtr((int)orig->self);
++	self = GetEdictPtr(*(int *)&orig->self);
+ 	ignorePreferred = orig->ignorePreferred;
+ 	orderStartTime = orig->orderStartTime;
+ 	VectorCopy(orig->oldPosition, oldPosition);
+ 	VectorCopy(orig->actDest, actDest);
+ 	VectorCopy(orig->actDestDir, actDestDir);
+-	lastMove = GetMmovePtr((int)orig->lastMove);
+-	ScriptEnt = GetEdictPtr((int)orig->ScriptEnt);
++	lastMove = GetMmovePtr(*(int *)&orig->lastMove);
++	ScriptEnt = GetEdictPtr(*(int *)&orig->ScriptEnt);
+ 
+ 	path_decision::Evaluate(orig);
+ }
+@@ -4936,7 +4936,7 @@
+ 
+ void scriptOrder_c::Evaluate(scriptOrder_c *orig)
+ {
+-	preferredMove = GetMmovePtr((int)orig->preferredMove);
++	preferredMove = GetMmovePtr(*(int *)&orig->preferredMove);
+ 	holdTime = orig->holdTime;
+ 	VectorCopy(orig->turnVec, turnVec);
+ 	VectorCopy(orig->destVec, destVec);
+@@ -4944,9 +4944,9 @@
+ 	kill = orig->kill;
+ 	actionType = orig->actionType;
+ 	flags = orig->flags;
+-	SignalEvent = GetEventPtr((int)orig->SignalEvent);
++	SignalEvent = GetEventPtr(*(int *)&orig->SignalEvent);
+ 	speed = orig->speed;
+-	target = GetEdictPtr((int)orig->target);
++	target = GetEdictPtr(*(int *)&orig->target);
+ 	NullTarget = orig->NullTarget;
+ 	Emotion = orig->Emotion;
+ }
+diff -ruN a/Game/gamecpp/ai_path_pre.cpp b/Game/gamecpp/ai_path_pre.cpp
+--- a/Game/gamecpp/ai_path_pre.cpp	2026-10-09 15:43:36.099373880 -0400
++++ b/Game/gamecpp/ai_path_pre.cpp	2026-10-09 12:40:44.000000000 -0400
+@@ -1,7 +1,9 @@
+ #include "g_local.h"
+ #include "ai_pathfinding.h"
+ 
++#ifdef _WIN32
+ #include <windows.h>
++#endif
+ 
+ void SetGenericEffectInfo(edict_t *ent);
+ 
+@@ -409,12 +411,15 @@
+ 	}
+ }
+ 
++#ifdef _WIN32
+ #include "windows.h"
++#endif
+ 
+ void CAIRegion::load(unsigned char **data)
+ {
+ 	id = readInt(data);
+-	for(int i = 0; i < 3; i++)min[i] = readFloat(data);
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < 3; i++)min[i] = readFloat(data);
+ 	for(i = 0; i < 3; i++)max[i] = readFloat(data);
+ 	targNode = readInt(data);
+ 	blockSide = readInt(data);
+@@ -490,7 +495,8 @@
+ 
+ void CAIFloorSquare::saveExport(FILE **fp)
+ {
+-	for(int i = 0; i < 3; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < 3; i++)
+ 	{
+ 		fwrite(&min[i], sizeof(float), 1, *fp);
+ 		//signed char val = min[i] / 48;
+@@ -564,7 +570,8 @@
+ 
+ 			vec3_t pmin, pmax;
+ 
+-			for(int i = 0; i < 2; i++)
++			int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++			for(i = 0; i < 2; i++)
+ 			{
+ 				pmin[i] = ((((int)spot2[i])+4096) / 48)*48 - 4096;
+ 				pmax[i] = pmin[i] + 48;
+@@ -746,7 +753,8 @@
+ 
+ 	numX = 1;
+ 
+-	for(int i = 1; i < regionsInUse; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 1; i < regionsInUse; i++)
+ 	{
+ 		if(floorSpaces[i].getMin()[0] != floorSpaces[i - 1].getMin()[0])
+ 		{
+@@ -1153,7 +1161,8 @@
+ {
+ 	qsort(floorSpaces, regionsInUse, sizeof(floorSpaces[0]), floorSpaceSort);
+ 
+-	for(int i = 0; i < regionsInUse; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < regionsInUse; i++)
+ 	{
+ 		floorSpaces[i].setId(i);
+ 		floorSpaces[i].setYMinus(-1);
+@@ -2215,7 +2224,7 @@
+ 				while((curNode != id2) && curNode)
+ 				{
+ 					//map<int, CAINode>::iterator check = nodes.find(curNode);
+-					vector<CAINode>::iterator check = &nodes[curNode];
++					vector<CAINode>::iterator check = nodes.begin() + curNode;
+ 					if(check != nodes.end())
+ 					{	
+ 						if(!(*check).getChecked())
+@@ -2250,7 +2259,7 @@
+ 				int curNode = id2;
+ 				while((curNode != id1) && curNode)
+ 				{
+-					vector<CAINode>::iterator check = &nodes[curNode];
++					vector<CAINode>::iterator check = nodes.begin() + curNode;
+ 					if(check != nodes.end())
+ 					{	
+ 						if(!(*check).getChecked())
+@@ -2714,7 +2723,7 @@
+ 
+ 		vector<CAINode>::iterator it;
+ 
+-		it = &combatPoints[delCP];
++		it = combatPoints.begin() + delCP;
+ 		combatPoints.erase(it);
+ 
+ 		Com_Printf("Combat Point deleted\n");
+@@ -2736,7 +2745,7 @@
+ 
+ 		vector<CAINode>::iterator it;
+ 
+-		it = &nodes[delNode];
++		it = nodes.begin() + delNode;
+ 		nodes.erase(it);
+ 
+ 		Com_Printf("Point deleted\n");
+@@ -2931,7 +2940,8 @@
+ 	//fixme - if deleting is added in, the gaps are GOING to have to be taken care of.
+ 
+ 	fwrite(&i, sizeof(i), 1, navFile);
+-	for(int j = 0; j < i; j++)
++	int j;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(j = 0; j < i; j++)
+ 	{
+ 		nodes[j].save(navFile);
+ 	}
+@@ -2986,7 +2996,8 @@
+ 	StartNodeDrawMonkey();
+ 	initRegionTrace();
+ 
+-	for(int i = 0; i < numNodes; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < numNodes; i++)
+ 	{
+ 		CAINode newPoint;
+ 
+diff -ruN a/Game/gamecpp/ai_pathfinding.cpp b/Game/gamecpp/ai_pathfinding.cpp
+--- a/Game/gamecpp/ai_pathfinding.cpp	2026-10-09 15:43:36.099424268 -0400
++++ b/Game/gamecpp/ai_pathfinding.cpp	2026-10-09 12:40:44.000000000 -0400
+@@ -103,7 +103,8 @@
+ 	min[2] = (readChar(inData)*48);*/
+ 	partial = readByte(inData);
+ 	id = readShort(inData);
+-	for(int i = 0; i < NUM_NEAR_NODES; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < NUM_NEAR_NODES; i++)
+ 	{
+ 		nearNodes[i] = readShort(inData);
+ 	}
+@@ -497,7 +498,9 @@
+ 	return 1;
+ }
+ 
++#ifdef _WIN32
+ #include "windows.h"
++#endif
+ 
+ void CAIPathNode::load(byte **inData, int numNodes)
+ {
+@@ -525,7 +528,8 @@
+ 	link = new CAIPathLink[numLinks];
+ 	path = new byte[numNodes];
+ 
+-	for(int i = 0; i < numLinks; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < numLinks; i++)
+ 	{
+ 		link[i].load(inData);
+ 	}
+@@ -581,7 +585,7 @@
+ 
+ int	CAIPathNode::getDest(int finalNode)
+ {
+-	if(!path || (path < 0))
++	if(!path || ((intptr_t)path < 0))
+ 	{
+ 		Com_Printf("Error!  Problem with path!\n");
+ 		return finalNode;
+@@ -749,7 +753,8 @@
+ 
+ void CAIPaths::clean(void)
+ {
+-	for(int i = 0; i < numNodes; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < numNodes; i++)
+ 	{
+ 		node[i].clean();
+ 	}
+@@ -832,7 +837,7 @@
+ 		floors.addOccupiedFloor(floor2);
+ 	}
+ 
+-	if(nodeVal > 0)
++	if(nodeVal != NULL)	// PORT: was `nodeVal > 0` (unsigned ptr compare on MSVC)
+ 	{
+ 		node[*nodeVal].markClearedNodes(searchKey++);
+ 	}
+@@ -1315,7 +1320,8 @@
+ 			continue;
+ 		}
+ 
+-		for(int j = 0; j < NUM_NEAR_NODES; j++)
++		int j;	// PORT: hoisted, code relies on MSVC6 for-scope
++		for(j = 0; j < NUM_NEAR_NODES; j++)
+ 		{
+ 			if(other->getNearNode(j) == nextNode || other->getNearNode(j) == -1)
+ 			{
+diff -ruN a/Game/gamecpp/ai_senses.cpp b/Game/gamecpp/ai_senses.cpp
+--- a/Game/gamecpp/ai_senses.cpp	2026-10-09 15:43:36.099509452 -0400
++++ b/Game/gamecpp/ai_senses.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -184,8 +184,8 @@
+ 	mute_endtime		= orig->mute_endtime;
+ 	mute_degree			= orig->mute_degree;
+ 
+-	sensed_monster.ent = GetEdictPtr((int)sensed_monster.ent);
+-	sensed_client.ent = GetEdictPtr((int)sensed_client.ent);  
++	sensed_monster.ent = GetEdictPtr(*(int *)&sensed_monster.ent);
++	sensed_client.ent = GetEdictPtr(*(int *)&sensed_client.ent);  
+ }
+ 
+ /**********************************************************************************
+@@ -638,7 +638,7 @@
+ 	for(i = 0; i < numsounds; i++)
+ 	{
+ 		sounds[i] = orig->sounds[i];
+-		sounds[i].ent = GetEdictPtr((int)sounds[i].ent);
++		sounds[i].ent = GetEdictPtr(*(int *)&sounds[i].ent);
+ 	}
+ 	sense_c::Evaluate(orig);
+ }
+diff -ruN a/Game/gamecpp/dm.cpp b/Game/gamecpp/dm.cpp
+--- a/Game/gamecpp/dm.cpp	2026-10-09 15:43:36.099580052 -0400
++++ b/Game/gamecpp/dm.cpp	2026-10-09 12:40:44.000000000 -0400
+@@ -7,7 +7,7 @@
+ #include "w_weapons.h"
+ #include "../strings/dm_generic.h"
+ #include "ai_private.h"	// so we know what a bodyhuman_c is
+-#include "..\qcommon\configstring.h"
++#include "../qcommon/configstring.h"
+ 
+ gamemode_ic *dm = NULL;
+ 
+@@ -1294,8 +1294,8 @@
+ {
+ 	gametype = newtype;
+ 	rules = gamerules[newtype];
+-	gi.configstring(CS_SHOWNAMES,rules->arePlayerNamesOn()?"1":"0");
+-	gi.configstring(CS_SHOWTEAMS,rules->arePlayerTeamsOn()?"1":"0");
++	gi.configstring(CS_SHOWNAMES,(char *)(rules->arePlayerNamesOn()?"1":"0"));
++	gi.configstring(CS_SHOWTEAMS,(char *)(rules->arePlayerTeamsOn()?"1":"0"));
+ 
+ 	rules->registerPlayerIcons();
+ }
+\ No newline at end of file
+diff -ruN a/Game/gamecpp/dm_assassin.cpp b/Game/gamecpp/dm_assassin.cpp
+--- a/Game/gamecpp/dm_assassin.cpp	2026-10-09 15:43:36.099634725 -0400
++++ b/Game/gamecpp/dm_assassin.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -6,7 +6,7 @@
+ #include "dm_private.h"
+ #include "w_weapons.h"
+ #include "../strings/dm_assassin.h"
+-#include "..\qcommon\configstring.h"
++#include "../qcommon/configstring.h"
+ 
+ const int DF_ASSASSIN_NO_HEALTH			= (1<<0);
+ const int DF_ASSASSIN_NO_ITEMS			= (1<<1);
+diff -ruN a/Game/gamecpp/dm_ctf.cpp b/Game/gamecpp/dm_ctf.cpp
+--- a/Game/gamecpp/dm_ctf.cpp	2026-10-09 15:43:36.099660044 -0400
++++ b/Game/gamecpp/dm_ctf.cpp	2026-10-09 12:38:59.000000000 -0400
+@@ -8,7 +8,7 @@
+ #include "dm_ctf.h"
+ #include "p_body.h"
+ #include "../strings/dm_generic.h"
+-#include "..\qcommon\configstring.h"
++#include "../qcommon/configstring.h"
+ 
+ const int DF_CTF_NO_HEALTH			= (1<<0);
+ const int DF_CTF_NO_ITEMS			= (1<<1);
+@@ -218,7 +218,8 @@
+ 	if (!stricmp(ctf_team_blue->string, ctf_team_red->string))
+ 	{
+ 		// look for which one the red team is
+-		for (int i=0; i<MAX_DEFINED_TEAMS; i++)
++		int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++		for (i=0; i<MAX_DEFINED_TEAMS; i++)
+ 		{
+ 			// if we are the same, then choose the next team
+ 			if (!stricmp(ctf_team_red->string, teamnames[i]))
+diff -ruN a/Game/gamecpp/ds.cpp b/Game/gamecpp/ds.cpp
+--- a/Game/gamecpp/ds.cpp	2026-10-09 15:43:36.099890443 -0400
++++ b/Game/gamecpp/ds.cpp	2026-10-09 13:20:19.000000000 -0400
+@@ -1,7 +1,9 @@
+ #include "g_local.h"
+ #define WIN32_LEAN_AND_MEAN
+ #define VC_EXTRALEAN
++#ifdef _WIN32
+ #include <windows.h>
++#endif
+ #include "ds.h"
+ #include "w_weapons.h"
+ 
+@@ -1503,7 +1505,7 @@
+ 
+ void EntityVar::Evaluate(CScript *Script, EntityVar *orig)
+ {
+-	Value = GetEdictPtr((int)orig->Value);
++	Value = GetEdictPtr(*(int *)&orig->Value);
+ 
+ 	Variable::Evaluate(Script, orig);
+ }
+@@ -1526,7 +1528,7 @@
+ 
+ 	*(int *)&Value = GetEdictNum(Value);
+ 	gi.AppendToSavegame('SENT', this, sizeof(*this));
+-	Value = GetEdictPtr((int)Value);
++	Value = GetEdictPtr(*(int *)&Value);
+ }
+ 
+ void EntityVar::ReadValue(CScript *Script)
+@@ -1642,7 +1644,7 @@
+ 
+ void VariableVar::Evaluate(CScript *Script, VariableVar *orig)
+ {
+-	Value = Script->LookupVar((int)orig->Value);
++	Value = Script->LookupVar(*(int *)&orig->Value);
+ 
+ 	Variable::Evaluate(Script, orig);
+ }
+@@ -1664,7 +1666,7 @@
+ 	GetIndex(Script);
+ 	*(int *)&Value = Script->LookupVarIndex(Value);
+ 	gi.AppendToSavegame('SVVR', this, sizeof(*this));
+-	Value = Script->LookupVar((int)Value);
++	Value = Script->LookupVar(*(int *)&Value);
+ }
+ 
+ void VariableVar::ReadValue(CScript *Script)
+@@ -1697,8 +1699,8 @@
+ 
+ void FieldVariableVar::Evaluate(CScript *Script, FieldVariableVar *orig)
+ {
+-	Value = Script->LookupVar((int)orig->Value);
+-	Field = Script->LookupField((int)orig->Field);
++	Value = Script->LookupVar(*(int *)&orig->Value);
++	Field = Script->LookupField(*(int *)&orig->Field);
+ 
+ 	Variable::Evaluate(Script, orig);
+ }
+@@ -1721,8 +1723,8 @@
+ 	*(int *)&Value = Script->LookupVarIndex(Value);
+ 	*(int *)&Field = Script->LookupFieldIndex(Field);
+ 	gi.AppendToSavegame('SFVV', this, sizeof(*this));
+-	Value = Script->LookupVar((int)Value);
+-	Field = Script->LookupField((int)Field);
++	Value = Script->LookupVar(*(int *)&Value);
++	Field = Script->LookupField(*(int *)&Field);
+ }
+ 
+ void FieldVariableVar::ReadValue(CScript *Script)
+@@ -1918,7 +1920,7 @@
+ 
+ void Signaler::Evaluate(CScript *Script, Signaler *orig)
+ {
+-	Edict = GetEdictPtr((int)orig->Edict);
++	Edict = GetEdictPtr(*(int *)&orig->Edict);
+ 	Var = orig->Var;
+ 	SignalType = orig->SignalType;
+ 
+@@ -1956,7 +1958,7 @@
+ 	tempvar = Var;
+ 	Var = (Variable *)!!Var;
+ 	gi.AppendToSavegame('SSIG', this, sizeof(*this));
+-	Edict = GetEdictPtr((int)Edict);
++	Edict = GetEdictPtr(*(int *)&Edict);
+ 	Var = tempvar;
+ 
+ 	if(Var)
+@@ -2415,7 +2417,7 @@
+ 
+ void MoveRotateEvent::Evaluate(CScript *Script, MoveRotateEvent *orig)
+ {
+-	Ent = GetEdictPtr((int)orig->Ent);
++	Ent = GetEdictPtr(*(int *)&orig->Ent);
+ 	VectorCopy(orig->v3RelativeOrigin, v3RelativeOrigin);
+ 	VectorCopy(orig->v3RelativeAngles, v3RelativeAngles);
+ 
+@@ -2439,7 +2441,7 @@
+ 	// Write out data
+ 	*(int *)&Ent = GetEdictNum(Ent);
+ 	gi.AppendToSavegame('SMRE', this, sizeof(*this));
+-	Ent = GetEdictPtr((int)Ent);
++	Ent = GetEdictPtr(*(int *)&Ent);
+ }
+ 
+ bool MoveRotateEvent::Process(CScript *Script)
+@@ -2483,7 +2485,7 @@
+ void AnimateDoneEvent::Evaluate(CScript *Script, AnimateDoneEvent *orig)
+ {
+ 	Done = orig->Done;
+-	Ent = GetEdictPtr((int)orig->Ent);
++	Ent = GetEdictPtr(*(int *)&orig->Ent);
+ 
+ 	Event::Evaluate(Script, orig);
+ }
+@@ -2505,7 +2507,7 @@
+ 	// Write out data
+ 	*(int *)&Ent = GetEdictNum(Ent);
+ 	gi.AppendToSavegame('SADE', this, sizeof(*this));
+-	Ent = GetEdictPtr((int)Ent);
++	Ent = GetEdictPtr(*(int *)&Ent);
+ }
+ 
+ bool AnimateDoneEvent::Process(CScript *Script)
+@@ -2531,7 +2533,7 @@
+ 
+ void MoveDoneEvent::Evaluate(CScript *Script, MoveDoneEvent *orig)
+ {
+-	Ent = GetEdictPtr((int)orig->Ent);
++	Ent = GetEdictPtr(*(int *)&orig->Ent);
+ 
+ 	Event::Evaluate(Script, orig);
+ }
+@@ -2553,7 +2555,7 @@
+ 	// Write out data
+ 	*(int *)&Ent = GetEdictNum(Ent);
+ 	gi.AppendToSavegame('SMDE', this, sizeof(*this));
+-	Ent = GetEdictPtr((int)Ent);
++	Ent = GetEdictPtr(*(int *)&Ent);
+ }
+ 
+ bool MoveDoneEvent::Process(CScript *Script)
+@@ -2581,7 +2583,7 @@
+ 
+ void RotateDoneEvent::Evaluate(CScript *Script, RotateDoneEvent *orig)
+ {
+-	Ent = GetEdictPtr((int)orig->Ent);
++	Ent = GetEdictPtr(*(int *)&orig->Ent);
+ 
+ 	Event::Evaluate(Script, orig);
+ }
+@@ -2603,7 +2605,7 @@
+ 	// Write out data
+ 	*(int *)&Ent = GetEdictNum(Ent);
+ 	gi.AppendToSavegame('SRDE', this, sizeof(*this));
+-	Ent = GetEdictPtr((int)Ent);
++	Ent = GetEdictPtr(*(int *)&Ent);
+ }
+ 
+ bool RotateDoneEvent::Process(CScript *Script)
+@@ -2632,7 +2634,7 @@
+ 
+ void HelicopterDoneEvent::Evaluate(CScript *Script, HelicopterDoneEvent *orig)
+ {
+-	Ent = GetEdictPtr((int)orig->Ent);
++	Ent = GetEdictPtr(*(int *)&orig->Ent);
+ 	m_ID = orig->m_ID;
+ 	Priority = orig->Priority;
+ 
+@@ -2656,7 +2658,7 @@
+ 	// Write out data
+ 	*(int *)&Ent = GetEdictNum(Ent);
+ 	gi.AppendToSavegame('SHDE', this, sizeof(*this));
+-	Ent = GetEdictPtr((int)Ent);
++	Ent = GetEdictPtr(*(int *)&Ent);
+ }
+ 
+ bool HelicopterDoneEvent::Process(CScript *Script)
+@@ -2713,7 +2715,7 @@
+ 
+ void TankDoneEvent::Evaluate(CScript *Script, TankDoneEvent *orig)
+ {
+-	Ent = GetEdictPtr((int)orig->Ent);
++	Ent = GetEdictPtr(*(int *)&orig->Ent);
+ 	m_ID = orig->m_ID;
+ 	Priority = orig->Priority;
+ 
+@@ -2737,7 +2739,7 @@
+ 	// Write out data
+ 	*(int *)&Ent = GetEdictNum(Ent);
+ 	gi.AppendToSavegame('STDE', this, sizeof(*this));
+-	Ent = GetEdictPtr((int)Ent);
++	Ent = GetEdictPtr(*(int *)&Ent);
+ }
+ 
+ bool TankDoneEvent::Process(CScript *Script)
+@@ -2794,8 +2796,8 @@
+ 
+ void ExecuteEvent::Evaluate(CScript *Script, ExecuteEvent *orig)
+ {
+-	Other = GetEdictPtr((int)orig->Other);
+-	Activator = GetEdictPtr((int)orig->Activator);
++	Other = GetEdictPtr(*(int *)&orig->Other);
++	Activator = GetEdictPtr(*(int *)&orig->Activator);
+ 	Priority = orig->Priority;
+ 
+ 	Event::Evaluate(Script, orig);
+@@ -2819,8 +2821,8 @@
+ 	*(int *)&Other = GetEdictNum(Other);
+ 	*(int *)&Activator = GetEdictNum(Activator);
+ 	gi.AppendToSavegame('SEEX', this, sizeof(*this));
+-	Other = GetEdictPtr((int)Other);
+-	Activator = GetEdictPtr((int)Activator);
++	Other = GetEdictPtr(*(int *)&Other);
++	Activator = GetEdictPtr(*(int *)&Activator);
+ }
+ 
+ bool ExecuteEvent::Process(CScript *Script)
+@@ -4766,7 +4768,7 @@
+ 			typedef struct
+ 			{
+ 				char	sHeader[4];		// "ROFF" (Rotation, Origin File Format)
+-				long	lVersion;	
++				int		lVersion;	// PORT: was long (8 bytes on LP64; the file field is 32-bit)	
+ 				float	fCount;			// personally I'd have thought this should be an int, but I vos only follovink orderz
+ 										// cuz originally the plugin was only capable of writing out floats
+ 				//
+@@ -4824,7 +4826,8 @@
+ 						}
+ 
+ 						vec3_t *v3ROFData = (vec3_t *) &lpROFHdr[1];
+-						for (int i=0; i<(int)(lpROFHdr->fCount); i++, v3ROFData+=2)
++						int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++						for (i=0; i<(int)(lpROFHdr->fCount); i++, v3ROFData+=2)
+ 						{
+ 							//		Float, float, float: relative origin change
+ 							//		Float, float, float: relative rotation change
+diff -ruN a/Game/gamecpp/fx_effects.h b/Game/gamecpp/fx_effects.h
+--- a/Game/gamecpp/fx_effects.h	2026-10-09 15:43:36.100056864 -0400
++++ b/Game/gamecpp/fx_effects.h	2026-10-09 12:43:00.000000000 -0400
+@@ -1,7 +1,7 @@
+ #ifndef __FXEFFECTS_H_
+ #define __FXEFFECTS_H_
+ 
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "q_shared.h"
+ #include "q_sh_fx.h"
+ #include "game.h"
+@@ -118,7 +118,7 @@
+ 	void		sendData(vec3_t source, multicast_t castType, edict_t *ignoreClient);
+ 	int			findEffectID(int effectID, edict_t *ent, GhoulID bolt = 0);
+ 	int			findEffectID(char *name, edict_t *ent, GhoulID bolt = 0)
+-					{findEffectID(gi.effectindex(name), ent, bolt);}
++					{return findEffectID(gi.effectindex(name), ent, bolt);}	// PORT: missing return (UB on gcc/clang)
+ 
+ public:
+ 	CFXSender(void){flags = 0;}
+diff -ruN a/Game/gamecpp/fx_tempents.cpp b/Game/gamecpp/fx_tempents.cpp
+--- a/Game/gamecpp/fx_tempents.cpp	2026-10-09 15:43:36.100080819 -0400
++++ b/Game/gamecpp/fx_tempents.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "g_local.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ bool	lock_blood;
+ 
+diff -ruN a/Game/gamecpp/g_cmds.cpp b/Game/gamecpp/g_cmds.cpp
+--- a/Game/gamecpp/g_cmds.cpp	2026-10-09 15:43:36.100167691 -0400
++++ b/Game/gamecpp/g_cmds.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -4,7 +4,7 @@
+ #include "w_types.h"
+ #include "ai_path_pre.h"
+ #include "p_body.h"
+-#include "..\strings\general.h"
++#include "../strings/general.h"
+ 
+ extern void ED_CallSpawn (edict_t *ent);
+ extern void sendRestartPrediction(edict_t *ent);
+diff -ruN a/Game/gamecpp/g_func.cpp b/Game/gamecpp/g_func.cpp
+--- a/Game/gamecpp/g_func.cpp	2026-10-09 15:43:36.100278620 -0400
++++ b/Game/gamecpp/g_func.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,7 +1,7 @@
+ #include "g_local.h"
+ #include "ai_private.h"
+ #include "w_weapons.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ //  func_...
+ void SP_func_ambientSet (edict_t *ent);
+diff -ruN a/Game/gamecpp/g_generic.cpp b/Game/gamecpp/g_generic.cpp
+--- a/Game/gamecpp/g_generic.cpp	2026-10-09 15:43:36.100351544 -0400
++++ b/Game/gamecpp/g_generic.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -6,7 +6,7 @@
+ #include "g_obj.h"
+ #include "ai_private.h" // hmmm, is this kosher?
+ #include "callback.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ extern void debug_drawbox(edict_t* self,vec3_t vOrigin, vec3_t vMins, vec3_t vMaxs, int nColor);
+ 
+diff -ruN a/Game/gamecpp/g_ghoul.cpp b/Game/gamecpp/g_ghoul.cpp
+--- a/Game/gamecpp/g_ghoul.cpp	2026-10-09 15:43:36.100455851 -0400
++++ b/Game/gamecpp/g_ghoul.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "g_local.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ gameghoul_c game_ghoul;
+ 
+@@ -398,7 +398,7 @@
+ 
+ void ggOinstC::Evaluate(ggOinstC *orig)
+ {
+-	my_edict = GetEdictPtr((int)orig->my_edict);
++	my_edict = GetEdictPtr(*(int *)&orig->my_edict);
+ 	my_obj.MakePtr(*(int *)&orig->my_obj);
+ 	sequence = orig->sequence;
+ 
+diff -ruN a/Game/gamecpp/g_items.cpp b/Game/gamecpp/g_items.cpp
+--- a/Game/gamecpp/g_items.cpp	2026-10-09 15:43:36.100554823 -0400
++++ b/Game/gamecpp/g_items.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -3,8 +3,8 @@
+ #include "p_body.h"
+ #include "w_weapons.h"
+ #include "dm_ctf.h"
+-#include "..\qcommon\ef_flags.h"
+-#include "..\qcommon\configstring.h"
++#include "../qcommon/ef_flags.h"
++#include "../qcommon/configstring.h"
+ 
+ #define HLTH_ITEM_PICKUP 10000
+ 
+diff -ruN a/Game/gamecpp/g_lightmodels.cpp b/Game/gamecpp/g_lightmodels.cpp
+--- a/Game/gamecpp/g_lightmodels.cpp	2026-10-09 15:43:36.100604595 -0400
++++ b/Game/gamecpp/g_lightmodels.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -5,7 +5,7 @@
+ #include "g_local.h"
+ #include "g_obj.h"
+ #include "callback.h"
+-#include "..\qcommon\configstring.h"
++#include "../qcommon/configstring.h"
+ 
+ #define HANGING_ONTABLE				8
+ #define HANGING_NOANIM				16
+diff -ruN a/Game/gamecpp/g_local.h b/Game/gamecpp/g_local.h
+--- a/Game/gamecpp/g_local.h	2026-10-09 15:43:36.100638386 -0400
++++ b/Game/gamecpp/g_local.h	2026-10-09 12:29:31.000000000 -0400
+@@ -4,7 +4,7 @@
+ #pragma once
+ 
+ #include "q_shared.h"
+-#include "..\qcommon\mathlib.h"
++#include "../qcommon/mathlib.h"
+ 
+ // define GAME_INCLUDE so that game.h does not define the
+ // short, server-visible gclient_t and edict_t structures,
+@@ -17,7 +17,7 @@
+ 
+ #include "fx_effects.h"
+ #include "q_sh_fx.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "g_ghoul.h"
+ #include "dm.h"
+ #include "g_obj.h"
+@@ -34,7 +34,7 @@
+ #include "fields.h"
+ #include "g_skilllevels.h"
+ 
+-// #include "..\server\ipath.h"
++// #include "../server/ipath.h"
+ 
+ // the "gameversion" client command will print this plus compile date
+ #define	GAMEVERSION	"base"
+diff -ruN a/Game/gamecpp/g_main.cpp b/Game/gamecpp/g_main.cpp
+--- a/Game/gamecpp/g_main.cpp	2026-10-09 15:43:36.100668426 -0400
++++ b/Game/gamecpp/g_main.cpp	2026-10-09 12:41:10.000000000 -0400
+@@ -579,7 +579,11 @@
+ =================
+ */
+ 
++#ifdef _WIN32
+ game_export_t *GetGameAPI (game_import_t *import)
++#else
++Q_DLLEXPORT game_export_t *GetGameAPI (game_import_t *import)
++#endif
+ {
+ 	gi = *import;
+ 
+diff -ruN a/Game/gamecpp/g_misc.cpp b/Game/gamecpp/g_misc.cpp
+--- a/Game/gamecpp/g_misc.cpp	2026-10-09 15:43:36.100694305 -0400
++++ b/Game/gamecpp/g_misc.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,8 +1,8 @@
+ // g_misc.c
+ #include "g_local.h"
+ #include "fields.h"
+-#include "..\qcommon\configstring.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/configstring.h"
++#include "../qcommon/ef_flags.h"
+ 
+ #define		INVINCIBLE		1
+ #define		GLASS			2
+diff -ruN a/Game/gamecpp/g_monster.cpp b/Game/gamecpp/g_monster.cpp
+--- a/Game/gamecpp/g_monster.cpp	2026-10-09 15:43:36.100722012 -0400
++++ b/Game/gamecpp/g_monster.cpp	2026-10-09 12:38:59.000000000 -0400
+@@ -722,7 +722,8 @@
+ 
+ 	aiPoints.setupClientPathInfo(&clientNode, &clientRegion);
+ 
+-	for (int i = 0 ; i<globals.num_edicts && numNearbyEnemies<MAX_SEARCHABLE_ENEMIES; i++, ent++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for (i = 0 ; i<globals.num_edicts && numNearbyEnemies<MAX_SEARCHABLE_ENEMIES; i++, ent++)
+ 	{	//go through the edict list and add all active ai's...
+ 		if (!ent->inuse)continue;
+ 		if (!ent->ai)continue;
+diff -ruN a/Game/gamecpp/g_obj.cpp b/Game/gamecpp/g_obj.cpp
+--- a/Game/gamecpp/g_obj.cpp	2026-10-09 15:43:36.100781516 -0400
++++ b/Game/gamecpp/g_obj.cpp	2026-10-09 12:39:58.000000000 -0400
+@@ -4,7 +4,9 @@
+ 
+ #include "g_local.h"
+ #include "g_obj.h"
++#ifdef _WIN32
+ #include "windows.h"
++#endif
+ 
+ int boltInstInfo_c::nMax = MAX_BOLTINSTINFO;
+ 
+@@ -2252,7 +2254,7 @@
+ 
+ void baseObjInfo_c::Evaluate(baseObjInfo_c *orig)
+ {
+-	owner = GetEdictPtr((int)orig->owner);
++	owner = GetEdictPtr(*(int *)&orig->owner);
+ 	boltInstInfo.Evaluate(&orig->boltInstInfo);
+ 	flipInfo.Evaluate(&orig->flipInfo);
+ }
+@@ -2316,7 +2318,7 @@
+ void objInfo_c::Evaluate(objInfo_c *orig)
+ {
+ 	nInfoType = orig->nInfoType;					
+-	head = GetEdictPtr((int)orig->head);
++	head = GetEdictPtr(*(int *)&orig->head);
+ }
+ 
+ objInfo_c::objInfo_c(objInfo_c *orig)
+@@ -2362,7 +2364,7 @@
+ 	VectorCopy(orig->preFlipAngles, preFlipAngles);
+ 	VectorCopy(orig->flipOrigin, flipOrigin);
+ 	VectorCopy(orig->fwd, fwd);
+-	*(int *)&lastThinkFn = GetThinkNum(orig->lastThinkFn);
++	*(int *)&lastThinkFn = GetThinkNum((void *)orig->lastThinkFn);
+ }
+ 
+ void objFlipInfo_c::Evaluate(objFlipInfo_c *orig)
+@@ -2375,7 +2377,7 @@
+ 	VectorCopy(orig->preFlipAngles, preFlipAngles);
+ 	VectorCopy(orig->flipOrigin, flipOrigin);
+ 	VectorCopy(orig->fwd, fwd);
+-	lastThinkFn = (void (*)(edict_t *self))GetThinkPtr((int)orig->lastThinkFn);
++	lastThinkFn = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->lastThinkFn);
+ 
+ 	objInfo_c::Evaluate(orig);
+ }
+diff -ruN a/Game/gamecpp/g_phys.cpp b/Game/gamecpp/g_phys.cpp
+--- a/Game/gamecpp/g_phys.cpp	2026-10-09 15:43:36.100849967 -0400
++++ b/Game/gamecpp/g_phys.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,7 +1,7 @@
+ // g_phys.c
+ 
+ #include "g_local.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ #include "ai_private.h"
+ 
+ #define	STOP_EPSILON	1.0
+diff -ruN a/Game/gamecpp/g_save.cpp b/Game/gamecpp/g_save.cpp
+--- a/Game/gamecpp/g_save.cpp	2026-10-09 15:43:36.100905160 -0400
++++ b/Game/gamecpp/g_save.cpp	2026-10-09 12:38:05.000000000 -0400
+@@ -1,5 +1,7 @@
+ #define WINDOWS_LEAN_AND_MEAN
++#ifdef _WIN32
+ #include <windows.h>
++#endif
+ 
+ #include "g_local.h"
+ #include "ds.h"
+@@ -1513,7 +1515,7 @@
+ 
+ 	// These are placed in when their relevant owners are loaded
+ 	case F_BOOLPTR:
+-		*(qboolean *)p = !!(*(int *)p);
++		*(qboolean *)p = !!(*(void **)p);	// test the whole pointer (64-bit)
+ 		break;
+ 
+ 	// These are pointers that are always recreated
+diff -ruN a/Game/gamecpp/g_sound.cpp b/Game/gamecpp/g_sound.cpp
+--- a/Game/gamecpp/g_sound.cpp	2026-10-09 15:43:36.101067247 -0400
++++ b/Game/gamecpp/g_sound.cpp	2026-10-09 13:20:36.000000000 -0400
+@@ -97,13 +97,13 @@
+ 		return;
+ 	}
+ 
+-	aSet.numWaves = *((unsigned long *)curPos);
++	aSet.numWaves = *((unsigned int *)curPos);
+ 	curPos +=4;
+-	aSet.numGenSets = *((unsigned long *)curPos);
++	aSet.numGenSets = *((unsigned int *)curPos);
+ 	curPos +=4;
+-	aSet.numLocalSets = *((unsigned long *)curPos);
++	aSet.numLocalSets = *((unsigned int *)curPos);
+ 	curPos +=4;
+-	aSet.numBModelSets = *((unsigned long *)curPos);
++	aSet.numBModelSets = *((unsigned int *)curPos);
+ 	curPos +=4;
+ 
+ 	for(i = 0; i < aSet.numWaves; i++)
+diff -ruN a/Game/gamecpp/g_spawn.cpp b/Game/gamecpp/g_spawn.cpp
+--- a/Game/gamecpp/g_spawn.cpp	2026-10-09 15:43:36.101086702 -0400
++++ b/Game/gamecpp/g_spawn.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -4,7 +4,7 @@
+ #include "fields.h"
+ #include "ai_pathfinding.h"
+ #include "p_body.h"
+-#include "..\qcommon\configstring.h"
++#include "../qcommon/configstring.h"
+ 
+ #if TIME_ENTS
+ 	#include <windows.h>
+diff -ruN a/Game/gamecpp/g_target.cpp b/Game/gamecpp/g_target.cpp
+--- a/Game/gamecpp/g_target.cpp	2026-10-09 15:43:36.101175767 -0400
++++ b/Game/gamecpp/g_target.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,8 +1,8 @@
+ #include "g_local.h"
+ #include "fields.h"
+ #include "w_weapons.h"
+-#include "..\qcommon\configstring.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/configstring.h"
++#include "../qcommon/ef_flags.h"
+ 
+ //  target_...
+ void SP_target_temp_entity (edict_t *ent);
+diff -ruN a/Game/gamecpp/g_trigger.cpp b/Game/gamecpp/g_trigger.cpp
+--- a/Game/gamecpp/g_trigger.cpp	2026-10-09 15:43:36.101215482 -0400
++++ b/Game/gamecpp/g_trigger.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,7 +1,7 @@
+ #include "g_local.h"
+ #include "fields.h"
+ #include "strip.h"
+-#include "..\strings\singleplr.h"
++#include "../strings/singleplr.h"
+ 
+ extern float s_levelStatusBegin;	// declared in g_cmds.cpp
+ 
+diff -ruN a/Game/gamecpp/g_utils.cpp b/Game/gamecpp/g_utils.cpp
+--- a/Game/gamecpp/g_utils.cpp	2026-10-09 15:43:36.101260258 -0400
++++ b/Game/gamecpp/g_utils.cpp	2026-10-09 12:38:59.000000000 -0400
+@@ -3,7 +3,7 @@
+ #include "g_local.h"
+ #include "matrix4.h"
+ #include "fields.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ void G_ProjectSource (vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result)
+ {
+@@ -115,7 +115,8 @@
+ 		break;
+ 	}
+ 
+-	for (int i = 0; i < numTrigFound; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for (i = 0; i < numTrigFound; i++)
+ 	{
+ 		touchlist[numFound+i] = attachTouchList[i];
+ 	}
+diff -ruN a/Game/gamecpp/game.h b/Game/gamecpp/game.h
+--- a/Game/gamecpp/game.h	2026-10-09 15:43:36.101316531 -0400
++++ b/Game/gamecpp/game.h	2026-10-09 12:37:19.000000000 -0400
+@@ -4,7 +4,7 @@
+ // game.h -- game dll information visible to server
+ 
+ #include "GSQFile.h"
+-#include "..\qcommon\snd_common.h"
++#include "../qcommon/snd_common.h"
+ 
+ #define	GAME_API_VERSION	3
+ 
+@@ -145,8 +145,16 @@
+ 	void	(*captionprintf) (edict_t *ent, unsigned short ID);
+ 	void	(*Con_ClearNotify) (void);
+ 
++#ifdef _WIN32
+ 	void	(*sound) (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs, int localize=SND_LOCALIZE_GLOBAL);
++#else
++	port_defarg_fp<void (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs, int localize)> sound;	// localize defaults to SND_LOCALIZE_GLOBAL (0)
++#endif
++#ifdef _WIN32
+ 	void	(*positioned_sound) (vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs, int localize=SND_LOCALIZE_GLOBAL);
++#else
++	port_defarg_fp<void (vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs, int localize)> positioned_sound;	// localize defaults to SND_LOCALIZE_GLOBAL (0)
++#endif
+ 
+ 	// Misc. bullshit.
+ 
+@@ -252,14 +260,22 @@
+ 	// Savegame handling
+ 
+ 	qboolean	(*AppendToSavegame)(unsigned long chid, void *data, int length);
++#ifdef _WIN32
+ 	int			(*ReadFromSavegame)(unsigned long chid, void *address, int length, void **addressptr = NULL);
++#else
++	port_defarg_fp<int (unsigned long chid, void *address, int length, void **addressptr)> ReadFromSavegame;	// addressptr defaults to NULL
++#endif
+ #if (!_FINAL_) && (_RAVEN_)
+ 	char		*(*GetLabel)(void *addr);
+ #endif
+ 
+ 	// Console variable interaction.
+ 
++#ifdef _WIN32
+ 	cvar_t	*(*cvar) (const char *var_name, const char *value, int flags, cvarcommand_t command = NULL);
++#else
++	port_defarg_fp<cvar_t *(const char *var_name, const char *value, int flags, cvarcommand_t command)> cvar;	// command defaults to NULL
++#endif
+ 	cvar_t	*(*cvar_set) (const char *var_name, const char *value);
+ 	void	(*cvar_setvalue) (const char *var_name, float value);
+ 	cvar_t	*(*cvar_forceset) (const char *var_name, const char *value);
+@@ -268,7 +284,11 @@
+ 
+ 	// General purpose filesystem routines.
+ 
++#ifdef _WIN32
+ 	int		(*FS_LoadFile) (char *name, void **buf, bool OverridePak = false);
++#else
++	port_defarg_fp<int (char *name, void **buf, bool OverridePak)> FS_LoadFile;	// OverridePak defaults to false
++#endif
+ 	void	(*FS_FreeFile) (void *buf);
+ 	char	*(*FS_Userdir)  (void);
+ 	void	(*FS_CreatePath) (char *path);
+diff -ruN a/Game/gamecpp/m_generic.cpp b/Game/gamecpp/m_generic.cpp
+--- a/Game/gamecpp/m_generic.cpp	2026-10-09 15:43:36.101496722 -0400
++++ b/Game/gamecpp/m_generic.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,7 +1,7 @@
+ #include "g_local.h"
+ #include "ai_private.h"
+ #include "m_generic.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ #define MERC_WEAPON_SCALE 1.142857142857 
+ #define MERC_OTHER_SCALE 1.142857142857 
+diff -ruN a/Game/gamecpp/m_heliactions.cpp b/Game/gamecpp/m_heliactions.cpp
+--- a/Game/gamecpp/m_heliactions.cpp	2026-10-09 15:43:36.101637931 -0400
++++ b/Game/gamecpp/m_heliactions.cpp	2026-10-09 12:39:58.000000000 -0400
+@@ -204,8 +204,8 @@
+ 	m_nCommand = orig->m_nCommand;
+ 	m_fArg = orig->m_fArg;   
+ 
+-	*(int *)&m_think = GetThinkNum(orig->m_think);
+-	*(int *)&m_nextthink = GetThinkNum(orig->m_nextthink);
++	*(int *)&m_think = GetThinkNum((void *)orig->m_think);
++	*(int *)&m_nextthink = GetThinkNum((void *)orig->m_nextthink);
+ }
+ 
+ void heli_action::Evaluate(heli_action *orig)
+@@ -214,8 +214,8 @@
+ 	m_nCommand = orig->m_nCommand;
+ 	m_fArg = orig->m_fArg;   
+ 
+-	m_think = (void (*)(edict_t *self))GetThinkPtr((int)orig->m_think);
+-	m_nextthink = (void (*)(edict_t *self))GetThinkPtr((int)orig->m_nextthink);
++	m_think = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->m_think);
++	m_nextthink = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->m_nextthink);
+ 
+ 	action_c::Evaluate(orig);
+ }
+diff -ruN a/Game/gamecpp/m_heliai.cpp b/Game/gamecpp/m_heliai.cpp
+--- a/Game/gamecpp/m_heliai.cpp	2026-10-09 15:43:36.101675042 -0400
++++ b/Game/gamecpp/m_heliai.cpp	2026-10-09 12:40:44.000000000 -0400
+@@ -5,7 +5,7 @@
+ #include "m_heliai.h"
+ #include "g_obj.h"				// for aiming the gun and the heads
+ #include "callback.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ //#include "m_heli.h"
+  
+@@ -3420,7 +3420,8 @@
+ 		// notice the use of the Vector_GetHalfWayPoint() call rather than just world-clipping the dest,
+ 		//	this keeps the vector correct...
+ 		//
+-		for (int iTries=0; iTries<10; iTries++)	// 30 = arb.
++		int iTries;	// PORT: hoisted, code relies on MSVC6 for-scope
++		for (iTries=0; iTries<10; iTries++)	// 30 = arb.
+ 		{			
+ 			Vector_GetHalfWayPoint(self->s.origin, body->m_v3HeliDesiredPos_Stop, 
+ 				body->m_v3HeliDesiredPos_Stop);
+@@ -5326,8 +5327,8 @@
+ 	vec3_t v3DeathDest;	// unfortunately we need a temp vector since the body doesn't exist till later
+ 	trace_t tr;
+ 	bool	bHind = (0 == strcmp(subclass, "hind"));
+-	char	*modelName = bHind?"enemy/hind":"enemy/chopper",
+-			*modelSubname = bHind?"hind":"cobrass";
++	char	*modelName = (char *)(bHind?"enemy/hind":"enemy/chopper"),
++			*modelSubname = (char *)(bHind?"hind":"cobrass");
+ 
+ 	// precache sounds and effects
+ 	entSoundsToCache[CLSFX_SHOT_HELI1] = 1;
+@@ -5567,7 +5568,7 @@
+ 	m_bTimeToDie = orig->m_bTimeToDie;
+ 	m_bPilotDead = orig->m_bPilotDead;
+ 	m_bGunnerDead = orig->m_bGunnerDead;
+-	m_attacker = GetEdictPtr((int)orig->m_attacker);
++	m_attacker = GetEdictPtr(*(int *)&orig->m_attacker);
+ 	m_ScriptActionCounter = orig->m_ScriptActionCounter;
+ 	m_LastThinkingActionID = orig->m_LastThinkingActionID;
+ 
+diff -ruN a/Game/gamecpp/m_snowcatactions.cpp b/Game/gamecpp/m_snowcatactions.cpp
+--- a/Game/gamecpp/m_snowcatactions.cpp	2026-10-09 15:43:36.101856544 -0400
++++ b/Game/gamecpp/m_snowcatactions.cpp	2026-10-09 12:39:58.000000000 -0400
+@@ -137,8 +137,8 @@
+ 	m_nCommand = orig->m_nCommand;
+ 	m_fArg = orig->m_fArg;   
+ 
+-	*(int *)&m_think = GetThinkNum(orig->m_think);
+-	*(int *)&m_nextthink = GetThinkNum(orig->m_nextthink);
++	*(int *)&m_think = GetThinkNum((void *)orig->m_think);
++	*(int *)&m_nextthink = GetThinkNum((void *)orig->m_nextthink);
+ }
+ 
+ void snowcat_action::Evaluate(snowcat_action *orig)
+@@ -147,8 +147,8 @@
+ 	m_nCommand = orig->m_nCommand;
+ 	m_fArg = orig->m_fArg;   
+ 
+-	m_think = (void (*)(edict_t *self))GetThinkPtr((int)orig->m_think);
+-	m_nextthink = (void (*)(edict_t *self))GetThinkPtr((int)orig->m_nextthink);
++	m_think = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->m_think);
++	m_nextthink = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->m_nextthink);
+ 
+ 	action_c::Evaluate(orig);
+ }
+diff -ruN a/Game/gamecpp/m_snowcatai.cpp b/Game/gamecpp/m_snowcatai.cpp
+--- a/Game/gamecpp/m_snowcatai.cpp	2026-10-09 15:43:36.101886558 -0400
++++ b/Game/gamecpp/m_snowcatai.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -6,7 +6,7 @@
+ #include "m_snowcatai.h"
+ #include "g_obj.h"			// for OrientBolton() and modelSpawnData stuff
+ #include "callback.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ #define SNOWCAT_INACTIVE		(1<<0)
+ 
+diff -ruN a/Game/gamecpp/m_tankactions.cpp b/Game/gamecpp/m_tankactions.cpp
+--- a/Game/gamecpp/m_tankactions.cpp	2026-10-09 15:43:36.101942229 -0400
++++ b/Game/gamecpp/m_tankactions.cpp	2026-10-09 12:39:58.000000000 -0400
+@@ -148,8 +148,8 @@
+ 	m_nCommand = orig->m_nCommand;
+ 	m_fArg = orig->m_fArg;   
+ 
+-	*(int *)&m_think = GetThinkNum(orig->m_think);
+-	*(int *)&m_nextthink = GetThinkNum(orig->m_nextthink);
++	*(int *)&m_think = GetThinkNum((void *)orig->m_think);
++	*(int *)&m_nextthink = GetThinkNum((void *)orig->m_nextthink);
+ }
+ 
+ void tank_action::Evaluate(tank_action *orig)
+@@ -158,8 +158,8 @@
+ 	m_nCommand = orig->m_nCommand;
+ 	m_fArg = orig->m_fArg;   
+ 
+-	m_think = (void (*)(edict_t *self))GetThinkPtr((int)orig->m_think);
+-	m_nextthink = (void (*)(edict_t *self))GetThinkPtr((int)orig->m_nextthink);
++	m_think = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->m_think);
++	m_nextthink = (void (*)(edict_t *self))GetThinkPtr(*(int *)&orig->m_nextthink);
+ 
+ 	action_c::Evaluate(orig);
+ }
+diff -ruN a/Game/gamecpp/m_tankai.cpp b/Game/gamecpp/m_tankai.cpp
+--- a/Game/gamecpp/m_tankai.cpp	2026-10-09 15:43:36.101976679 -0400
++++ b/Game/gamecpp/m_tankai.cpp	2026-10-09 12:37:56.000000000 -0400
+@@ -6,7 +6,7 @@
+ #include "m_tankai.h"
+ #include "g_obj.h"			// for OrientBolton() and modelSpawnData stuff
+ #include "callback.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ #define TANK_INACTIVE		(1<<0)
+ 
+@@ -1345,7 +1345,7 @@
+ {
+ 	m_ScriptActionCounter = orig->m_ScriptActionCounter;
+ 	m_LastThinkingActionID = orig->m_LastThinkingActionID;
+-	m_attacker = GetEdictPtr((int)orig->m_attacker);
++	m_attacker = GetEdictPtr(*(int *)&orig->m_attacker);
+ 	m_bTimeToDie = orig->m_bTimeToDie;
+ 	m_bMoveBackward = orig->m_bMoveBackward;
+ 	VectorCopy(orig->m_vCannonTarget, m_vCannonTarget);
+diff -ruN a/Game/gamecpp/p_body.cpp b/Game/gamecpp/p_body.cpp
+--- a/Game/gamecpp/p_body.cpp	2026-10-09 15:43:36.102050082 -0400
++++ b/Game/gamecpp/p_body.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -11,7 +11,7 @@
+ #include "ai_private.h"
+ #include "p_body.h"
+ #include "m_generic.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ #ifdef __PLAYERTEST_3DPERSON
+ 
+diff -ruN a/Game/gamecpp/p_client.cpp b/Game/gamecpp/p_client.cpp
+--- a/Game/gamecpp/p_client.cpp	2026-10-09 15:43:36.102108325 -0400
++++ b/Game/gamecpp/p_client.cpp	2026-10-09 12:43:08.000000000 -0400
+@@ -1807,7 +1807,11 @@
+ ==============
+ */
+ 
++#ifdef _WIN32
+ int	g_checkOnOtherPlayer(unsigned int groundEntity)
++#else
++int	g_checkOnOtherPlayer(uintptr_t groundEntity)	// PORT: pointer passed as integer; must be pointer-sized
++#endif
+ {
+ 	int entnum=((edict_t *)groundEntity)->s.number;
+ 
+diff -ruN a/Game/gamecpp/p_hud.cpp b/Game/gamecpp/p_hud.cpp
+--- a/Game/gamecpp/p_hud.cpp	2026-10-09 15:43:36.102142164 -0400
++++ b/Game/gamecpp/p_hud.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,7 +1,7 @@
+ #include "g_local.h"
+ #include "q_sh_interface.h"
+ #include "fields.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ extern float s_levelStatusBegin;	// declared in g_cmds.cpp
+ 
+diff -ruN a/Game/gamecpp/p_view.cpp b/Game/gamecpp/p_view.cpp
+--- a/Game/gamecpp/p_view.cpp	2026-10-09 15:43:36.102202194 -0400
++++ b/Game/gamecpp/p_view.cpp	2026-10-09 12:40:44.000000000 -0400
+@@ -10,7 +10,7 @@
+ #include "fields.h"
+ 
+ #include "g_monster.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
+ 
+ void G_UpdateFrameEffects(edict_t *ent);
+ 
+@@ -180,7 +180,7 @@
+ 		side = DotProduct (v, Right);
+ 		client->v_dmg_roll = -0.35*kick*side;
+ 		
+-		side = -DotProduct (v, forward);
++		side = -DotProduct (v, ::forward);
+ 		client->v_dmg_pitch = 0.35*kick*side;
+ 
+ 		client->v_dmg_time = level.time + DAMAGE_TIME;
+@@ -619,7 +619,7 @@
+ 
+ 		// Add angles based on velocity.
+ 
+-		delta = DotProduct (ent->velocity, forward);
++		delta = DotProduct (ent->velocity, ::forward);
+ 		angles[PITCH] += delta*run_pitch->value;
+ 		
+ 		delta = DotProduct (ent->velocity, Right);
+@@ -1359,7 +1359,8 @@
+ 	{
+ 		CRadiusContent radList(where, rad, 1, nodeId);
+ 
+-		for(int i = 0; i < radList.getNumFound(); i++)
++		int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++		for(i = 0; i < radList.getNumFound(); i++)
+ 		{
+ 			ent = radList.foundEdict(i);
+ 
+@@ -1942,7 +1943,7 @@
+ 		return;
+ 	}
+ 
+-	AngleVectors (ent->client->v_angle, forward, Right, up);
++	AngleVectors (ent->client->v_angle, ::forward, Right, up);
+ 
+ 	// burn from lava, etc
+ 	P_WorldEffects ();
+diff -ruN a/Game/gamecpp/pt_listpointer.cpp b/Game/gamecpp/pt_listpointer.cpp
+--- a/Game/gamecpp/pt_listpointer.cpp	2026-10-09 15:43:36.102245699 -0400
++++ b/Game/gamecpp/pt_listpointer.cpp	2026-10-09 12:39:37.000000000 -0400
+@@ -22,7 +22,7 @@
+ {
+ 	int						count;
+ 	classcode_t				ccode;
+-	map<int, T *>::iterator	it;
++	typename map<int, T *>::iterator	it;
+ 
+ 	count = Pointer.size();
+ 	gi.AppendToSavegame('AICT', &count, sizeof(count));
+@@ -38,7 +38,7 @@
+ template <class T>
+ void ptListTC<T>::Write2()
+ {
+-	map<int,T *>::iterator it;
++	typename map<int,T *>::iterator it;
+ 
+ 	for (it = Pointer.begin(); it != Pointer.end(); it++)
+ 	{
+@@ -52,7 +52,7 @@
+ {
+ 	int						i, count;
+ 	classcode_t				ccode;
+-	map<int, T *>::iterator	it;
++	typename map<int, T *>::iterator	it;
+ 
+ 	//make sure the list is empty before loading
+ 	for (it = Pointer.begin(); it != Pointer.end(); it++)
+@@ -80,7 +80,7 @@
+ template <class T>
+ void ptListTC<T>::Read2()
+ {
+-	map<int,T *>::iterator	it;
++	typename map<int,T *>::iterator	it;
+ 
+ 	for (it = Pointer.begin(); it != Pointer.end(); it++)
+ 	{
+diff -ruN a/Game/gamecpp/pt_listpointer.h b/Game/gamecpp/pt_listpointer.h
+--- a/Game/gamecpp/pt_listpointer.h	2026-10-09 15:43:36.102260320 -0400
++++ b/Game/gamecpp/pt_listpointer.h	2026-10-09 12:44:18.000000000 -0400
+@@ -34,7 +34,7 @@
+ public:
+ 	int		GetIndexFromPointer(T *thing)
+ 			{
+-				map<T *,int>::iterator	f;
++				typename map<T *,int>::iterator	f;
+ 
+ 				if (!thing)
+ 				{
+@@ -49,7 +49,7 @@
+ 			}
+ 	T		*GetPointerFromIndex(int index)
+ 			{
+-				map<int,T *>::iterator	f;
++				typename map<int,T *>::iterator	f;
+ 
+ 				if (!index)
+ 				{
+@@ -64,7 +64,7 @@
+ 			}
+ 	void	AddElement(T *thing)
+ 			{
+-				map<T *,int>::iterator	f;
++				typename map<T *,int>::iterator	f;
+ 				int						idx;
+ 
+ 				if (!thing)
+@@ -81,8 +81,8 @@
+ 			}
+ 	void	RemoveElement(T *thing)
+ 			{
+-				map<T *,int>::iterator	f;
+-				map<int,T *>::iterator	ff;
++				typename map<T *,int>::iterator	f;
++				typename map<int,T *>::iterator	ff;
+ 
+ 				if (!thing)
+ 				{
+@@ -159,7 +159,7 @@
+ 			int GetIndex() { return(ptlist->GetIndexFromPointer(this_pointed)); }
+ //			void MakePtr() { this_pointed = ptlist->GetPointerFromIndex((int)this_pointed); }
+ 			void MakePtr(int idx) { this_pointed = ptlist->GetPointerFromIndex(idx); }
+-			T *GetPtr(int i) { ptlist->GetPointerFromIndex(i); }
++			T *GetPtr(int i) { return ptlist->GetPointerFromIndex(i); }	// PORT: missing return
+ };
+ 
+ #define sense_c_ptr ptrTC<sense_c,&senseL>
+diff -ruN a/Game/gamecpp/q_sh_fx.cpp b/Game/gamecpp/q_sh_fx.cpp
+--- a/Game/gamecpp/q_sh_fx.cpp	2026-10-09 15:43:36.102278148 -0400
++++ b/Game/gamecpp/q_sh_fx.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\qcommon\palette.h"
++#include "../qcommon/palette.h"
+ #include "q_sh_fx.h"
+ 
+ // wheee! look at me! I'm _sharing_ !!!!!
+diff -ruN a/Game/gamecpp/q_sh_fx.h b/Game/gamecpp/q_sh_fx.h
+--- a/Game/gamecpp/q_sh_fx.h	2026-10-09 15:43:36.102296215 -0400
++++ b/Game/gamecpp/q_sh_fx.h	2026-10-09 12:43:45.000000000 -0400
+@@ -3,7 +3,7 @@
+ #ifndef _Q_SH_FX_
+ #define _Q_SH_FX_
+ 
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ 
+ typedef enum
+ {
+@@ -686,7 +686,11 @@
+ 
+ typedef struct eft_fade_s
+ {
++#ifdef _WIN32
+ 	long int		startTime;		// what time did the fade begin?
++#else
++	int				startTime;		// PORT: was long int; must stay 32-bit (overlays networked entity_state_t::effectData)
++#endif
+ 	short			duration;		// How many milliseconds does it take to fade?  Negative = fade in.
+ }eft_fade_t;
+ 
+diff -ruN a/Game/gamecpp/q_shared.cpp b/Game/gamecpp/q_shared.cpp
+--- a/Game/gamecpp/q_shared.cpp	2026-10-09 15:43:36.102348328 -0400
++++ b/Game/gamecpp/q_shared.cpp	2026-10-09 12:39:48.000000000 -0400
+@@ -1,8 +1,8 @@
+ #include "q_shared.h"
+-#include "..\qcommon\mathlib.h"
++#include "../qcommon/mathlib.h"
+ 
+ #if id386
+-#include "..\client\amd3d.h"
++#include "../client/amd3d.h"
+ #endif
+ 
+ cvar_t *use_amd3d;	// user-adjustable
+@@ -111,7 +111,7 @@
+ }
+ 
+ 
+-static void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal )
++void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal )
+ {
+ 	float d;
+ 	vec3_t n;
+@@ -172,7 +172,7 @@
+ R_ConcatRotations
+ ================
+ */
+-static void R_ConcatRotations (float in1[3][3], float in2[3][3], float out[3][3])
++void R_ConcatRotations (float in1[3][3], float in2[3][3], float out[3][3])
+ {
+ 	out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] +
+ 				in1[0][2] * in2[2][0];
+@@ -200,7 +200,7 @@
+ R_ConcatTransforms
+ ================
+ */
+-static void R_ConcatTransforms (float in1[3][4], float in2[3][4], float out[3][4])
++void R_ConcatTransforms (float in1[3][4], float in2[3][4], float out[3][4])
+ {
+ 	out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] +
+ 				in1[0][2] * in2[2][0];
+@@ -828,7 +828,7 @@
+ #pragma warning( default: 4035 )
+ #endif	// #if !id386
+ 
+-static void ClearBounds (vec3_t mins, vec3_t maxs)
++void ClearBounds (vec3_t mins, vec3_t maxs)
+ {
+ 	mins[0] = mins[1] = mins[2] = 99999;
+ 	maxs[0] = maxs[1] = maxs[2] = -99999;
+@@ -901,7 +901,7 @@
+ 	return length;
+ }
+ 
+-static vec_t VectorSeparation(vec3_t v0, vec3_t v1)
++vec_t VectorSeparation(vec3_t v0, vec3_t v1)
+ {
+ 	vec3_t	v;
+ 	float	length;
+@@ -972,7 +972,7 @@
+ COM_FileBase
+ ============
+ */
+-static void COM_FileBase (char *in, char *out)
++void COM_FileBase (char *in, char *out)
+ {
+ 	char *s, *s2;
+ 	
+@@ -1020,7 +1020,7 @@
+ COM_DefaultExtension
+ ==================
+ */
+-static void COM_DefaultExtension (char *path, char *extension)
++void COM_DefaultExtension (char *path, char *extension)
+ {
+ 	char    *src;
+ //
+diff -ruN a/Game/gamecpp/q_shared.h b/Game/gamecpp/q_shared.h
+--- a/Game/gamecpp/q_shared.h	2026-10-09 15:43:36.102373712 -0400
++++ b/Game/gamecpp/q_shared.h	2026-10-09 12:43:08.000000000 -0400
+@@ -27,7 +27,11 @@
+ #include <assert.h>
+ #include <math.h>
+ #include <stdio.h>
++#ifdef _WIN32
+ #include <io.h>
++#else
++#include "../qcommon/port_compat.h"
++#endif
+ #include <stdarg.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -253,6 +257,7 @@
+ // Quick version of float to long (trunc/round undefined)
+ 
+ #pragma warning (disable:4035)
++#if defined(_MSC_VER) && defined(_M_IX86)
+ _inline __declspec( naked ) long Q_ftol( float f )
+ {
+ 	static int tmp;
+@@ -261,6 +266,12 @@
+ 	__asm mov eax, tmp
+ 	__asm ret
+ }
++#else
++inline long Q_ftol( float f )
++{
++	return (long)f;
++}
++#endif
+ 
+ _inline float Clamp(float src, float min, float max)
+ {
+@@ -556,7 +567,11 @@
+ 	// callbacks to test the world
+ 	trace_t		(*trace) (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end);
+ 	int			(*pointcontents) (vec3_t point);
++#ifdef _WIN32
+ 	int			(*checkOnOtherPlayer)(unsigned int groundEntity);
++#else
++	int			(*checkOnOtherPlayer)(uintptr_t groundEntity);	// PORT: carries an edict_t*; was unsigned int (truncates on 64-bit)
++#endif
+ 
+ 	float		friction_loss;
+ } pmove_t;
+diff -ruN a/Game/gamecpp/test.cpp b/Game/gamecpp/test.cpp
+--- a/Game/gamecpp/test.cpp	2026-10-09 15:43:36.102398087 -0400
++++ b/Game/gamecpp/test.cpp	2026-10-09 12:31:12.000000000 -0400
+@@ -1,7 +1,9 @@
+ #include "g_local.h"
+ #include "callback.h"
+-#include "..\qcommon\ef_flags.h"
++#include "../qcommon/ef_flags.h"
++#ifdef _WIN32
+ #include <windows.h>
++#endif
+ 
+ static bool testSeqEnded;
+ static int testSeqCounter;
+diff -ruN a/Game/gamecpp/w_fire.cpp b/Game/gamecpp/w_fire.cpp
+--- a/Game/gamecpp/w_fire.cpp	2026-10-09 15:43:36.102443749 -0400
++++ b/Game/gamecpp/w_fire.cpp	2026-10-09 12:39:37.000000000 -0400
+@@ -98,7 +98,8 @@
+ 
+ 	char meatSound[100];
+ 
+-	for (int i=1;i<=3;i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for (i=1;i<=3;i++)
+ 	{
+ 		Com_sprintf(meatSound, sizeof(meatSound), "impact/gore/impact%d.wav", i);
+ 		gi.soundindex(meatSound);
+@@ -792,7 +793,7 @@
+ 
+ extern int evilHackForInvisAttack;//make weapons do no damage if field is set.  Sigh.
+ 
+-CWeaponInfo wInfo[];
++extern CWeaponInfo wInfo[];
+ 
+ float shootTime = 0;
+ 
+@@ -1103,7 +1104,8 @@
+ 
+ 	fireBullet(wf);
+ 
+-	for(int i = 0; i < 12; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < 12; i++)
+ 	{
+ 		VectorMA(wf.fwd, gi.flrand(-.1, .1), side, oldDir);
+ 		VectorMA(oldDir, gi.flrand(-.05, .05), up, oldDir);
+diff -ruN a/Game/ghoul/matrix4.cpp b/Game/ghoul/matrix4.cpp
+--- a/Game/ghoul/matrix4.cpp	2026-10-09 15:43:36.102596264 -0400
++++ b/Game/ghoul/matrix4.cpp	2026-10-09 12:30:42.000000000 -0400
+@@ -199,7 +199,7 @@
+ }
+ 
+ 
+-static int GetTextureSystem(
++int GetTextureSystem(
+   const Vect3 &p0,const Vect3 &uv0, //vertex 0
+   const Vect3 &p1,const Vect3 &uv1, //vertex 1
+   const Vect3 &p2,const Vect3 &uv2, //vertex 2
+@@ -768,6 +768,7 @@
+ 	const float *s=&src.x();
+ 	float *d=&dest.x();
+ 	const float *mat=&m[0][0];
++#if defined(_MSC_VER) && defined(_M_IX86)
+ 	__asm
+ 	{
+ 		mov ebx,[s]
+@@ -825,6 +826,11 @@
+ 		fstp [DWORD PTR ecx+4]
+ 		fstp [DWORD PTR ecx+8]
+ 	}
++#else
++	dest[0]=m[0][0]*src[0]+m[1][0]*src[1]+m[2][0]*src[2]+m[3][0];
++	dest[1]=m[0][1]*src[0]+m[1][1]*src[1]+m[2][1]*src[2]+m[3][1];
++	dest[2]=m[0][2]*src[0]+m[1][2]*src[1]+m[2][2]*src[2]+m[3][2];
++#endif
+ }
+ 
+ void Matrix4::XFormVect(Vect3 &dest,const Vect3 &src) const
+@@ -859,6 +865,7 @@
+ 	const float *s=&src.x();
+ 	float *d=&dest.x();
+ 	const float *mat=&m[0][0];
++#if defined(_MSC_VER) && defined(_M_IX86)
+ 	__asm
+ 	{
+ 		mov ebx,[s]
+@@ -907,6 +914,12 @@
+ 		fstp [DWORD PTR ecx+8]
+ 		fstp [DWORD PTR ecx+4]
+ 	}
++#else
++	float x=src[0],y=src[1],z=src[2];
++	dest[0]=m[0][0]*x+m[0][1]*y+m[0][2]*z;
++	dest[1]=m[1][0]*x+m[1][1]*y+m[1][2]*z;
++	dest[2]=m[2][0]*x+m[2][1]*y+m[2][2]*z;
++#endif
+ }
+ 
+ #pragma warning( disable : 4725) //instruction may be inaccurate on some Pentiums
+@@ -935,6 +948,7 @@
+ 	float *d=&dest.x();
+ 	const float *mat=&m[0][0];
+ 	float tret;	
++#if defined(_MSC_VER) && defined(_M_IX86)
+ 	__asm
+ 	{
+ 		mov ebx,[s]
+@@ -1019,6 +1033,14 @@
+ 		fstp [DWORD PTR ecx+4]
+ 		fstp [tret]
+ 	}
++#else
++	float x=s[0],y=s[1],z=s[2];
++	tret=one/(m[3][3]+m[0][3]*x+m[1][3]*y+m[2][3]*z);
++	d[0]=(m[0][0]*x+m[1][0]*y+m[2][0]*z+m[3][0])*tret;
++	d[1]=(m[0][1]*x+m[1][1]*y+m[2][1]*z+m[3][1])*tret;
++	d[2]=(m[0][2]*x+m[1][2]*y+m[2][2]*z+m[3][2])*tret;
++	(void)mat;
++#endif
+ 	return tret;
+ }
+ #pragma warning( default: 4725) //instruction may be inaccurate on some Pentiums
+@@ -1043,6 +1065,7 @@
+ //	return h;
+ */
+ 	const float *mat=&m[0][0];
++#if defined(_MSC_VER) && defined(_M_IX86)
+ 	__asm
+ 	{
+ 		mov ebx,[s]
+@@ -1123,6 +1146,15 @@
+ 		fstp [DWORD PTR ecx]
+ 		fstp [DWORD PTR ecx+12]
+ 	}
++#else
++	float x=s[0],y=s[1],z=s[2],w=s[3];
++	float h=m[3][3]*w+m[0][3]*x+m[1][3]*y+m[2][3]*z;
++	d[0]=m[0][0]*x+m[1][0]*y+m[2][0]*z+m[3][0]*w;
++	d[1]=m[0][1]*x+m[1][1]*y+m[2][1]*z+m[3][1]*w;
++	d[2]=m[0][2]*x+m[1][2]*y+m[2][2]*z+m[3][2]*w;
++	d[3]=h;
++	(void)mat;
++#endif
+ }
+ 
+ 
+diff -ruN a/Game/player/player.cpp b/Game/player/player.cpp
+--- a/Game/player/player.cpp	2026-10-09 15:43:36.102715919 -0400
++++ b/Game/player/player.cpp	2026-10-09 12:41:10.000000000 -0400
+@@ -2,7 +2,7 @@
+ //
+ 
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+@@ -50,7 +50,11 @@
+ 	pe.RefreshWeapon=RefreshWeapon;
+ }
+ 
++#ifdef _WIN32
+ player_export_t *GetPlayerClientAPI(player_com_import_t *pimpcom,player_cl_import_t *pimpcl)
++#else
++Q_DLLEXPORT player_export_t *GetPlayerClientAPI(player_com_import_t *pimpcom,player_cl_import_t *pimpcl)
++#endif
+ {
+ 	picom=*pimpcom;
+ 	picl=*pimpcl;
+@@ -60,7 +64,11 @@
+ 	return(&pe);
+ }
+ 
++#ifdef _WIN32
+ player_export_t *GetPlayerServerAPI(player_com_import_t *pimpcom,player_sv_import_t *pimpsv)
++#else
++Q_DLLEXPORT player_export_t *GetPlayerServerAPI(player_com_import_t *pimpcom,player_sv_import_t *pimpsv)
++#endif
+ {
+ 	picom=*pimpcom;
+ 	pisv=*pimpsv;
+diff -ruN a/Game/player/player.h b/Game/player/player.h
+--- a/Game/player/player.h	2026-10-09 15:43:36.102793716 -0400
++++ b/Game/player/player.h	2026-10-09 12:37:19.000000000 -0400
+@@ -60,7 +60,11 @@
+ { 
+ 	// Cvar stuff.
+ 
++#ifdef _WIN32
+ 	cvar_t	*(*Cvar_Get)(const char *name, const char *value, int flags, cvarcommand_t command = NULL);
++#else
++	port_defarg_fp<cvar_t *(const char *name, const char *value, int flags, cvarcommand_t command)> Cvar_Get;	// command defaults to NULL
++#endif
+ 	cvar_t	*(*Cvar_Set)(const char *name, const char *value );
+ 	void	(*Cvar_SetValue)(const char *name, float value );
+ 
+@@ -78,7 +82,11 @@
+ 
+ 	// File handling.
+ 
++#ifdef _WIN32
+ 	int		(*FS_LoadFile) (char *name, void **buf, bool OverridePak = false);
++#else
++	port_defarg_fp<int (char *name, void **buf, bool OverridePak)> FS_LoadFile;	// OverridePak defaults to false
++#endif
+ 	void	(*FS_FreeFile) (void *buf);
+ 	
+ 	// Misc
+@@ -222,7 +230,11 @@
+ 	// Savegame stuff
+ 
+ 	qboolean	(*AppendToSavegame)(unsigned long chid, void *data, int length);
++#ifdef _WIN32
+ 	int			(*ReadFromSavegame)(unsigned long chid, void *address, int length, void **addressptr = NULL);
++#else
++	port_defarg_fp<int (unsigned long chid, void *address, int length, void **addressptr)> ReadFromSavegame;	// addressptr defaults to NULL
++#endif
+ } player_sv_import_t;
+ 
+ //
+diff -ruN a/Game/player/w_equip_attack.cpp b/Game/player/w_equip_attack.cpp
+--- a/Game/player/w_equip_attack.cpp	2026-10-09 15:43:36.102808582 -0400
++++ b/Game/player/w_equip_attack.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+diff -ruN a/Game/player/w_equip_misc.cpp b/Game/player/w_equip_misc.cpp
+--- a/Game/player/w_equip_misc.cpp	2026-10-09 15:43:36.102820622 -0400
++++ b/Game/player/w_equip_misc.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+diff -ruN a/Game/player/w_equipment.cpp b/Game/player/w_equipment.cpp
+--- a/Game/player/w_equipment.cpp	2026-10-09 15:43:36.102835246 -0400
++++ b/Game/player/w_equipment.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+diff -ruN a/Game/player/w_inven.cpp b/Game/player/w_inven.cpp
+--- a/Game/player/w_inven.cpp	2026-10-09 15:43:36.102873982 -0400
++++ b/Game/player/w_inven.cpp	2026-10-09 12:38:59.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+@@ -1657,7 +1657,8 @@
+ 					{
+ 						// Weapon.
+ 
+-						for(int i=0;i<MAXSELECTABLEWEAPONS;i++)
++						int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++						for(i=0;i<MAXSELECTABLEWEAPONS;i++)
+ 						{
+ 							if(weapons[i].getType()==owner->edict->client->ps.gunType)
+ 								break;
+@@ -2228,7 +2229,8 @@
+ 		return;
+ 	}
+ 
+-	for(int i = 0; i < MAXSELECTABLEWEAPONS; i++)
++	int i;	// PORT: hoisted, code relies on MSVC6 for-scope
++	for(i = 0; i < MAXSELECTABLEWEAPONS; i++)
+ 	{
+ 		int curWeapType = weapons[i].getType();
+ 
+diff -ruN a/Game/player/w_models.cpp b/Game/player/w_models.cpp
+--- a/Game/player/w_models.cpp	2026-10-09 15:43:36.102951322 -0400
++++ b/Game/player/w_models.cpp	2026-10-09 12:40:49.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+@@ -429,7 +429,7 @@
+ char *pistol1Info::getFireSeq(sharedEdict_t &ent)
+ {
+ 	wAnim(ent)->setWeaponLifted(0);
+-	return (wAnim(ent)->getHandsInUse() == 1) ? "fire1_a" : "fire1_b";
++	return (char *)((wAnim(ent)->getHandsInUse() == 1) ? "fire1_a" : "fire1_b");
+ }
+ 
+ char *pistol1Info::getAltFireSeq(sharedEdict_t &ent)
+@@ -440,7 +440,7 @@
+ char *pistol1Info::getDryfireSeq(sharedEdict_t &ent)
+ {
+ 	wAnim(ent)->setWeaponLifted(0);
+-	return (wAnim(ent)->getHandsInUse() == 1) ? "dryfire_1hand" : "dryfire_2hands";
++	return (char *)((wAnim(ent)->getHandsInUse() == 1) ? "dryfire_1hand" : "dryfire_2hands");
+ }
+ 
+ char *pistol1Info::getIdleSeq(sharedEdict_t &ent)
+@@ -568,7 +568,7 @@
+ 
+ char *pistol1Info::getReloadSeq(sharedEdict_t &ent)
+ {
+-	return (wAnim(ent)->getHandsInUse() == 1) ? "reload_a":"reload_b";
++	return (char *)((wAnim(ent)->getHandsInUse() == 1) ? "reload_a":"reload_b");
+ }
+ 
+ char *pistol1Info::getTakeOutSeq(sharedEdict_t &ent)
+@@ -591,7 +591,7 @@
+ 
+ char *pistol1Info::getPutAwaySeq(sharedEdict_t &ent)
+ {
+-	return (wAnim(ent)->getHandsInUse() == 1) ? "done_a":"done_b";
++	return (char *)((wAnim(ent)->getHandsInUse() == 1) ? "done_a":"done_b");
+ }
+ 
+ 
+diff -ruN a/Game/player/w_network.cpp b/Game/player/w_network.cpp
+--- a/Game/player/w_network.cpp	2026-10-09 15:43:36.102981857 -0400
++++ b/Game/player/w_network.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+diff -ruN a/Game/player/w_utils.cpp b/Game/player/w_utils.cpp
+--- a/Game/player/w_utils.cpp	2026-10-09 15:43:36.103038844 -0400
++++ b/Game/player/w_utils.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+diff -ruN a/Game/player/w_weapons.cpp b/Game/player/w_weapons.cpp
+--- a/Game/player/w_weapons.cpp	2026-10-09 15:43:36.103066812 -0400
++++ b/Game/player/w_weapons.cpp	2026-10-09 12:29:31.000000000 -0400
+@@ -1,5 +1,5 @@
+ #include "q_shared.h"
+-#include "..\ghoul\ighoul.h"
++#include "../ghoul/ighoul.h"
+ #include "w_public.h"
+ #include "w_types.h"
+ #include "w_weapons.h"
+diff -ruN a/Game/qcommon/fields.h b/Game/qcommon/fields.h
+--- a/Game/qcommon/fields.h	2026-10-09 15:43:36.103185142 -0400
++++ b/Game/qcommon/fields.h	2026-10-09 12:38:00.000000000 -0400
+@@ -7,10 +7,10 @@
+ #define FFL_SPAWNTEMP		1
+ #define MAX_GHOULINST_SIZE	16384
+ 
+-#define	FOFS(x) (int)&(((edict_t *)0)->x)
+-#define	STOFS(x) (int)&(((spawn_temp_t *)0)->x)
+-#define	LLOFS(x) (int)&(((level_locals_t *)0)->x)
+-#define	CLOFS(x) (int)&(((gclient_t *)0)->x)
++#define	FOFS(x) (int)(size_t)&(((edict_t *)0)->x)
++#define	STOFS(x) (int)(size_t)&(((spawn_temp_t *)0)->x)
++#define	LLOFS(x) (int)(size_t)&(((level_locals_t *)0)->x)
++#define	CLOFS(x) (int)(size_t)&(((gclient_t *)0)->x)
+ 
+ typedef enum
+ {
+diff -ruN a/Game/qcommon/mathlib.h b/Game/qcommon/mathlib.h
+--- a/Game/qcommon/mathlib.h	2026-10-09 15:43:36.103217782 -0400
++++ b/Game/qcommon/mathlib.h	2026-10-09 12:36:58.000000000 -0400
+@@ -140,7 +140,7 @@
+ 	scaleBy[2] *= value;
+ }
+ 
+-_inline VectorAverage(vec3_t mins, vec3_t maxs, vec3_t average)
++_inline void VectorAverage(vec3_t mins, vec3_t maxs, vec3_t average)
+ {
+ 	average[0] = (mins[0] + maxs[0]) * 0.5f;
+ 	average[1] = (mins[1] + maxs[1]) * 0.5f;
+diff -ruN a/Game/qcommon/port_compat.h b/Game/qcommon/port_compat.h
+--- a/Game/qcommon/port_compat.h	1969-12-31 19:00:00.000000000 -0500
++++ b/Game/qcommon/port_compat.h	2026-10-09 12:39:48.000000000 -0400
+@@ -0,0 +1,100 @@
++// port_compat.h -- portability shims for building the SoF game/player modules
++// on non-Windows (Linux x86-64, Android ARM64) with gcc/clang.
++// Included from gamecpp/q_shared.h (in place of <io.h>) on !_WIN32.
++#ifndef PORT_COMPAT_H
++#define PORT_COMPAT_H
++
++#ifndef _WIN32
++
++#include <stdint.h>
++#include <stddef.h>
++#include <string.h>
++#include <strings.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <ctype.h>
++#include <limits.h>
++
++// --- CRT name differences ---------------------------------------------------
++#define stricmp		strcasecmp
++#define strnicmp	strncasecmp
++#define _stricmp	strcasecmp
++#define _strnicmp	strncasecmp
++#define strcmpi		strcasecmp
++#define _snprintf	snprintf
++#define _vsnprintf	vsnprintf
++
++static inline char *port_strlwr(char *s) { for (char *p = s; *p; ++p) *p = (char)tolower((unsigned char)*p); return s; }
++static inline char *port_strupr(char *s) { for (char *p = s; *p; ++p) *p = (char)toupper((unsigned char)*p); return s; }
++#define strlwr		port_strlwr
++#define _strlwr		port_strlwr
++#define strupr		port_strupr
++#define _strupr		port_strupr
++
++// --- MSVC types/keywords ----------------------------------------------------
++#define __int64		long long
++#define __int32		int
++#define __int16		short
++#define __int8		char
++#define __cdecl
++#define __stdcall
++#define __fastcall
++#define _inline		inline
++#define __inline	inline
++#define __forceinline	inline
++#define __declspec(x)
++
++// Exported entry points (replaces __declspec(dllexport) + .def files).
++#define Q_DLLEXPORT	extern "C" __attribute__((visibility("default")))
++
++// --- Function-pointer members with a defaulted trailing argument --------------
++// MSVC accepts `int (*fn)(int a, bool b = false);` inside a struct; ISO C++
++// does not. port_defarg_fp<R(A...)> is layout-identical to R(*)(A...) (one
++// pointer, standard layout, trivially copyable) and callable with either all
++// arguments or with the last one omitted, in which case the last argument is
++// value-initialised (0 / NULL / false -- matches every default in the SDK).
++#ifdef __cplusplus
++template<typename... T> struct port_pack {};
++template<typename R, typename Last, typename... Init>
++struct port_defarg_fp_impl
++{
++	typedef R (*fn_t)(Init..., Last);
++	fn_t fn;
++	R operator()(Init... i, Last l) const { return fn(i..., l); }
++	R operator()(Init... i) const { return fn(i..., Last()); }
++	operator fn_t() const { return fn; }
++	port_defarg_fp_impl &operator=(fn_t f) { fn = f; return *this; }
++};
++template<typename R, typename Done, typename... Rest> struct port_defarg_split;
++template<typename R, typename... D, typename L>
++struct port_defarg_split<R, port_pack<D...>, L> { typedef port_defarg_fp_impl<R, L, D...> type; };
++template<typename R, typename... D, typename H, typename N, typename... T>
++struct port_defarg_split<R, port_pack<D...>, H, N, T...> : port_defarg_split<R, port_pack<D..., H>, N, T...> {};
++template<typename F> struct port_defarg_sig;
++template<typename R, typename... A> struct port_defarg_sig<R(A...)> { typedef typename port_defarg_split<R, port_pack<>, A...>::type type; };
++template<typename F> using port_defarg_fp = typename port_defarg_sig<F>::type;
++#endif
++
++#ifndef TRUE
++#define TRUE	1
++#endif
++#ifndef FALSE
++#define FALSE	0
++#endif
++typedef uint32_t	DWORD;		// Win32 DWORD is always 32-bit
++
++static inline char *port_itoa(int value, char *buf, int radix)
++{
++	if (radix == 10) { sprintf(buf, "%d", value); return buf; }
++	char tmp[33]; char *t = tmp; unsigned v = (unsigned)value;
++	do { int d = v % radix; *t++ = (char)(d < 10 ? '0' + d : 'a' + d - 10); v /= radix; } while (v);
++	char *o = buf; while (t > tmp) *o++ = *--t; *o = 0; return buf;
++}
++#define itoa	port_itoa
++#define _itoa	port_itoa
++
++// --- Win32 debug helpers that leaked into game code ---------------------------
++#define OutputDebugString(s)	fputs((s), stderr)
++
++#endif // !_WIN32
++#endif // PORT_COMPAT_H
+diff -ruN a/Game/qcommon/qfiles.h b/Game/qcommon/qfiles.h
+--- a/Game/qcommon/qfiles.h	2026-10-09 15:43:36.103319907 -0400
++++ b/Game/qcommon/qfiles.h	2026-10-09 12:43:45.000000000 -0400
+@@ -163,7 +163,11 @@
+ 	char		*lumpname;
+ 	int			insize;
+ 	int			outsize;
++#ifdef _WIN32
+ 	void		(*Process)(void *in, void *oout, int count, void (*callback)(void *cm_out, void *cm_in) = NULL);
++#else
++	port_defarg_fp<void (void *in, void *oout, int count, void (*callback)(void *cm_out, void *cm_in))> Process;	// callback defaults to NULL
++#endif
+ 	bool		checksummed;
+ 	byte		checksum;
+ } bsplumps_t;
+@@ -369,7 +373,11 @@
+ 			float			end;
+ 			float			height;
+ 			byte			color[4];
++#ifdef _WIN32
+ 			unsigned long	flags;
++#else
++			unsigned int	flags;		// PORT: was unsigned long; on-disk format, must stay 32-bit
++#endif
+ 			float			time;
+ 			float			distance_cull;
+ 			float			chop_size;

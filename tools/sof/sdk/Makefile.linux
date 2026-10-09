@@ -1,0 +1,62 @@
+# Soldier of Fortune SDK game modules -> 64-bit Linux/Android shared libraries.
+# Usage: make            (builds gamex64.so and player.so)
+#        make CXX=clang++ (or Android NDK clang++ --target=aarch64-linux-android21)
+CXX      ?= g++
+SRC      := Game
+OBJ      := obj
+STD      ?= -std=gnu++11
+WARN     := -w
+CXXFLAGS ?= -O2 -g
+COMMON   := $(STD) -fPIC -fvisibility=hidden -fno-strict-aliasing $(WARN)
+DEFS     := -DNDEBUG -D_FINAL_
+# The game sees inven_c (player.so) through invPub_c virtuals; gcc's speculative
+# devirtualization would inline inven_c's header bodies and pull player.so
+# symbols into gamex64.so. MSVC never devirtualized, so turn it off for the game.
+# (clang ignores these with a warning; it does not devirtualize across this without LTO.)
+GAME_OPT    := $(if $(findstring clang,$(CXX)),,-fno-devirtualize -fno-devirtualize-speculatively)
+GAME_DEFS   := $(GAME_OPT) $(DEFS) -D_SOF_ -D__GAME__ -D_RAVEN_ -I$(SRC)/qcommon -I$(SRC)/player -I$(SRC)/gamecpp
+PLAYER_DEFS := $(DEFS) -I$(SRC)/gamecpp -I$(SRC)/qcommon -I$(SRC)/player
+LDFLAGS_SO  := -shared -Wl,--no-undefined
+
+GAME_SRCS := $(addprefix $(SRC)/gamecpp/, \
+  ai.cpp ai_actions.cpp ai_body.cpp ai_bodycow.cpp ai_bodydekker.cpp ai_bodydog.cpp \
+  ai_bodyhuman.cpp ai_bodynoghoul.cpp ai_decisions.cpp ai_path_pre.cpp ai_pathfinding.cpp \
+  ai_senses.cpp CWeaponInfo.cpp dm.cpp dm_arsenal.cpp dm_assassin.cpp dm_ctf.cpp dm_none.cpp \
+  dm_real.cpp dm_standard.cpp ds.cpp fx_effects.cpp fx_tempents.cpp g_bosnia.cpp g_castle.cpp \
+  g_chase.cpp g_cmds.cpp g_combat.cpp g_environ.cpp g_func.cpp g_generic.cpp g_ghoul.cpp \
+  g_iraq.cpp g_items.cpp g_lightmodels.cpp g_main.cpp g_misc.cpp g_monster.cpp g_newyork.cpp \
+  g_obj.cpp g_phys.cpp g_player.cpp g_save.cpp g_siberia.cpp g_skilllevels.cpp g_sound.cpp \
+  g_spawn.cpp g_svcmds.cpp g_target.cpp g_tokyo.cpp g_trigger.cpp g_uganda.cpp g_utils.cpp \
+  m_ecto.cpp m_female.cpp m_generic.cpp m_heliactions.cpp m_heliai.cpp m_meso.cpp \
+  m_snowcatactions.cpp m_snowcatai.cpp m_tankactions.cpp m_tankai.cpp mp_ents.cpp p_body.cpp \
+  p_client.cpp p_hud.cpp p_trail.cpp p_view.cpp pt_listpointer.cpp q_sh_fx.cpp q_shared.cpp \
+  test.cpp w_equip.cpp w_fire.cpp) \
+  $(SRC)/ghoul/matrix4.cpp $(SRC)/ghoul/vect3.cpp
+
+PLAYER_SRCS := $(addprefix $(SRC)/player/, \
+  player.cpp w_equip_attack.cpp w_equip_misc.cpp w_equipment.cpp w_inven.cpp w_models.cpp \
+  w_network.cpp w_utils.cpp w_weapons.cpp)
+
+GAME_OBJS   := $(patsubst $(SRC)/%.cpp,$(OBJ)/game/%.o,$(GAME_SRCS))
+PLAYER_OBJS := $(patsubst $(SRC)/%.cpp,$(OBJ)/player/%.o,$(PLAYER_SRCS))
+
+all: gamex64.so player.so
+
+gamex64.so: $(GAME_OBJS)
+	$(CXX) $(LDFLAGS_SO) -o $@ $^ -lm
+
+player.so: $(PLAYER_OBJS)
+	$(CXX) $(LDFLAGS_SO) -o $@ $^ -lm
+
+$(OBJ)/game/%.o: $(SRC)/%.cpp Makefile
+	@mkdir -p $(dir $@)
+	$(CXX) $(COMMON) $(CXXFLAGS) $(GAME_DEFS) -c $< -o $@
+
+$(OBJ)/player/%.o: $(SRC)/%.cpp Makefile
+	@mkdir -p $(dir $@)
+	$(CXX) $(COMMON) $(CXXFLAGS) $(PLAYER_DEFS) -c $< -o $@
+
+clean:
+	rm -rf $(OBJ) gamex64.so player.so
+
+.PHONY: all clean

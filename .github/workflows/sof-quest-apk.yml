@@ -1,6 +1,6 @@
 # Builds the SoF Quest APK (Soldier of Fortune on the Quake2Quest engine).
 #
-# Needs one repository secret:
+# Needs one repository secret or variable:
 #   SOF_SDK_URL   - a direct download URL of a zip with the Raven SoF SDK (containing Source/Game)
 # and the 64-bit port patch, either committed at tools/sof/sdk/sof-sdk-64bit.patch or given as
 #   SOF_PATCH_URL - a direct download URL of sof-sdk-64bit.patch (secret)
@@ -19,7 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HAVE_SDK: ${{ secrets.SOF_SDK_URL != '' }}
+      HAVE_SDK: ${{ secrets.SOF_SDK_URL != '' || vars.SOF_SDK_URL != '' }}
     steps:
       - name: Check secrets
         if: env.HAVE_SDK != 'true'
@@ -45,7 +45,7 @@ jobs:
       - name: SoF SDK with the 64-bit patch
         if: env.HAVE_SDK == 'true'
         env:
-          SOF_SDK_URL: ${{ secrets.SOF_SDK_URL }}
+          SOF_SDK_URL: ${{ secrets.SOF_SDK_URL || vars.SOF_SDK_URL }}
           SOF_PATCH_URL: ${{ secrets.SOF_PATCH_URL }}
         run: |
           test -n "$SOF_SDK_URL" || { echo "::error::set the SOF_SDK_URL secret"; exit 1; }
