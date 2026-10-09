@@ -111,6 +111,9 @@ int GSQ_RegisterSequences(char *gsqdir, char *subclass, IGhoulObj *object)
 	if (!object || !gsqdir || !subclass) return 0;
 	std::vector<std::string> names, seen;
 	expand(gsqdir, subclass, names, seen, 0);
+	/* simple objects have no list: the subclass name is the sequence itself */
+	if (seen.size() <= 1 && names.empty())
+		names.push_back(subclass);
 	int n = 0;
 	for (size_t i = 0; i < names.size(); i++)
 	{

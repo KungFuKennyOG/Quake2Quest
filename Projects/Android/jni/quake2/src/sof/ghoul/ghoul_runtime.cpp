@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <algorithm>
 #include <map>
@@ -270,7 +271,7 @@ public:
 				{
 					s.file = 0;
 					s.index = -1;
-					missing++;
+					if (missing++ < 2) dprintf("GHOUL: missing sequence %s/%s\n", s.dir.c_str(), s.base.c_str());
 				}
 			}
 			if (missing)
@@ -317,6 +318,9 @@ public:
 	{
 		std::string dir, base;
 		splitPath(Filename, dir, base);
+		static const char *trace = getenv("GHOUL_TRACE");
+		if (trace && strstr(Filename, trace))
+			dprintf("GHOUL trace: RegisterSequence(%s) from %p\n", Filename, __builtin_return_address(0));
 		for (size_t i = 0; i < seqs.size(); i++)
 			if (seqs[i].dir == dir && seqs[i].base == base)
 				return (GhoulID)(i + 1);
