@@ -1,6 +1,6 @@
 diff -ruN a/Game/gamecpp/CWeaponInfo.cpp b/Game/gamecpp/CWeaponInfo.cpp
---- a/Game/gamecpp/CWeaponInfo.cpp	2026-10-09 15:43:36.098445569 -0400
-+++ b/Game/gamecpp/CWeaponInfo.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/CWeaponInfo.cpp	2026-10-09 16:17:43.306012273 -0400
++++ b/Game/gamecpp/CWeaponInfo.cpp	2026-10-09 16:17:43.322787804 -0400
 @@ -2641,7 +2641,7 @@
  	gi.ReadFromSavegame('PLPI', &temp, sizeof(temp));
  
@@ -11,8 +11,8 @@ diff -ruN a/Game/gamecpp/CWeaponInfo.cpp b/Game/gamecpp/CWeaponInfo.cpp
  }
  
 diff -ruN a/Game/gamecpp/CWeaponInfo.h b/Game/gamecpp/CWeaponInfo.h
---- a/Game/gamecpp/CWeaponInfo.h	2026-10-09 15:43:36.098507434 -0400
-+++ b/Game/gamecpp/CWeaponInfo.h	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/CWeaponInfo.h	2026-10-09 16:17:43.306073812 -0400
++++ b/Game/gamecpp/CWeaponInfo.h	2026-10-09 16:17:43.323205932 -0400
 @@ -2,7 +2,7 @@
  #define __CWEAPONINFO_H_
  
@@ -23,8 +23,8 @@ diff -ruN a/Game/gamecpp/CWeaponInfo.h b/Game/gamecpp/CWeaponInfo.h
  
  //---------------------------------------------------------------------------------------
 diff -ruN a/Game/gamecpp/ai.cpp b/Game/gamecpp/ai.cpp
---- a/Game/gamecpp/ai.cpp	2026-10-09 15:43:36.098551303 -0400
-+++ b/Game/gamecpp/ai.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/ai.cpp	2026-10-09 16:17:43.306126216 -0400
++++ b/Game/gamecpp/ai.cpp	2026-10-09 16:17:43.323448247 -0400
 @@ -9,7 +9,7 @@
  #include "m_snowcatai.h"
  #include "fields.h"
@@ -46,8 +46,8 @@ diff -ruN a/Game/gamecpp/ai.cpp b/Game/gamecpp/ai.cpp
  	current_action.MakePtr(*(int *)&orig->current_action);
  	recycle_action.MakePtr(*(int *)&orig->recycle_action);
 diff -ruN a/Game/gamecpp/ai.h b/Game/gamecpp/ai.h
---- a/Game/gamecpp/ai.h	2026-10-09 15:43:36.098589018 -0400
-+++ b/Game/gamecpp/ai.h	2026-10-09 12:36:58.000000000 -0400
+--- a/Game/gamecpp/ai.h	2026-10-09 16:17:43.306174991 -0400
++++ b/Game/gamecpp/ai.h	2026-10-09 16:17:43.323743835 -0400
 @@ -177,7 +177,7 @@
  			int newShotAt = 0, int newFriendsKilled = 0, int newAttacked = 0, int newOutOfRange = 0,
  			int newTooClose = 0, int newExplosive = 0);
@@ -58,8 +58,8 @@ diff -ruN a/Game/gamecpp/ai.h b/Game/gamecpp/ai.h
  	float		getRangeMin(void){return idealRangeMin;}
  	float		getRangeMax(void){return idealRangeMax;}
 diff -ruN a/Game/gamecpp/ai_actions.cpp b/Game/gamecpp/ai_actions.cpp
---- a/Game/gamecpp/ai_actions.cpp	2026-10-09 15:43:36.098613344 -0400
-+++ b/Game/gamecpp/ai_actions.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/ai_actions.cpp	2026-10-09 16:17:43.306207094 -0400
++++ b/Game/gamecpp/ai_actions.cpp	2026-10-09 16:17:43.323992188 -0400
 @@ -1,7 +1,7 @@
  #include "g_local.h"
  #include "ai_private.h"
@@ -142,8 +142,8 @@ diff -ruN a/Game/gamecpp/ai_actions.cpp b/Game/gamecpp/ai_actions.cpp
  	move_action::Evaluate(orig);
  }
 diff -ruN a/Game/gamecpp/ai_body.cpp b/Game/gamecpp/ai_body.cpp
---- a/Game/gamecpp/ai_body.cpp	2026-10-09 15:43:36.098672219 -0400
-+++ b/Game/gamecpp/ai_body.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/ai_body.cpp	2026-10-09 16:17:43.306335171 -0400
++++ b/Game/gamecpp/ai_body.cpp	2026-10-09 16:17:43.324351789 -0400
 @@ -923,8 +923,8 @@
  
  void body_c::Evaluate(body_c *orig)
@@ -197,8 +197,8 @@ diff -ruN a/Game/gamecpp/ai_body.cpp b/Game/gamecpp/ai_body.cpp
  	m_turretInst.MakePtr(*(int *)&orig->m_turretInst);
  	m_cannonInst.MakePtr(*(int *)&orig->m_cannonInst);
 diff -ruN a/Game/gamecpp/ai_bodycow.cpp b/Game/gamecpp/ai_bodycow.cpp
---- a/Game/gamecpp/ai_bodycow.cpp	2026-10-09 15:43:36.098726642 -0400
-+++ b/Game/gamecpp/ai_bodycow.cpp	2026-10-09 12:39:53.000000000 -0400
+--- a/Game/gamecpp/ai_bodycow.cpp	2026-10-09 16:17:43.306407017 -0400
++++ b/Game/gamecpp/ai_bodycow.cpp	2026-10-09 16:17:43.324609044 -0400
 @@ -1157,7 +1157,7 @@
  			cowToWorld.Identity();
  			cowToWorld.Rotate(rotateangs[2],rotateangs[0],-rotateangs[1]);//grr.
@@ -209,8 +209,8 @@ diff -ruN a/Game/gamecpp/ai_bodycow.cpp b/Game/gamecpp/ai_bodycow.cpp
  
  			the_ai->GetAimVector(forward);
 diff -ruN a/Game/gamecpp/ai_bodycow.h b/Game/gamecpp/ai_bodycow.h
---- a/Game/gamecpp/ai_bodycow.h	2026-10-09 15:43:36.098753264 -0400
-+++ b/Game/gamecpp/ai_bodycow.h	2026-10-09 12:39:37.000000000 -0400
+--- a/Game/gamecpp/ai_bodycow.h	2026-10-09 16:17:43.306446398 -0400
++++ b/Game/gamecpp/ai_bodycow.h	2026-10-09 16:17:43.324782805 -0400
 @@ -72,7 +72,9 @@
  	virtual	attacks_e	GetBestWeapon(edict_t &monster);
  	virtual void		FirePrimaryWeapon(edict_t &monster, bool lethal = false, int NullTarget = 0, qboolean forceFireRate = false) { BiteMe(monster, forceFireRate); }
@@ -222,8 +222,8 @@ diff -ruN a/Game/gamecpp/ai_bodycow.h b/Game/gamecpp/ai_bodycow.h
  	virtual int			GetClassCode(void){return BODY_COW;}//this should be different for everybody in this class family
  
 diff -ruN a/Game/gamecpp/ai_bodydog.cpp b/Game/gamecpp/ai_bodydog.cpp
---- a/Game/gamecpp/ai_bodydog.cpp	2026-10-09 15:43:36.098803053 -0400
-+++ b/Game/gamecpp/ai_bodydog.cpp	2026-10-09 12:39:53.000000000 -0400
+--- a/Game/gamecpp/ai_bodydog.cpp	2026-10-09 16:17:43.306515251 -0400
++++ b/Game/gamecpp/ai_bodydog.cpp	2026-10-09 16:17:43.324931844 -0400
 @@ -1564,7 +1564,7 @@
  			dogToWorld.Identity();
  			dogToWorld.Rotate(rotateangs[2],rotateangs[0],-rotateangs[1]);//grr.
@@ -234,8 +234,8 @@ diff -ruN a/Game/gamecpp/ai_bodydog.cpp b/Game/gamecpp/ai_bodydog.cpp
  
  			the_ai->GetAimVector(forward);
 diff -ruN a/Game/gamecpp/ai_bodyhuman.cpp b/Game/gamecpp/ai_bodyhuman.cpp
---- a/Game/gamecpp/ai_bodyhuman.cpp	2026-10-09 15:43:36.098855750 -0400
-+++ b/Game/gamecpp/ai_bodyhuman.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/ai_bodyhuman.cpp	2026-10-09 16:17:43.306577441 -0400
++++ b/Game/gamecpp/ai_bodyhuman.cpp	2026-10-09 16:17:43.325935544 -0400
 @@ -3,7 +3,7 @@
  #include "ai_private.h"
  #include "callback.h"
@@ -246,8 +246,8 @@ diff -ruN a/Game/gamecpp/ai_bodyhuman.cpp b/Game/gamecpp/ai_bodyhuman.cpp
  #define GIB_HEALTH_LIMIT	-300
  
 diff -ruN a/Game/gamecpp/ai_decisions.cpp b/Game/gamecpp/ai_decisions.cpp
---- a/Game/gamecpp/ai_decisions.cpp	2026-10-09 15:43:36.099226336 -0400
-+++ b/Game/gamecpp/ai_decisions.cpp	2026-10-09 12:38:00.000000000 -0400
+--- a/Game/gamecpp/ai_decisions.cpp	2026-10-09 16:17:43.307060099 -0400
++++ b/Game/gamecpp/ai_decisions.cpp	2026-10-09 16:17:43.327259367 -0400
 @@ -2554,9 +2554,9 @@
  	VectorCopy(orig->path_fail_dir, path_fail_dir);
  
@@ -323,8 +323,8 @@ diff -ruN a/Game/gamecpp/ai_decisions.cpp b/Game/gamecpp/ai_decisions.cpp
  	Emotion = orig->Emotion;
  }
 diff -ruN a/Game/gamecpp/ai_path_pre.cpp b/Game/gamecpp/ai_path_pre.cpp
---- a/Game/gamecpp/ai_path_pre.cpp	2026-10-09 15:43:36.099373880 -0400
-+++ b/Game/gamecpp/ai_path_pre.cpp	2026-10-09 12:40:44.000000000 -0400
+--- a/Game/gamecpp/ai_path_pre.cpp	2026-10-09 16:17:43.307181691 -0400
++++ b/Game/gamecpp/ai_path_pre.cpp	2026-10-09 16:17:43.327881388 -0400
 @@ -1,7 +1,9 @@
  #include "g_local.h"
  #include "ai_pathfinding.h"
@@ -449,8 +449,8 @@ diff -ruN a/Game/gamecpp/ai_path_pre.cpp b/Game/gamecpp/ai_path_pre.cpp
  		CAINode newPoint;
  
 diff -ruN a/Game/gamecpp/ai_pathfinding.cpp b/Game/gamecpp/ai_pathfinding.cpp
---- a/Game/gamecpp/ai_pathfinding.cpp	2026-10-09 15:43:36.099424268 -0400
-+++ b/Game/gamecpp/ai_pathfinding.cpp	2026-10-09 12:40:44.000000000 -0400
+--- a/Game/gamecpp/ai_pathfinding.cpp	2026-10-09 16:17:43.307248884 -0400
++++ b/Game/gamecpp/ai_pathfinding.cpp	2026-10-09 16:17:43.328224012 -0400
 @@ -103,7 +103,8 @@
  	min[2] = (readChar(inData)*48);*/
  	partial = readByte(inData);
@@ -520,8 +520,8 @@ diff -ruN a/Game/gamecpp/ai_pathfinding.cpp b/Game/gamecpp/ai_pathfinding.cpp
  			if(other->getNearNode(j) == nextNode || other->getNearNode(j) == -1)
  			{
 diff -ruN a/Game/gamecpp/ai_senses.cpp b/Game/gamecpp/ai_senses.cpp
---- a/Game/gamecpp/ai_senses.cpp	2026-10-09 15:43:36.099509452 -0400
-+++ b/Game/gamecpp/ai_senses.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/ai_senses.cpp	2026-10-09 16:17:43.307347906 -0400
++++ b/Game/gamecpp/ai_senses.cpp	2026-10-09 16:17:43.328447594 -0400
 @@ -184,8 +184,8 @@
  	mute_endtime		= orig->mute_endtime;
  	mute_degree			= orig->mute_degree;
@@ -543,8 +543,8 @@ diff -ruN a/Game/gamecpp/ai_senses.cpp b/Game/gamecpp/ai_senses.cpp
  	sense_c::Evaluate(orig);
  }
 diff -ruN a/Game/gamecpp/dm.cpp b/Game/gamecpp/dm.cpp
---- a/Game/gamecpp/dm.cpp	2026-10-09 15:43:36.099580052 -0400
-+++ b/Game/gamecpp/dm.cpp	2026-10-09 12:40:44.000000000 -0400
+--- a/Game/gamecpp/dm.cpp	2026-10-09 16:17:43.307437237 -0400
++++ b/Game/gamecpp/dm.cpp	2026-10-09 16:17:43.328615304 -0400
 @@ -7,7 +7,7 @@
  #include "w_weapons.h"
  #include "../strings/dm_generic.h"
@@ -567,8 +567,8 @@ diff -ruN a/Game/gamecpp/dm.cpp b/Game/gamecpp/dm.cpp
  }
 \ No newline at end of file
 diff -ruN a/Game/gamecpp/dm_assassin.cpp b/Game/gamecpp/dm_assassin.cpp
---- a/Game/gamecpp/dm_assassin.cpp	2026-10-09 15:43:36.099634725 -0400
-+++ b/Game/gamecpp/dm_assassin.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/dm_assassin.cpp	2026-10-09 16:17:43.307512692 -0400
++++ b/Game/gamecpp/dm_assassin.cpp	2026-10-09 16:17:43.328792072 -0400
 @@ -6,7 +6,7 @@
  #include "dm_private.h"
  #include "w_weapons.h"
@@ -579,8 +579,8 @@ diff -ruN a/Game/gamecpp/dm_assassin.cpp b/Game/gamecpp/dm_assassin.cpp
  const int DF_ASSASSIN_NO_HEALTH			= (1<<0);
  const int DF_ASSASSIN_NO_ITEMS			= (1<<1);
 diff -ruN a/Game/gamecpp/dm_ctf.cpp b/Game/gamecpp/dm_ctf.cpp
---- a/Game/gamecpp/dm_ctf.cpp	2026-10-09 15:43:36.099660044 -0400
-+++ b/Game/gamecpp/dm_ctf.cpp	2026-10-09 12:38:59.000000000 -0400
+--- a/Game/gamecpp/dm_ctf.cpp	2026-10-09 16:17:43.307540553 -0400
++++ b/Game/gamecpp/dm_ctf.cpp	2026-10-09 16:17:43.328956269 -0400
 @@ -8,7 +8,7 @@
  #include "dm_ctf.h"
  #include "p_body.h"
@@ -601,8 +601,8 @@ diff -ruN a/Game/gamecpp/dm_ctf.cpp b/Game/gamecpp/dm_ctf.cpp
  			// if we are the same, then choose the next team
  			if (!stricmp(ctf_team_red->string, teamnames[i]))
 diff -ruN a/Game/gamecpp/ds.cpp b/Game/gamecpp/ds.cpp
---- a/Game/gamecpp/ds.cpp	2026-10-09 15:43:36.099890443 -0400
-+++ b/Game/gamecpp/ds.cpp	2026-10-09 13:20:19.000000000 -0400
+--- a/Game/gamecpp/ds.cpp	2026-10-09 16:17:43.307694581 -0400
++++ b/Game/gamecpp/ds.cpp	2026-10-09 16:17:43.329316352 -0400
 @@ -1,7 +1,9 @@
  #include "g_local.h"
  #define WIN32_LEAN_AND_MEAN
@@ -839,8 +839,8 @@ diff -ruN a/Game/gamecpp/ds.cpp b/Game/gamecpp/ds.cpp
  							//		Float, float, float: relative origin change
  							//		Float, float, float: relative rotation change
 diff -ruN a/Game/gamecpp/fx_effects.h b/Game/gamecpp/fx_effects.h
---- a/Game/gamecpp/fx_effects.h	2026-10-09 15:43:36.100056864 -0400
-+++ b/Game/gamecpp/fx_effects.h	2026-10-09 12:43:00.000000000 -0400
+--- a/Game/gamecpp/fx_effects.h	2026-10-09 16:17:43.307845578 -0400
++++ b/Game/gamecpp/fx_effects.h	2026-10-09 16:17:43.329886076 -0400
 @@ -1,7 +1,7 @@
  #ifndef __FXEFFECTS_H_
  #define __FXEFFECTS_H_
@@ -860,8 +860,8 @@ diff -ruN a/Game/gamecpp/fx_effects.h b/Game/gamecpp/fx_effects.h
  public:
  	CFXSender(void){flags = 0;}
 diff -ruN a/Game/gamecpp/fx_tempents.cpp b/Game/gamecpp/fx_tempents.cpp
---- a/Game/gamecpp/fx_tempents.cpp	2026-10-09 15:43:36.100080819 -0400
-+++ b/Game/gamecpp/fx_tempents.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/fx_tempents.cpp	2026-10-09 16:17:43.307869256 -0400
++++ b/Game/gamecpp/fx_tempents.cpp	2026-10-09 16:17:43.330008935 -0400
 @@ -1,5 +1,5 @@
  #include "g_local.h"
 -#include "..\qcommon\ef_flags.h"
@@ -870,8 +870,8 @@ diff -ruN a/Game/gamecpp/fx_tempents.cpp b/Game/gamecpp/fx_tempents.cpp
  bool	lock_blood;
  
 diff -ruN a/Game/gamecpp/g_cmds.cpp b/Game/gamecpp/g_cmds.cpp
---- a/Game/gamecpp/g_cmds.cpp	2026-10-09 15:43:36.100167691 -0400
-+++ b/Game/gamecpp/g_cmds.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_cmds.cpp	2026-10-09 16:17:43.307998984 -0400
++++ b/Game/gamecpp/g_cmds.cpp	2026-10-09 16:17:43.330171884 -0400
 @@ -4,7 +4,7 @@
  #include "w_types.h"
  #include "ai_path_pre.h"
@@ -882,8 +882,8 @@ diff -ruN a/Game/gamecpp/g_cmds.cpp b/Game/gamecpp/g_cmds.cpp
  extern void ED_CallSpawn (edict_t *ent);
  extern void sendRestartPrediction(edict_t *ent);
 diff -ruN a/Game/gamecpp/g_func.cpp b/Game/gamecpp/g_func.cpp
---- a/Game/gamecpp/g_func.cpp	2026-10-09 15:43:36.100278620 -0400
-+++ b/Game/gamecpp/g_func.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_func.cpp	2026-10-09 16:17:43.308147828 -0400
++++ b/Game/gamecpp/g_func.cpp	2026-10-09 16:17:43.330614647 -0400
 @@ -1,7 +1,7 @@
  #include "g_local.h"
  #include "ai_private.h"
@@ -894,8 +894,8 @@ diff -ruN a/Game/gamecpp/g_func.cpp b/Game/gamecpp/g_func.cpp
  //  func_...
  void SP_func_ambientSet (edict_t *ent);
 diff -ruN a/Game/gamecpp/g_generic.cpp b/Game/gamecpp/g_generic.cpp
---- a/Game/gamecpp/g_generic.cpp	2026-10-09 15:43:36.100351544 -0400
-+++ b/Game/gamecpp/g_generic.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_generic.cpp	2026-10-09 16:17:43.308209856 -0400
++++ b/Game/gamecpp/g_generic.cpp	2026-10-09 16:17:43.331549260 -0400
 @@ -6,7 +6,7 @@
  #include "g_obj.h"
  #include "ai_private.h" // hmmm, is this kosher?
@@ -906,8 +906,8 @@ diff -ruN a/Game/gamecpp/g_generic.cpp b/Game/gamecpp/g_generic.cpp
  extern void debug_drawbox(edict_t* self,vec3_t vOrigin, vec3_t vMins, vec3_t vMaxs, int nColor);
  
 diff -ruN a/Game/gamecpp/g_ghoul.cpp b/Game/gamecpp/g_ghoul.cpp
---- a/Game/gamecpp/g_ghoul.cpp	2026-10-09 15:43:36.100455851 -0400
-+++ b/Game/gamecpp/g_ghoul.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/g_ghoul.cpp	2026-10-09 16:17:43.308331893 -0400
++++ b/Game/gamecpp/g_ghoul.cpp	2026-10-09 16:17:43.332279235 -0400
 @@ -1,5 +1,5 @@
  #include "g_local.h"
 -#include "..\qcommon\ef_flags.h"
@@ -925,8 +925,8 @@ diff -ruN a/Game/gamecpp/g_ghoul.cpp b/Game/gamecpp/g_ghoul.cpp
  	sequence = orig->sequence;
  
 diff -ruN a/Game/gamecpp/g_items.cpp b/Game/gamecpp/g_items.cpp
---- a/Game/gamecpp/g_items.cpp	2026-10-09 15:43:36.100554823 -0400
-+++ b/Game/gamecpp/g_items.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_items.cpp	2026-10-09 16:17:43.308418722 -0400
++++ b/Game/gamecpp/g_items.cpp	2026-10-09 16:17:43.332488192 -0400
 @@ -3,8 +3,8 @@
  #include "p_body.h"
  #include "w_weapons.h"
@@ -939,8 +939,8 @@ diff -ruN a/Game/gamecpp/g_items.cpp b/Game/gamecpp/g_items.cpp
  #define HLTH_ITEM_PICKUP 10000
  
 diff -ruN a/Game/gamecpp/g_lightmodels.cpp b/Game/gamecpp/g_lightmodels.cpp
---- a/Game/gamecpp/g_lightmodels.cpp	2026-10-09 15:43:36.100604595 -0400
-+++ b/Game/gamecpp/g_lightmodels.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_lightmodels.cpp	2026-10-09 16:17:43.308456070 -0400
++++ b/Game/gamecpp/g_lightmodels.cpp	2026-10-09 16:17:43.332696744 -0400
 @@ -5,7 +5,7 @@
  #include "g_local.h"
  #include "g_obj.h"
@@ -951,8 +951,8 @@ diff -ruN a/Game/gamecpp/g_lightmodels.cpp b/Game/gamecpp/g_lightmodels.cpp
  #define HANGING_ONTABLE				8
  #define HANGING_NOANIM				16
 diff -ruN a/Game/gamecpp/g_local.h b/Game/gamecpp/g_local.h
---- a/Game/gamecpp/g_local.h	2026-10-09 15:43:36.100638386 -0400
-+++ b/Game/gamecpp/g_local.h	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_local.h	2026-10-09 16:17:43.308497345 -0400
++++ b/Game/gamecpp/g_local.h	2026-10-09 16:17:43.332957352 -0400
 @@ -4,7 +4,7 @@
  #pragma once
  
@@ -981,8 +981,8 @@ diff -ruN a/Game/gamecpp/g_local.h b/Game/gamecpp/g_local.h
  // the "gameversion" client command will print this plus compile date
  #define	GAMEVERSION	"base"
 diff -ruN a/Game/gamecpp/g_main.cpp b/Game/gamecpp/g_main.cpp
---- a/Game/gamecpp/g_main.cpp	2026-10-09 15:43:36.100668426 -0400
-+++ b/Game/gamecpp/g_main.cpp	2026-10-09 12:41:10.000000000 -0400
+--- a/Game/gamecpp/g_main.cpp	2026-10-09 16:17:43.308533956 -0400
++++ b/Game/gamecpp/g_main.cpp	2026-10-09 16:17:43.333171568 -0400
 @@ -579,7 +579,11 @@
  =================
  */
@@ -996,8 +996,8 @@ diff -ruN a/Game/gamecpp/g_main.cpp b/Game/gamecpp/g_main.cpp
  	gi = *import;
  
 diff -ruN a/Game/gamecpp/g_misc.cpp b/Game/gamecpp/g_misc.cpp
---- a/Game/gamecpp/g_misc.cpp	2026-10-09 15:43:36.100694305 -0400
-+++ b/Game/gamecpp/g_misc.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_misc.cpp	2026-10-09 16:17:43.308574013 -0400
++++ b/Game/gamecpp/g_misc.cpp	2026-10-09 16:17:43.333372322 -0400
 @@ -1,8 +1,8 @@
  // g_misc.c
  #include "g_local.h"
@@ -1010,8 +1010,8 @@ diff -ruN a/Game/gamecpp/g_misc.cpp b/Game/gamecpp/g_misc.cpp
  #define		INVINCIBLE		1
  #define		GLASS			2
 diff -ruN a/Game/gamecpp/g_monster.cpp b/Game/gamecpp/g_monster.cpp
---- a/Game/gamecpp/g_monster.cpp	2026-10-09 15:43:36.100722012 -0400
-+++ b/Game/gamecpp/g_monster.cpp	2026-10-09 12:38:59.000000000 -0400
+--- a/Game/gamecpp/g_monster.cpp	2026-10-09 16:17:43.308617129 -0400
++++ b/Game/gamecpp/g_monster.cpp	2026-10-09 16:17:43.333608764 -0400
 @@ -722,7 +722,8 @@
  
  	aiPoints.setupClientPathInfo(&clientNode, &clientRegion);
@@ -1023,8 +1023,8 @@ diff -ruN a/Game/gamecpp/g_monster.cpp b/Game/gamecpp/g_monster.cpp
  		if (!ent->inuse)continue;
  		if (!ent->ai)continue;
 diff -ruN a/Game/gamecpp/g_obj.cpp b/Game/gamecpp/g_obj.cpp
---- a/Game/gamecpp/g_obj.cpp	2026-10-09 15:43:36.100781516 -0400
-+++ b/Game/gamecpp/g_obj.cpp	2026-10-09 12:39:58.000000000 -0400
+--- a/Game/gamecpp/g_obj.cpp	2026-10-09 16:17:43.308701141 -0400
++++ b/Game/gamecpp/g_obj.cpp	2026-10-09 16:17:43.333840222 -0400
 @@ -4,7 +4,9 @@
  
  #include "g_local.h"
@@ -1072,8 +1072,8 @@ diff -ruN a/Game/gamecpp/g_obj.cpp b/Game/gamecpp/g_obj.cpp
  	objInfo_c::Evaluate(orig);
  }
 diff -ruN a/Game/gamecpp/g_phys.cpp b/Game/gamecpp/g_phys.cpp
---- a/Game/gamecpp/g_phys.cpp	2026-10-09 15:43:36.100849967 -0400
-+++ b/Game/gamecpp/g_phys.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_phys.cpp	2026-10-09 16:17:43.308803168 -0400
++++ b/Game/gamecpp/g_phys.cpp	2026-10-09 16:17:43.334135434 -0400
 @@ -1,7 +1,7 @@
  // g_phys.c
  
@@ -1084,8 +1084,8 @@ diff -ruN a/Game/gamecpp/g_phys.cpp b/Game/gamecpp/g_phys.cpp
  
  #define	STOP_EPSILON	1.0
 diff -ruN a/Game/gamecpp/g_save.cpp b/Game/gamecpp/g_save.cpp
---- a/Game/gamecpp/g_save.cpp	2026-10-09 15:43:36.100905160 -0400
-+++ b/Game/gamecpp/g_save.cpp	2026-10-09 12:38:05.000000000 -0400
+--- a/Game/gamecpp/g_save.cpp	2026-10-09 16:17:43.308865656 -0400
++++ b/Game/gamecpp/g_save.cpp	2026-10-09 16:17:43.334354292 -0400
 @@ -1,5 +1,7 @@
  #define WINDOWS_LEAN_AND_MEAN
 +#ifdef _WIN32
@@ -1104,8 +1104,8 @@ diff -ruN a/Game/gamecpp/g_save.cpp b/Game/gamecpp/g_save.cpp
  
  	// These are pointers that are always recreated
 diff -ruN a/Game/gamecpp/g_sound.cpp b/Game/gamecpp/g_sound.cpp
---- a/Game/gamecpp/g_sound.cpp	2026-10-09 15:43:36.101067247 -0400
-+++ b/Game/gamecpp/g_sound.cpp	2026-10-09 13:20:36.000000000 -0400
+--- a/Game/gamecpp/g_sound.cpp	2026-10-09 16:17:43.308970889 -0400
++++ b/Game/gamecpp/g_sound.cpp	2026-10-09 16:17:43.334568443 -0400
 @@ -97,13 +97,13 @@
  		return;
  	}
@@ -1125,8 +1125,8 @@ diff -ruN a/Game/gamecpp/g_sound.cpp b/Game/gamecpp/g_sound.cpp
  
  	for(i = 0; i < aSet.numWaves; i++)
 diff -ruN a/Game/gamecpp/g_spawn.cpp b/Game/gamecpp/g_spawn.cpp
---- a/Game/gamecpp/g_spawn.cpp	2026-10-09 15:43:36.101086702 -0400
-+++ b/Game/gamecpp/g_spawn.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_spawn.cpp	2026-10-09 16:17:43.308995046 -0400
++++ b/Game/gamecpp/g_spawn.cpp	2026-10-09 16:17:43.334854083 -0400
 @@ -4,7 +4,7 @@
  #include "fields.h"
  #include "ai_pathfinding.h"
@@ -1137,8 +1137,8 @@ diff -ruN a/Game/gamecpp/g_spawn.cpp b/Game/gamecpp/g_spawn.cpp
  #if TIME_ENTS
  	#include <windows.h>
 diff -ruN a/Game/gamecpp/g_target.cpp b/Game/gamecpp/g_target.cpp
---- a/Game/gamecpp/g_target.cpp	2026-10-09 15:43:36.101175767 -0400
-+++ b/Game/gamecpp/g_target.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_target.cpp	2026-10-09 16:17:43.309099667 -0400
++++ b/Game/gamecpp/g_target.cpp	2026-10-09 16:17:43.335148954 -0400
 @@ -1,8 +1,8 @@
  #include "g_local.h"
  #include "fields.h"
@@ -1151,8 +1151,8 @@ diff -ruN a/Game/gamecpp/g_target.cpp b/Game/gamecpp/g_target.cpp
  //  target_...
  void SP_target_temp_entity (edict_t *ent);
 diff -ruN a/Game/gamecpp/g_trigger.cpp b/Game/gamecpp/g_trigger.cpp
---- a/Game/gamecpp/g_trigger.cpp	2026-10-09 15:43:36.101215482 -0400
-+++ b/Game/gamecpp/g_trigger.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/g_trigger.cpp	2026-10-09 16:17:43.309158388 -0400
++++ b/Game/gamecpp/g_trigger.cpp	2026-10-09 16:17:43.335296830 -0400
 @@ -1,7 +1,7 @@
  #include "g_local.h"
  #include "fields.h"
@@ -1163,8 +1163,8 @@ diff -ruN a/Game/gamecpp/g_trigger.cpp b/Game/gamecpp/g_trigger.cpp
  extern float s_levelStatusBegin;	// declared in g_cmds.cpp
  
 diff -ruN a/Game/gamecpp/g_utils.cpp b/Game/gamecpp/g_utils.cpp
---- a/Game/gamecpp/g_utils.cpp	2026-10-09 15:43:36.101260258 -0400
-+++ b/Game/gamecpp/g_utils.cpp	2026-10-09 12:38:59.000000000 -0400
+--- a/Game/gamecpp/g_utils.cpp	2026-10-09 16:17:43.309251488 -0400
++++ b/Game/gamecpp/g_utils.cpp	2026-10-09 16:17:43.335454632 -0400
 @@ -3,7 +3,7 @@
  #include "g_local.h"
  #include "matrix4.h"
@@ -1185,8 +1185,8 @@ diff -ruN a/Game/gamecpp/g_utils.cpp b/Game/gamecpp/g_utils.cpp
  		touchlist[numFound+i] = attachTouchList[i];
  	}
 diff -ruN a/Game/gamecpp/game.h b/Game/gamecpp/game.h
---- a/Game/gamecpp/game.h	2026-10-09 15:43:36.101316531 -0400
-+++ b/Game/gamecpp/game.h	2026-10-09 12:37:19.000000000 -0400
+--- a/Game/gamecpp/game.h	2026-10-09 16:17:43.309305858 -0400
++++ b/Game/gamecpp/game.h	2026-10-09 16:17:43.335577307 -0400
 @@ -4,7 +4,7 @@
  // game.h -- game dll information visible to server
  
@@ -1249,8 +1249,8 @@ diff -ruN a/Game/gamecpp/game.h b/Game/gamecpp/game.h
  	char	*(*FS_Userdir)  (void);
  	void	(*FS_CreatePath) (char *path);
 diff -ruN a/Game/gamecpp/m_generic.cpp b/Game/gamecpp/m_generic.cpp
---- a/Game/gamecpp/m_generic.cpp	2026-10-09 15:43:36.101496722 -0400
-+++ b/Game/gamecpp/m_generic.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/m_generic.cpp	2026-10-09 16:17:43.309507890 -0400
++++ b/Game/gamecpp/m_generic.cpp	2026-10-09 16:17:43.335792876 -0400
 @@ -1,7 +1,7 @@
  #include "g_local.h"
  #include "ai_private.h"
@@ -1261,8 +1261,8 @@ diff -ruN a/Game/gamecpp/m_generic.cpp b/Game/gamecpp/m_generic.cpp
  #define MERC_WEAPON_SCALE 1.142857142857 
  #define MERC_OTHER_SCALE 1.142857142857 
 diff -ruN a/Game/gamecpp/m_heliactions.cpp b/Game/gamecpp/m_heliactions.cpp
---- a/Game/gamecpp/m_heliactions.cpp	2026-10-09 15:43:36.101637931 -0400
-+++ b/Game/gamecpp/m_heliactions.cpp	2026-10-09 12:39:58.000000000 -0400
+--- a/Game/gamecpp/m_heliactions.cpp	2026-10-09 16:17:43.309607285 -0400
++++ b/Game/gamecpp/m_heliactions.cpp	2026-10-09 16:17:43.336057790 -0400
 @@ -204,8 +204,8 @@
  	m_nCommand = orig->m_nCommand;
  	m_fArg = orig->m_fArg;   
@@ -1286,8 +1286,8 @@ diff -ruN a/Game/gamecpp/m_heliactions.cpp b/Game/gamecpp/m_heliactions.cpp
  	action_c::Evaluate(orig);
  }
 diff -ruN a/Game/gamecpp/m_heliai.cpp b/Game/gamecpp/m_heliai.cpp
---- a/Game/gamecpp/m_heliai.cpp	2026-10-09 15:43:36.101675042 -0400
-+++ b/Game/gamecpp/m_heliai.cpp	2026-10-09 12:40:44.000000000 -0400
+--- a/Game/gamecpp/m_heliai.cpp	2026-10-09 16:17:43.309658861 -0400
++++ b/Game/gamecpp/m_heliai.cpp	2026-10-09 16:17:43.336325742 -0400
 @@ -5,7 +5,7 @@
  #include "m_heliai.h"
  #include "g_obj.h"				// for aiming the gun and the heads
@@ -1328,8 +1328,8 @@ diff -ruN a/Game/gamecpp/m_heliai.cpp b/Game/gamecpp/m_heliai.cpp
  	m_LastThinkingActionID = orig->m_LastThinkingActionID;
  
 diff -ruN a/Game/gamecpp/m_snowcatactions.cpp b/Game/gamecpp/m_snowcatactions.cpp
---- a/Game/gamecpp/m_snowcatactions.cpp	2026-10-09 15:43:36.101856544 -0400
-+++ b/Game/gamecpp/m_snowcatactions.cpp	2026-10-09 12:39:58.000000000 -0400
+--- a/Game/gamecpp/m_snowcatactions.cpp	2026-10-09 16:17:43.309915119 -0400
++++ b/Game/gamecpp/m_snowcatactions.cpp	2026-10-09 16:17:43.336627850 -0400
 @@ -137,8 +137,8 @@
  	m_nCommand = orig->m_nCommand;
  	m_fArg = orig->m_fArg;   
@@ -1353,8 +1353,8 @@ diff -ruN a/Game/gamecpp/m_snowcatactions.cpp b/Game/gamecpp/m_snowcatactions.cp
  	action_c::Evaluate(orig);
  }
 diff -ruN a/Game/gamecpp/m_snowcatai.cpp b/Game/gamecpp/m_snowcatai.cpp
---- a/Game/gamecpp/m_snowcatai.cpp	2026-10-09 15:43:36.101886558 -0400
-+++ b/Game/gamecpp/m_snowcatai.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/m_snowcatai.cpp	2026-10-09 16:17:43.309954563 -0400
++++ b/Game/gamecpp/m_snowcatai.cpp	2026-10-09 16:17:43.336703810 -0400
 @@ -6,7 +6,7 @@
  #include "m_snowcatai.h"
  #include "g_obj.h"			// for OrientBolton() and modelSpawnData stuff
@@ -1365,8 +1365,8 @@ diff -ruN a/Game/gamecpp/m_snowcatai.cpp b/Game/gamecpp/m_snowcatai.cpp
  #define SNOWCAT_INACTIVE		(1<<0)
  
 diff -ruN a/Game/gamecpp/m_tankactions.cpp b/Game/gamecpp/m_tankactions.cpp
---- a/Game/gamecpp/m_tankactions.cpp	2026-10-09 15:43:36.101942229 -0400
-+++ b/Game/gamecpp/m_tankactions.cpp	2026-10-09 12:39:58.000000000 -0400
+--- a/Game/gamecpp/m_tankactions.cpp	2026-10-09 16:17:43.310005475 -0400
++++ b/Game/gamecpp/m_tankactions.cpp	2026-10-09 16:17:43.336833313 -0400
 @@ -148,8 +148,8 @@
  	m_nCommand = orig->m_nCommand;
  	m_fArg = orig->m_fArg;   
@@ -1390,8 +1390,8 @@ diff -ruN a/Game/gamecpp/m_tankactions.cpp b/Game/gamecpp/m_tankactions.cpp
  	action_c::Evaluate(orig);
  }
 diff -ruN a/Game/gamecpp/m_tankai.cpp b/Game/gamecpp/m_tankai.cpp
---- a/Game/gamecpp/m_tankai.cpp	2026-10-09 15:43:36.101976679 -0400
-+++ b/Game/gamecpp/m_tankai.cpp	2026-10-09 12:37:56.000000000 -0400
+--- a/Game/gamecpp/m_tankai.cpp	2026-10-09 16:17:43.310050780 -0400
++++ b/Game/gamecpp/m_tankai.cpp	2026-10-09 16:17:43.336953314 -0400
 @@ -6,7 +6,7 @@
  #include "m_tankai.h"
  #include "g_obj.h"			// for OrientBolton() and modelSpawnData stuff
@@ -1411,8 +1411,8 @@ diff -ruN a/Game/gamecpp/m_tankai.cpp b/Game/gamecpp/m_tankai.cpp
  	m_bMoveBackward = orig->m_bMoveBackward;
  	VectorCopy(orig->m_vCannonTarget, m_vCannonTarget);
 diff -ruN a/Game/gamecpp/p_body.cpp b/Game/gamecpp/p_body.cpp
---- a/Game/gamecpp/p_body.cpp	2026-10-09 15:43:36.102050082 -0400
-+++ b/Game/gamecpp/p_body.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/p_body.cpp	2026-10-09 16:17:43.310138192 -0400
++++ b/Game/gamecpp/p_body.cpp	2026-10-09 16:17:43.337138313 -0400
 @@ -11,7 +11,7 @@
  #include "ai_private.h"
  #include "p_body.h"
@@ -1423,8 +1423,8 @@ diff -ruN a/Game/gamecpp/p_body.cpp b/Game/gamecpp/p_body.cpp
  #ifdef __PLAYERTEST_3DPERSON
  
 diff -ruN a/Game/gamecpp/p_client.cpp b/Game/gamecpp/p_client.cpp
---- a/Game/gamecpp/p_client.cpp	2026-10-09 15:43:36.102108325 -0400
-+++ b/Game/gamecpp/p_client.cpp	2026-10-09 12:43:08.000000000 -0400
+--- a/Game/gamecpp/p_client.cpp	2026-10-09 16:17:43.310209894 -0400
++++ b/Game/gamecpp/p_client.cpp	2026-10-09 16:17:43.337370117 -0400
 @@ -1807,7 +1807,11 @@
  ==============
  */
@@ -1438,8 +1438,8 @@ diff -ruN a/Game/gamecpp/p_client.cpp b/Game/gamecpp/p_client.cpp
  	int entnum=((edict_t *)groundEntity)->s.number;
  
 diff -ruN a/Game/gamecpp/p_hud.cpp b/Game/gamecpp/p_hud.cpp
---- a/Game/gamecpp/p_hud.cpp	2026-10-09 15:43:36.102142164 -0400
-+++ b/Game/gamecpp/p_hud.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/p_hud.cpp	2026-10-09 16:17:43.310250523 -0400
++++ b/Game/gamecpp/p_hud.cpp	2026-10-09 16:17:43.337547191 -0400
 @@ -1,7 +1,7 @@
  #include "g_local.h"
  #include "q_sh_interface.h"
@@ -1450,8 +1450,8 @@ diff -ruN a/Game/gamecpp/p_hud.cpp b/Game/gamecpp/p_hud.cpp
  extern float s_levelStatusBegin;	// declared in g_cmds.cpp
  
 diff -ruN a/Game/gamecpp/p_view.cpp b/Game/gamecpp/p_view.cpp
---- a/Game/gamecpp/p_view.cpp	2026-10-09 15:43:36.102202194 -0400
-+++ b/Game/gamecpp/p_view.cpp	2026-10-09 12:40:44.000000000 -0400
+--- a/Game/gamecpp/p_view.cpp	2026-10-09 16:17:43.310299347 -0400
++++ b/Game/gamecpp/p_view.cpp	2026-10-09 16:17:43.337778626 -0400
 @@ -10,7 +10,7 @@
  #include "fields.h"
  
@@ -1499,8 +1499,8 @@ diff -ruN a/Game/gamecpp/p_view.cpp b/Game/gamecpp/p_view.cpp
  	// burn from lava, etc
  	P_WorldEffects ();
 diff -ruN a/Game/gamecpp/pt_listpointer.cpp b/Game/gamecpp/pt_listpointer.cpp
---- a/Game/gamecpp/pt_listpointer.cpp	2026-10-09 15:43:36.102245699 -0400
-+++ b/Game/gamecpp/pt_listpointer.cpp	2026-10-09 12:39:37.000000000 -0400
+--- a/Game/gamecpp/pt_listpointer.cpp	2026-10-09 16:17:43.310358613 -0400
++++ b/Game/gamecpp/pt_listpointer.cpp	2026-10-09 16:17:43.337962837 -0400
 @@ -22,7 +22,7 @@
  {
  	int						count;
@@ -1538,8 +1538,8 @@ diff -ruN a/Game/gamecpp/pt_listpointer.cpp b/Game/gamecpp/pt_listpointer.cpp
  	for (it = Pointer.begin(); it != Pointer.end(); it++)
  	{
 diff -ruN a/Game/gamecpp/pt_listpointer.h b/Game/gamecpp/pt_listpointer.h
---- a/Game/gamecpp/pt_listpointer.h	2026-10-09 15:43:36.102260320 -0400
-+++ b/Game/gamecpp/pt_listpointer.h	2026-10-09 12:44:18.000000000 -0400
+--- a/Game/gamecpp/pt_listpointer.h	2026-10-09 16:17:43.310379363 -0400
++++ b/Game/gamecpp/pt_listpointer.h	2026-10-09 16:17:43.338044364 -0400
 @@ -34,7 +34,7 @@
  public:
  	int		GetIndexFromPointer(T *thing)
@@ -1588,8 +1588,8 @@ diff -ruN a/Game/gamecpp/pt_listpointer.h b/Game/gamecpp/pt_listpointer.h
  
  #define sense_c_ptr ptrTC<sense_c,&senseL>
 diff -ruN a/Game/gamecpp/q_sh_fx.cpp b/Game/gamecpp/q_sh_fx.cpp
---- a/Game/gamecpp/q_sh_fx.cpp	2026-10-09 15:43:36.102278148 -0400
-+++ b/Game/gamecpp/q_sh_fx.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/gamecpp/q_sh_fx.cpp	2026-10-09 16:17:43.310403719 -0400
++++ b/Game/gamecpp/q_sh_fx.cpp	2026-10-09 16:17:43.338117293 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\qcommon\palette.h"
@@ -1598,8 +1598,8 @@ diff -ruN a/Game/gamecpp/q_sh_fx.cpp b/Game/gamecpp/q_sh_fx.cpp
  
  // wheee! look at me! I'm _sharing_ !!!!!
 diff -ruN a/Game/gamecpp/q_sh_fx.h b/Game/gamecpp/q_sh_fx.h
---- a/Game/gamecpp/q_sh_fx.h	2026-10-09 15:43:36.102296215 -0400
-+++ b/Game/gamecpp/q_sh_fx.h	2026-10-09 12:43:45.000000000 -0400
+--- a/Game/gamecpp/q_sh_fx.h	2026-10-09 16:17:43.310432676 -0400
++++ b/Game/gamecpp/q_sh_fx.h	2026-10-09 16:17:43.338199659 -0400
 @@ -3,7 +3,7 @@
  #ifndef _Q_SH_FX_
  #define _Q_SH_FX_
@@ -1622,8 +1622,8 @@ diff -ruN a/Game/gamecpp/q_sh_fx.h b/Game/gamecpp/q_sh_fx.h
  }eft_fade_t;
  
 diff -ruN a/Game/gamecpp/q_shared.cpp b/Game/gamecpp/q_shared.cpp
---- a/Game/gamecpp/q_shared.cpp	2026-10-09 15:43:36.102348328 -0400
-+++ b/Game/gamecpp/q_shared.cpp	2026-10-09 12:39:48.000000000 -0400
+--- a/Game/gamecpp/q_shared.cpp	2026-10-09 16:17:43.310481518 -0400
++++ b/Game/gamecpp/q_shared.cpp	2026-10-09 16:17:43.338324851 -0400
 @@ -1,8 +1,8 @@
  #include "q_shared.h"
 -#include "..\qcommon\mathlib.h"
@@ -1699,8 +1699,8 @@ diff -ruN a/Game/gamecpp/q_shared.cpp b/Game/gamecpp/q_shared.cpp
  	char    *src;
  //
 diff -ruN a/Game/gamecpp/q_shared.h b/Game/gamecpp/q_shared.h
---- a/Game/gamecpp/q_shared.h	2026-10-09 15:43:36.102373712 -0400
-+++ b/Game/gamecpp/q_shared.h	2026-10-09 12:43:08.000000000 -0400
+--- a/Game/gamecpp/q_shared.h	2026-10-09 16:17:43.310515583 -0400
++++ b/Game/gamecpp/q_shared.h	2026-10-09 16:17:43.338497221 -0400
 @@ -27,7 +27,11 @@
  #include <assert.h>
  #include <math.h>
@@ -1747,8 +1747,8 @@ diff -ruN a/Game/gamecpp/q_shared.h b/Game/gamecpp/q_shared.h
  	float		friction_loss;
  } pmove_t;
 diff -ruN a/Game/gamecpp/test.cpp b/Game/gamecpp/test.cpp
---- a/Game/gamecpp/test.cpp	2026-10-09 15:43:36.102398087 -0400
-+++ b/Game/gamecpp/test.cpp	2026-10-09 12:31:12.000000000 -0400
+--- a/Game/gamecpp/test.cpp	2026-10-09 16:17:43.310544328 -0400
++++ b/Game/gamecpp/test.cpp	2026-10-09 16:17:43.338592504 -0400
 @@ -1,7 +1,9 @@
  #include "g_local.h"
  #include "callback.h"
@@ -1761,8 +1761,8 @@ diff -ruN a/Game/gamecpp/test.cpp b/Game/gamecpp/test.cpp
  static bool testSeqEnded;
  static int testSeqCounter;
 diff -ruN a/Game/gamecpp/w_fire.cpp b/Game/gamecpp/w_fire.cpp
---- a/Game/gamecpp/w_fire.cpp	2026-10-09 15:43:36.102443749 -0400
-+++ b/Game/gamecpp/w_fire.cpp	2026-10-09 12:39:37.000000000 -0400
+--- a/Game/gamecpp/w_fire.cpp	2026-10-09 16:17:43.310607788 -0400
++++ b/Game/gamecpp/w_fire.cpp	2026-10-09 16:17:43.338799591 -0400
 @@ -98,7 +98,8 @@
  
  	char meatSound[100];
@@ -1793,8 +1793,8 @@ diff -ruN a/Game/gamecpp/w_fire.cpp b/Game/gamecpp/w_fire.cpp
  		VectorMA(wf.fwd, gi.flrand(-.1, .1), side, oldDir);
  		VectorMA(oldDir, gi.flrand(-.05, .05), up, oldDir);
 diff -ruN a/Game/ghoul/matrix4.cpp b/Game/ghoul/matrix4.cpp
---- a/Game/ghoul/matrix4.cpp	2026-10-09 15:43:36.102596264 -0400
-+++ b/Game/ghoul/matrix4.cpp	2026-10-09 12:30:42.000000000 -0400
+--- a/Game/ghoul/matrix4.cpp	2026-10-09 16:17:43.310758643 -0400
++++ b/Game/ghoul/matrix4.cpp	2026-10-09 16:17:43.339103427 -0400
 @@ -199,7 +199,7 @@
  }
  
@@ -1893,8 +1893,8 @@ diff -ruN a/Game/ghoul/matrix4.cpp b/Game/ghoul/matrix4.cpp
  
  
 diff -ruN a/Game/player/player.cpp b/Game/player/player.cpp
---- a/Game/player/player.cpp	2026-10-09 15:43:36.102715919 -0400
-+++ b/Game/player/player.cpp	2026-10-09 12:41:10.000000000 -0400
+--- a/Game/player/player.cpp	2026-10-09 16:17:43.310935147 -0400
++++ b/Game/player/player.cpp	2026-10-09 16:17:43.339240604 -0400
 @@ -2,7 +2,7 @@
  //
  
@@ -1929,8 +1929,8 @@ diff -ruN a/Game/player/player.cpp b/Game/player/player.cpp
  	picom=*pimpcom;
  	pisv=*pimpsv;
 diff -ruN a/Game/player/player.h b/Game/player/player.h
---- a/Game/player/player.h	2026-10-09 15:43:36.102793716 -0400
-+++ b/Game/player/player.h	2026-10-09 12:37:19.000000000 -0400
+--- a/Game/player/player.h	2026-10-09 16:17:43.311020698 -0400
++++ b/Game/player/player.h	2026-10-09 16:17:43.339315447 -0400
 @@ -60,7 +60,11 @@
  { 
  	// Cvar stuff.
@@ -1968,8 +1968,8 @@ diff -ruN a/Game/player/player.h b/Game/player/player.h
  
  //
 diff -ruN a/Game/player/w_equip_attack.cpp b/Game/player/w_equip_attack.cpp
---- a/Game/player/w_equip_attack.cpp	2026-10-09 15:43:36.102808582 -0400
-+++ b/Game/player/w_equip_attack.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/player/w_equip_attack.cpp	2026-10-09 16:17:43.311041103 -0400
++++ b/Game/player/w_equip_attack.cpp	2026-10-09 16:17:43.339376112 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -1978,8 +1978,8 @@ diff -ruN a/Game/player/w_equip_attack.cpp b/Game/player/w_equip_attack.cpp
  #include "w_types.h"
  #include "w_weapons.h"
 diff -ruN a/Game/player/w_equip_misc.cpp b/Game/player/w_equip_misc.cpp
---- a/Game/player/w_equip_misc.cpp	2026-10-09 15:43:36.102820622 -0400
-+++ b/Game/player/w_equip_misc.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/player/w_equip_misc.cpp	2026-10-09 16:17:43.311058344 -0400
++++ b/Game/player/w_equip_misc.cpp	2026-10-09 16:17:43.339438209 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -1988,8 +1988,8 @@ diff -ruN a/Game/player/w_equip_misc.cpp b/Game/player/w_equip_misc.cpp
  #include "w_types.h"
  #include "w_weapons.h"
 diff -ruN a/Game/player/w_equipment.cpp b/Game/player/w_equipment.cpp
---- a/Game/player/w_equipment.cpp	2026-10-09 15:43:36.102835246 -0400
-+++ b/Game/player/w_equipment.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/player/w_equipment.cpp	2026-10-09 16:17:43.311075630 -0400
++++ b/Game/player/w_equipment.cpp	2026-10-09 16:17:43.339503801 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -1998,8 +1998,8 @@ diff -ruN a/Game/player/w_equipment.cpp b/Game/player/w_equipment.cpp
  #include "w_types.h"
  #include "w_weapons.h"
 diff -ruN a/Game/player/w_inven.cpp b/Game/player/w_inven.cpp
---- a/Game/player/w_inven.cpp	2026-10-09 15:43:36.102873982 -0400
-+++ b/Game/player/w_inven.cpp	2026-10-09 12:38:59.000000000 -0400
+--- a/Game/player/w_inven.cpp	2026-10-09 16:17:43.311116368 -0400
++++ b/Game/player/w_inven.cpp	2026-10-09 16:17:43.339643809 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -2028,8 +2028,8 @@ diff -ruN a/Game/player/w_inven.cpp b/Game/player/w_inven.cpp
  		int curWeapType = weapons[i].getType();
  
 diff -ruN a/Game/player/w_models.cpp b/Game/player/w_models.cpp
---- a/Game/player/w_models.cpp	2026-10-09 15:43:36.102951322 -0400
-+++ b/Game/player/w_models.cpp	2026-10-09 12:40:49.000000000 -0400
+--- a/Game/player/w_models.cpp	2026-10-09 16:17:43.311156498 -0400
++++ b/Game/player/w_models.cpp	2026-10-09 16:17:43.339878485 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -2074,8 +2074,8 @@ diff -ruN a/Game/player/w_models.cpp b/Game/player/w_models.cpp
  
  
 diff -ruN a/Game/player/w_network.cpp b/Game/player/w_network.cpp
---- a/Game/player/w_network.cpp	2026-10-09 15:43:36.102981857 -0400
-+++ b/Game/player/w_network.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/player/w_network.cpp	2026-10-09 16:17:43.311196855 -0400
++++ b/Game/player/w_network.cpp	2026-10-09 16:17:43.340034533 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -2084,8 +2084,8 @@ diff -ruN a/Game/player/w_network.cpp b/Game/player/w_network.cpp
  #include "w_types.h"
  #include "w_weapons.h"
 diff -ruN a/Game/player/w_utils.cpp b/Game/player/w_utils.cpp
---- a/Game/player/w_utils.cpp	2026-10-09 15:43:36.103038844 -0400
-+++ b/Game/player/w_utils.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/player/w_utils.cpp	2026-10-09 16:17:43.311275902 -0400
++++ b/Game/player/w_utils.cpp	2026-10-09 16:17:43.340107029 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -2094,8 +2094,8 @@ diff -ruN a/Game/player/w_utils.cpp b/Game/player/w_utils.cpp
  #include "w_types.h"
  #include "w_weapons.h"
 diff -ruN a/Game/player/w_weapons.cpp b/Game/player/w_weapons.cpp
---- a/Game/player/w_weapons.cpp	2026-10-09 15:43:36.103066812 -0400
-+++ b/Game/player/w_weapons.cpp	2026-10-09 12:29:31.000000000 -0400
+--- a/Game/player/w_weapons.cpp	2026-10-09 16:17:43.311318155 -0400
++++ b/Game/player/w_weapons.cpp	2026-10-09 16:17:52.239532626 -0400
 @@ -1,5 +1,5 @@
  #include "q_shared.h"
 -#include "..\ghoul\ighoul.h"
@@ -2103,9 +2103,18 @@ diff -ruN a/Game/player/w_weapons.cpp b/Game/player/w_weapons.cpp
  #include "w_public.h"
  #include "w_types.h"
  #include "w_weapons.h"
+@@ -98,7 +98,7 @@
+ 	&spas,
+ 	&minimi,
+ 	&m202a2,
+-	&micro,
++	&::micro,
+ 	&fthrow,
+ 	&hhand,
+ 	&thand,
 diff -ruN a/Game/qcommon/fields.h b/Game/qcommon/fields.h
---- a/Game/qcommon/fields.h	2026-10-09 15:43:36.103185142 -0400
-+++ b/Game/qcommon/fields.h	2026-10-09 12:38:00.000000000 -0400
+--- a/Game/qcommon/fields.h	2026-10-09 16:17:43.311470557 -0400
++++ b/Game/qcommon/fields.h	2026-10-09 16:17:43.340335397 -0400
 @@ -7,10 +7,10 @@
  #define FFL_SPAWNTEMP		1
  #define MAX_GHOULINST_SIZE	16384
@@ -2122,8 +2131,8 @@ diff -ruN a/Game/qcommon/fields.h b/Game/qcommon/fields.h
  typedef enum
  {
 diff -ruN a/Game/qcommon/mathlib.h b/Game/qcommon/mathlib.h
---- a/Game/qcommon/mathlib.h	2026-10-09 15:43:36.103217782 -0400
-+++ b/Game/qcommon/mathlib.h	2026-10-09 12:36:58.000000000 -0400
+--- a/Game/qcommon/mathlib.h	2026-10-09 16:17:43.311488349 -0400
++++ b/Game/qcommon/mathlib.h	2026-10-09 16:17:43.340407472 -0400
 @@ -140,7 +140,7 @@
  	scaleBy[2] *= value;
  }
@@ -2135,7 +2144,7 @@ diff -ruN a/Game/qcommon/mathlib.h b/Game/qcommon/mathlib.h
  	average[1] = (mins[1] + maxs[1]) * 0.5f;
 diff -ruN a/Game/qcommon/port_compat.h b/Game/qcommon/port_compat.h
 --- a/Game/qcommon/port_compat.h	1969-12-31 19:00:00.000000000 -0500
-+++ b/Game/qcommon/port_compat.h	2026-10-09 12:39:48.000000000 -0400
++++ b/Game/qcommon/port_compat.h	2026-10-09 16:17:43.340464466 -0400
 @@ -0,0 +1,100 @@
 +// port_compat.h -- portability shims for building the SoF game/player modules
 +// on non-Windows (Linux x86-64, Android ARM64) with gcc/clang.
@@ -2238,8 +2247,8 @@ diff -ruN a/Game/qcommon/port_compat.h b/Game/qcommon/port_compat.h
 +#endif // !_WIN32
 +#endif // PORT_COMPAT_H
 diff -ruN a/Game/qcommon/qfiles.h b/Game/qcommon/qfiles.h
---- a/Game/qcommon/qfiles.h	2026-10-09 15:43:36.103319907 -0400
-+++ b/Game/qcommon/qfiles.h	2026-10-09 12:43:45.000000000 -0400
+--- a/Game/qcommon/qfiles.h	2026-10-09 16:17:43.311624269 -0400
++++ b/Game/qcommon/qfiles.h	2026-10-09 16:17:43.340536767 -0400
 @@ -163,7 +163,11 @@
  	char		*lumpname;
  	int			insize;
