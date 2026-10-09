@@ -426,6 +426,11 @@ R_BlendLightmaps(void)
 	glDepthMask(1);
 }
 
+/* SoF SURF_ALPHA_TEXTURE (see SDK q_shared.h) */
+#ifndef SURF_SOF_ALPHA
+#define SURF_SOF_ALPHA 0x800
+#endif
+
 void
 R_RenderBrushPoly(msurface_t *fa)
 {
@@ -478,6 +483,13 @@ R_RenderBrushPoly(msurface_t *fa)
 		R_TexEnv(GL_REPLACE);
 	}
 
+	if (fa->texinfo->flags & SURF_SOF_ALPHA)
+	{
+		/* SoF alpha textures (fences, grates): cut out transparent texels */
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, 0.5f);
+	}
+
 	if (fa->texinfo->flags & SURF_FLOWING)
 	{
 		R_DrawGLFlowingPoly(fa);
@@ -485,6 +497,11 @@ R_RenderBrushPoly(msurface_t *fa)
 	else
 	{
 		R_DrawGLPoly(fa->polys);
+	}
+
+	if (fa->texinfo->flags & SURF_SOF_ALPHA)
+	{
+		glDisable(GL_ALPHA_TEST);
 	}
 
 	/* check for lightmap modification */
@@ -902,6 +919,11 @@ R_RecursiveWorldNode(mnode_t *node)
 		if ((surf->flags & SURF_PLANEBACK) != sidebit)
 		{
 			continue; /* wrong side */
+		}
+
+		if (surf->texinfo->flags & SURF_NODRAW)
+		{
+			continue; /* SoF keeps clip/trigger/origin faces in the BSP */
 		}
 
 		if (surf->texinfo->flags & SURF_SKY)

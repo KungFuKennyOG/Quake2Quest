@@ -414,12 +414,14 @@ Mod_LoadTexinfo(lump_t *l)
 		/* Soldier of Fortune stores its textures as .m32; try that first and
 		   fall back to the Quake 2 .wal name. */
 		Com_sprintf(name, sizeof(name), "textures/%s.m32", in->texture);
+		Q_strlwr(name); /* SoF maps use mixed case, its pak files are lowercase */
 
 		out->image = R_FindImage(name, it_wall);
 
 		if (!out->image)
 		{
 			Com_sprintf(name, sizeof(name), "textures/%s.wal", in->texture);
+			Q_strlwr(name);
 
 			out->image = R_FindImage(name, it_wall);
 		}

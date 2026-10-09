@@ -32,6 +32,8 @@
 #define BSP_L_FACES          6
 #define BSP_L_LEAFS          8
 #define BSP_L_LIGHTING       7
+#define BSP_L_TEXINFO        5
+#define BSP_TEXINFO_SIZE     76
 
 /* number of used light styles on a v46 face (styles[4] at +22, 255 = unused) */
 static inline int BSP_SoF_FaceStyles(const unsigned char *f)
@@ -155,6 +157,21 @@ BSP_ConvertSoF(const unsigned char *in, int inlen, int *outlen, const char **err
 		if (i != BSP_L_FACES && i != BSP_L_LEAFS && i != BSP_L_LIGHTING)
 		{
 			memcpy(out + nofs[i], in + lofs[i], (size_t)llen[i]);
+		}
+	}
+
+	/* texinfo: same layout, but SoF surface flags differ from Q2. Keep LIGHT, SLICK,
+	 * SKY, WARP, FLOWING, NODRAW and the SoF alpha-texture bit (0x800); drop the
+	 * deprecated TRANS33/66 bits and SoF-only high bits (material ids etc.). */
+	{
+		int n = llen[BSP_L_TEXINFO] / BSP_TEXINFO_SIZE;
+		unsigned char *t = out + nofs[BSP_L_TEXINFO];
+		for (i = 0; i < n; i++, t += BSP_TEXINFO_SIZE)
+		{
+			int32_t f;
+			memcpy(&f, t + 32, 4);
+			f &= (0x01 | 0x02 | 0x04 | 0x08 | 0x40 | 0x80 | 0x800);
+			memcpy(t + 32, &f, 4);
 		}
 	}
 
