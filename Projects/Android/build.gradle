@@ -46,6 +46,15 @@ android {
             abiFilters 'arm64-v8a'
         }
 
+        // Soldier of Fortune build (-PsofSdk=...): separate app id, name and data folder
+        def sofBuild = project.hasProperty('sofSdk')
+        buildConfigField "boolean", "SOF", sofBuild ? "true" : "false"
+        buildConfigField "String", "DATA_DIR", sofBuild ? '"/sdcard/SoFQuest"' : '"/sdcard/Quake2Quest"'
+        manifestPlaceholders = [appLabel: sofBuild ? "SoF Quest" : "@string/quake2quest"]
+        if (sofBuild) {
+            applicationIdSuffix ".sof"
+        }
+
         externalNativeBuild {
             ndkBuild {
                 def numProcs = Runtime.runtime.availableProcessors()
@@ -128,6 +137,10 @@ android {
         res.srcDirs = ['../../res']
         assets.srcDirs = ['../../assets']
         jni.srcDirs = ['jni']
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     compileOptions {

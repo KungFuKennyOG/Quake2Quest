@@ -187,28 +187,30 @@ import static android.system.Os.setenv;
 			//throw new RuntimeException(e);
 		}
 		//This will copy the shareware version of quake2 if user doesn't have anything installed
-		copy_asset("/sdcard/Quake2Quest", "pak0.pak");
+		if (!BuildConfig.SOF) {
+			copy_asset(BuildConfig.DATA_DIR, "pak0.pak");
 
-		//HD Textures
-		copy_asset("/sdcard/Quake2Quest", "pak6.pak");
+			//HD Textures
+			copy_asset(BuildConfig.DATA_DIR, "pak6.pak");
 
-		//Custom weapons
-		copy_asset("/sdcard/Quake2Quest", "pak99.pak");
+			//Custom weapons
+			copy_asset(BuildConfig.DATA_DIR, "pak99.pak");
+		}
 
 		//Configuration files
-		copy_asset("/sdcard/Quake2Quest", "config.cfg");
-		copy_asset("/sdcard/Quake2Quest", "autoexec.cfg");
-		copy_asset("/sdcard/Quake2Quest", "commandline.txt");
+		copy_asset(BuildConfig.DATA_DIR, "config.cfg");
+		copy_asset(BuildConfig.DATA_DIR, "autoexec.cfg");
+		copy_asset(BuildConfig.DATA_DIR, "commandline.txt");
 
 		//Comfort Vignette Mask
-		copy_asset("/sdcard/Quake2Quest", "vignette.tga");
+		copy_asset(BuildConfig.DATA_DIR, "vignette.tga");
 
 		//item wheel files
 		try {
 			AssetManager assets = this.getAssets();
 			String[] assetList = assets.list("wheel");
 			for(String filename: assetList){
-				copy_asset("/sdcard/Quake2Quest", "wheel/" + filename);
+				copy_asset(BuildConfig.DATA_DIR, "wheel/" + filename);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -218,11 +220,11 @@ import static android.system.Os.setenv;
 		commandLineParams = new String("quake2");
 
 		//See if user is trying to use command line params
-		if(new File("/sdcard/Quake2Quest/commandline.txt").exists()) // should exist!
+		if(new File(BuildConfig.DATA_DIR + "/commandline.txt").exists()) // should exist!
 		{
 			BufferedReader br;
 			try {
-				br = new BufferedReader(new FileReader("/sdcard/Quake2Quest/commandline.txt"));
+				br = new BufferedReader(new FileReader(BuildConfig.DATA_DIR + "/commandline.txt"));
 				String s;
 				StringBuilder sb=new StringBuilder(0);
 				while ((s=br.readLine())!=null)

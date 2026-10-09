@@ -34,7 +34,9 @@
 
 #define Q2QVERSION "1.1.1"
 #define YQ2VERSION "7.41"
+#ifndef BASEDIRNAME
 #define BASEDIRNAME "Quake2Quest"
+#endif
 
 #ifndef YQ2OSTYPE
 #error YQ2OSTYPE should be defined by the build system

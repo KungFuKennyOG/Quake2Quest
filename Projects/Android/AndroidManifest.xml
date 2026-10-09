@@ -19,7 +19,7 @@
 
 	<application android:allowBackup="false"
 			android:icon="@drawable/ic_qquest"
-			android:label="@string/quake2quest"
+			android:label="${appLabel}"
 			android:extractNativeLibs="true"
 			android:requestLegacyExternalStorage="true">
 		<meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
@@ -38,7 +38,7 @@
 		<activity
 				android:name="com.drbeef.quake2quest.GLES3JNIActivity"
 				android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
-				android:label="@string/quake2quest"
+				android:label="${appLabel}"
 				android:launchMode="singleTask"
 				android:screenOrientation="landscape"
 				android:excludeFromRecents="false"

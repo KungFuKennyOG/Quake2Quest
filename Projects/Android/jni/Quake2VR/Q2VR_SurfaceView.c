@@ -1517,7 +1517,7 @@ static void *AppThreadFunction(void *parm)
     Qcommon_Init(argc, argv);
     Cvar_SetValue("cl_showfps", 0);
     ALOGV("Q2XR Qcommon_Init complete argc=%d", argc);
-    FS_AddDirToSearchPath("/sdcard/Quake2Quest", true);
+    FS_AddDirToSearchPath("/sdcard/" BASEDIRNAME, true);
     quake2_initialised = true;
     ALOGV("Q2XR entering render loop");
 
