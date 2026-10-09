@@ -733,6 +733,61 @@ RI_SetSky(char *name, float rotate, vec3_t axis)
 	skyrotate = rotate;
 	VectorCopy(axis, skyaxis);
 
+	/* Soldier of Fortune: pics/sky/<name>.txt lists the M32 textures of the sides
+	   (rt bk lf ft up [dn]) */
+	{
+		char *list = NULL;
+		int len;
+
+		Com_sprintf(pathname, sizeof(pathname), "pics/sky/%s.txt", skyname);
+		len = ri.FS_LoadFile(pathname, (void **)&list);
+
+		if (len > 0 && list)
+		{
+			char *buf = malloc(len + 1);
+			char *p, *line;
+			int side = 0;
+
+			memcpy(buf, list, len);
+			buf[len] = 0;
+			ri.FS_FreeFile(list);
+
+			for (i = 0; i < 6; i++)
+			{
+				sky_images[i] = r_notexture;
+			}
+
+			for (p = buf; side < 6 && *p; )
+			{
+				line = p;
+				while (*p && *p != '\n' && *p != '\r') p++;
+				if (*p) *p++ = 0;
+				while (*p == '\n' || *p == '\r') p++;
+				while (*line == ' ' || *line == '\t') line++;
+				if (!*line) continue;
+				if (strcmp(line, "none"))
+				{
+					image_t *img;
+					Com_sprintf(pathname, sizeof(pathname), "%s.m32", line);
+					img = R_FindImage(pathname, it_sky);
+					sky_images[side] = img ? img : r_notexture;
+				}
+				side++;
+			}
+
+			/* a missing bottom uses the last side */
+			for (i = side; i < 6 && side > 0; i++)
+			{
+				sky_images[i] = sky_images[side - 1];
+			}
+
+			free(buf);
+			sky_min = 1.0 / 512;
+			sky_max = 511.0 / 512;
+			return;
+		}
+	}
+
 	for (i = 0; i < 6; i++)
 	{
 		if (gl_config.palettedtexture)
