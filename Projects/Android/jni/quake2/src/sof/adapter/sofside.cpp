@@ -1039,7 +1039,15 @@ extern "C" int sofb_clientconnect(int num, char *userinfo)
 	copyBack(userinfo, buf);
 	return ok;
 }
-extern "C" void sofb_clientbegin(int num) { sge->ClientBegin(edictOf(num)); }
+extern "C" void sofb_clientbegin(int num)
+{
+	sge->ClientBegin(edictOf(num));
+	/* sof_giveall 1: hand out every weapon on spawn (SoF's own "elbow" cheat) so they
+	   can be tried without playing the tutorial; set it in commandline.txt */
+	static void *cv_giveall;
+	if (!cv_giveall) cv_giveall = q2b_cvar("sof_giveall", "0", 0);
+	if (num == 1 && q2b_cvar_value(cv_giveall) != 0) q2b_addcommandstring("cmd elbow\n");
+}
 extern "C" void sofb_clientuserinfochanged(int num, char *userinfo)
 {
 	std::string info;

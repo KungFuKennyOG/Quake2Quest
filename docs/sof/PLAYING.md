@@ -48,3 +48,5 @@ Change `tut1` to another map name (e.g. `trn1`) to start elsewhere. There are no
 
 - `vr_worldscale` (default 36 for SoF): game units per metre. Raise it if the world feels too big.
 - `sof_vraim 0`: aim with the head instead of the controller.
+- `sof_giveall 1`: start every level with all weapons (SoF's own weapon cheat), e.g.
+  `quake2 +set developer 1 +set sof_giveall 1 +map tut1` in `commandline.txt`.
