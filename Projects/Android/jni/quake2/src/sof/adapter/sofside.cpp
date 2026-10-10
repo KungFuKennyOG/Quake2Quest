@@ -1072,13 +1072,13 @@ extern "C" void sofb_clientthink(int num, const sofb_usercmd_t *c)
 	g_thinkClient = -1;
 	static const char *dbg = getenv("SOF_DEBUG");
 	static int n;
-	if (dbg && (n++ % 100) == 0)
+	if (dbg && (n++ % (atoi(dbg) > 1 ? 1 : 100)) == 0)
 	{
 		edict_t *e = edictOf(num);
 		player_state_t *ps = e && e->client ? (player_state_t *)e->client : 0;
 		char b[256];
-		snprintf(b, sizeof(b), "[sofdbg] think %d: fwd %d side %d yaw %d btn %d msec %d -> pm_type %d origin %.0f %.0f %.0f\n",
-		         num, cmd.forwardmove, cmd.sidemove, cmd.angles[1], cmd.buttons, cmd.msec, ps ? ps->pmove.pm_type : -1,
+		snprintf(b, sizeof(b), "[sofdbg] think %d: fwd %d side %d up %d yaw %d btn %d msec %d -> pm_type %d origin %.0f %.0f %.0f\n",
+		         num, cmd.forwardmove, cmd.sidemove, cmd.upmove, cmd.angles[1], cmd.buttons, cmd.msec, ps ? ps->pmove.pm_type : -1,
 		         e ? e->s.origin[0] : 0, e ? e->s.origin[1] : 0, e ? e->s.origin[2] : 0);
 		q2b_dprint(b);
 	}

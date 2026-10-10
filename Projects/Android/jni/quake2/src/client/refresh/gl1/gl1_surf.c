@@ -483,13 +483,6 @@ R_RenderBrushPoly(msurface_t *fa)
 		R_TexEnv(GL_REPLACE);
 	}
 
-	if (fa->texinfo->flags & SURF_SOF_ALPHA)
-	{
-		/* SoF alpha textures (fences, grates): cut out transparent texels */
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.5f);
-	}
-
 	if (fa->texinfo->flags & SURF_FLOWING)
 	{
 		R_DrawGLFlowingPoly(fa);
@@ -497,11 +490,6 @@ R_RenderBrushPoly(msurface_t *fa)
 	else
 	{
 		R_DrawGLPoly(fa->polys);
-	}
-
-	if (fa->texinfo->flags & SURF_SOF_ALPHA)
-	{
-		glDisable(GL_ALPHA_TEST);
 	}
 
 	/* check for lightmap modification */
@@ -569,6 +557,47 @@ R_RenderBrushPoly(msurface_t *fa)
 }
 
 /*
+ * SoF draws its alpha-texture surfaces (glass, grates, fences) in the translucent pass,
+ * blended by the texture's alpha and coloured by the light at the surface instead of
+ * a lightmap. offset moves the sample point for brush models.
+ */
+static void
+R_SoFAlphaColor(msurface_t *s, const float *offset)
+{
+	static entity_t lightent;
+	entity_t *save = currententity;
+	vec3_t c = {0, 0, 0}, col;
+	glpoly_t *p = s->polys;
+	int i;
+
+	if (p && p->numverts > 0)
+	{
+		for (i = 0; i < p->numverts; i++)
+		{
+			VectorAdd(c, p->verts[i], c);
+		}
+		VectorScale(c, 1.0f / p->numverts, c);
+	}
+	if (offset)
+	{
+		VectorAdd(c, offset, c);
+	}
+	/* a little in front of the surface, so the light trace starts in the open */
+	VectorMA(c, (s->flags & SURF_PLANEBACK) ? -2 : 2, s->plane->normal, c);
+
+	VectorCopy(c, lightent.origin);
+	currententity = &lightent;
+	R_LightPoint(c, col);
+	currententity = save;
+
+	if (gl1_overbrightbits->value)
+	{
+		VectorScale(col, gl1_overbrightbits->value, col);
+	}
+	glColor4f(col[0] > 1 ? 1 : col[0], col[1] > 1 ? 1 : col[1], col[2] > 1 ? 1 : col[2], 1);
+}
+
+/*
  * Draw water surfaces and windows.
  * The BSP tree is waled front to back, so unwinding the chain
  * of alpha_surfaces will draw back to front, giving proper ordering.
@@ -594,7 +623,11 @@ R_DrawAlphaSurfaces(void)
 		R_Bind(s->texinfo->image->texnum);
 		c_brush_polys++;
 
-		if (s->texinfo->flags & SURF_TRANS33)
+		if (s->texinfo->flags & SURF_SOF_ALPHA)
+		{
+			R_SoFAlphaColor(s, NULL);
+		}
+		else if (s->texinfo->flags & SURF_TRANS33)
 		{
 			glColor4f(intens, intens, intens, 0.33);
 		}
@@ -671,6 +704,7 @@ R_DrawInlineBModel(void)
 	cplane_t *pplane;
 	float dot;
 	msurface_t *psurf;
+	msurface_t *sofalpha = NULL;
 	dlight_t *lt;
 
 	/* calculate dynamic lighting for bmodel */
@@ -705,7 +739,13 @@ R_DrawInlineBModel(void)
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			if (psurf->texinfo->flags & (SURF_TRANS33 | SURF_TRANS66))
+			if (psurf->texinfo->flags & SURF_SOF_ALPHA)
+			{
+				/* drawn below, after the opaque faces (moving doors keep their glass) */
+				psurf->texturechain = sofalpha;
+				sofalpha = psurf;
+			}
+			else if (psurf->texinfo->flags & (SURF_TRANS33 | SURF_TRANS66))
 			{
 				/* add to the translucent chain */
 				psurf->texturechain = r_alpha_surfaces;
@@ -722,6 +762,38 @@ R_DrawInlineBModel(void)
 	{
 
 		R_BlendLightmaps();
+	}
+
+	if (sofalpha)
+	{
+		glEnable(GL_BLEND);
+		glDepthMask(GL_FALSE);
+		R_TexEnv(GL_MODULATE);
+		for (psurf = sofalpha; psurf; psurf = psurf->texturechain)
+		{
+			R_Bind(R_TextureAnimation(psurf->texinfo)->texnum);
+			c_brush_polys++;
+			R_SoFAlphaColor(psurf, currententity->origin);
+			if (psurf->texinfo->flags & SURF_FLOWING)
+			{
+				R_DrawGLFlowingPoly(psurf);
+			}
+			else
+			{
+				R_DrawGLPoly(psurf->polys);
+			}
+		}
+		glDepthMask(GL_TRUE);
+		if (!(currententity->flags & RF_TRANSLUCENT))
+		{
+			glDisable(GL_BLEND);
+			glColor4f(1, 1, 1, 1);
+			R_TexEnv(GL_REPLACE);
+		}
+		else
+		{
+			glColor4f(1, 1, 1, 0.25);
+		}
 	}
 	else
 	{
@@ -932,7 +1004,7 @@ R_RecursiveWorldNode(mnode_t *node)
 			/* just adds to visible sky bounds */
 			R_AddSkySurface(surf);
 		}
-		else if (surf->texinfo->flags & (SURF_TRANS33 | SURF_TRANS66))
+		else if (surf->texinfo->flags & (SURF_TRANS33 | SURF_TRANS66 | SURF_SOF_ALPHA))
 		{
 			/* add to the translucent chain */
 			surf->texturechain = r_alpha_surfaces;
