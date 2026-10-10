@@ -430,8 +430,38 @@ void HandleInput_Default( ovrInputStateTrackedRemote *pDominantTrackedRemoteNew,
                 sendButtonAction("+movedown", (primaryButtonsNew & primaryButton1));
             }
 
+#ifdef SOF_BUILD
+			/* Soldier of Fortune sniper scope: while looking through it, hold the weapon
+			   stick up / down to zoom in / out (SoF's weapon extra buttons) instead of
+			   changing weapons */
+			static int zoomButton = 0; /* 1 in, 2 out */
+			{
+				cvar_t *zoomcv = Cvar_Get("vr_zoom", "1", 0);
+				int want = 0;
+				if (zoomcv->value > 1.01f && between(-0.5f, primaryJoystickNew.x, 0.5f))
+				{
+					if (primaryJoystickNew.y > 0.6f) want = 1;
+					else if (primaryJoystickNew.y < -0.6f) want = 2;
+				}
+				if (want != zoomButton)
+				{
+					if (zoomButton == 1) sendButtonAction("+weaponextra1", 0);
+					if (zoomButton == 2) sendButtonAction("+weaponextra2", 0);
+					if (want == 1) sendButtonAction("+weaponextra1", 1);
+					if (want == 2) sendButtonAction("+weaponextra2", 1);
+					zoomButton = want;
+				}
+			}
+#endif
 			//Weapon/Inventory Chooser
 			static qboolean itemSwitched = false;
+#ifdef SOF_BUILD
+			if (zoomButton)
+			{
+				itemSwitched = true; /* the stick is zooming; don't switch weapons when let go */
+			}
+			else
+#endif
 			if (between(-0.2f, primaryJoystickNew.x, 0.2f) &&
 				(between(0.8f, primaryJoystickNew.y, 1.0f) ||
 				 between(-1.0f, primaryJoystickNew.y, -0.8f)))

@@ -20,7 +20,7 @@ Change `tut1` to another map name (e.g. `trn1`) to start elsewhere. There are no
 | Right controller | |
 |---|---|
 | Trigger | Fire (shots go where the controller points) |
-| Grip | Alternate fire |
+| Grip | Alternate fire (sniper rifle: scope magnification 2x / 4x / 8x / 16x) |
 | A | Crouch (or crouch for real) |
 | B | Jump |
 | Stick left / right | Turn |
@@ -48,5 +48,7 @@ Change `tut1` to another map name (e.g. `trn1`) to start elsewhere. There are no
 
 - `vr_worldscale` (default 36 for SoF): game units per metre. Raise it if the world feels too big.
 - `sof_vraim 0`: aim with the head instead of the controller.
+- `sof_vrscope 0`: use SoF's own sniper scope (the whole view zooms, aim with the head; stick up / down zooms) instead of the VR scope in the rifle's eyepiece.
+- `sof_vrgunfit 0`: draw the view weapons as SoF made them for a flat screen instead of fitting them into the hand.
 - `sof_giveall 1`: start every level with all weapons (SoF's own weapon cheat), e.g.
   `quake2 +set developer 1 +set sof_giveall 1 +map tut1` in `commandline.txt`.

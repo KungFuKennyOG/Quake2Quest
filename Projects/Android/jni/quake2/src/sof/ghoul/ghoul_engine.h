@@ -42,12 +42,18 @@ struct GhoulDrawSurface
 	std::vector<unsigned short> indices;
 	std::string skin;          /* skin/texture name (without extension), may be empty */
 	std::string objectDir;     /* e.g. "enemy/meso" (where the skin textures live) */
+	std::string part;          /* the model part the surface belongs to ("_R_HIGH_RES_HAND") */
 	float tint[4];
 };
 
 /* Evaluate an instance (and everything bolted to it) at time t and append its visible
  * surfaces, transformed by the instance's own XForm and its bolt chain. */
 void Ghoul_BuildDrawList(IGhoulInst *inst, float time, std::vector<GhoulDrawSurface> &out);
+
+/* Name of the sequence an instance is playing ("idle_a"), or "" */
+const char *Ghoul_PlayingSequenceName(IGhoulInst *inst);
+/* The object's directory ("weapon/inview/sniperrifle"), or "" */
+const char *Ghoul_ObjectDir(IGhoulInst *inst);
 
 /* ---- .gsq sequence lists (game_import_t entries) ------------------------- */
 class IGhoulObj;

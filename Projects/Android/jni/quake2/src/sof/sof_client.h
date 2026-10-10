@@ -38,6 +38,10 @@ typedef struct sofdraw_s
 {
 	int nummeshes;
 	const sofmesh_t *meshes;
+	/* VR rifle scope (view weapon only): the eyepiece, in the model's space (x along the
+	   barrel): centre and radius. The renderer shows the magnified view through it. */
+	int hasscope;
+	float scope[4];
 } sofdraw_t;
 
 /* return the meshes of an entity / of a client's view weapon at the current game time;

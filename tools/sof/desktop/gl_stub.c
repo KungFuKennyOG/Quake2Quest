@@ -71,8 +71,77 @@ const GLubyte *glGetString(GLenum name)
 	}
 	return (const GLubyte *)"";
 }
-void glGetFloatv(GLenum p, GLfloat *v) { (void)p; if (v) { int i; for (i = 0; i < 16; i++) v[i] = (i % 5 == 0) ? 1.0f : 0.0f; } }
-void glGetIntegerv(GLenum p, GLint *v) { (void)p; if (v) v[0] = 4096; }
+/* matrix stacks and viewport, so code that reads them back (projection of points to
+   the screen) can be tested; column-major like OpenGL */
+#include <math.h>
+static GLfloat mstack[2][32][16];
+static int mdepth[2], mmode;
+static GLint viewport[4] = { 0, 0, 1280, 720 };
+static GLfloat *cur(void) { return mstack[mmode][mdepth[mmode]]; }
+static void mident(GLfloat *m) { int i; for (i = 0; i < 16; i++) m[i] = (i % 5 == 0) ? 1.0f : 0.0f; }
+static void mmul(const GLfloat *b)
+{
+	GLfloat *a = cur(), r[16];
+	int i, j, k;
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++)
+		{
+			r[j * 4 + i] = 0;
+			for (k = 0; k < 4; k++) r[j * 4 + i] += a[k * 4 + i] * b[j * 4 + k];
+		}
+	memcpy(a, r, sizeof(r));
+}
+void glMatrixMode(GLenum m) { mmode = (m == 0x1701 /* GL_PROJECTION */) ? 1 : 0; }
+void glLoadIdentity(void) { mident(cur()); }
+void glLoadMatrixf(const GLfloat *m) { touch(m, 16 * sizeof(GLfloat)); memcpy(cur(), m, 16 * sizeof(GLfloat)); }
+void glMultMatrixf(const GLfloat *m) { touch(m, 16 * sizeof(GLfloat)); mmul(m); }
+void glPushMatrix(void) { if (mdepth[mmode] < 31) { memcpy(mstack[mmode][mdepth[mmode] + 1], cur(), 16 * sizeof(GLfloat)); mdepth[mmode]++; } }
+void glPopMatrix(void) { if (mdepth[mmode] > 0) mdepth[mmode]--; }
+void glTranslatef(GLfloat x, GLfloat y, GLfloat z) { GLfloat m[16]; mident(m); m[12] = x; m[13] = y; m[14] = z; mmul(m); }
+void glScalef(GLfloat x, GLfloat y, GLfloat z) { GLfloat m[16]; mident(m); m[0] = x; m[5] = y; m[10] = z; mmul(m); }
+void glRotatef(GLfloat a, GLfloat x, GLfloat y, GLfloat z)
+{
+	GLfloat m[16], l = sqrtf(x * x + y * y + z * z), c, s;
+	if (l <= 0) return;
+	x /= l; y /= l; z /= l;
+	a *= 3.14159265f / 180.0f; c = cosf(a); s = sinf(a);
+	mident(m);
+	m[0] = x * x * (1 - c) + c;     m[4] = x * y * (1 - c) - z * s; m[8] = x * z * (1 - c) + y * s;
+	m[1] = y * x * (1 - c) + z * s; m[5] = y * y * (1 - c) + c;     m[9] = y * z * (1 - c) - x * s;
+	m[2] = x * z * (1 - c) - y * s; m[6] = y * z * (1 - c) + x * s; m[10] = z * z * (1 - c) + c;
+	mmul(m);
+}
+void glFrustumf(GLfloat l, GLfloat r, GLfloat b, GLfloat t, GLfloat n, GLfloat f)
+{
+	GLfloat m[16];
+	memset(m, 0, sizeof(m));
+	m[0] = 2 * n / (r - l); m[5] = 2 * n / (t - b);
+	m[8] = (r + l) / (r - l); m[9] = (t + b) / (t - b); m[10] = -(f + n) / (f - n); m[11] = -1;
+	m[14] = -2 * f * n / (f - n);
+	mmul(m);
+}
+void glOrthof(GLfloat l, GLfloat r, GLfloat b, GLfloat t, GLfloat n, GLfloat f)
+{
+	GLfloat m[16];
+	mident(m);
+	m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n);
+	m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n);
+	mmul(m);
+}
+void glViewport(GLint x, GLint y, GLsizei w, GLsizei h) { viewport[0] = x; viewport[1] = y; viewport[2] = w; viewport[3] = h; }
+void glGetFloatv(GLenum p, GLfloat *v)
+{
+	if (!v) return;
+	if (p == 0x0BA6 /* GL_MODELVIEW_MATRIX */) memcpy(v, mstack[0][mdepth[0]], 16 * sizeof(GLfloat));
+	else if (p == 0x0BA7 /* GL_PROJECTION_MATRIX */) memcpy(v, mstack[1][mdepth[1]], 16 * sizeof(GLfloat));
+	else { int i; for (i = 0; i < 16; i++) v[i] = (i % 5 == 0) ? 1.0f : 0.0f; }
+}
+void glGetIntegerv(GLenum p, GLint *v)
+{
+	if (!v) return;
+	if (p == 0x0BA2 /* GL_VIEWPORT */) memcpy(v, viewport, sizeof(viewport));
+	else v[0] = 4096;
+}
 
 void glPixelStorei(GLenum p, GLint v) { if (p == 0x0CF5 /* GL_UNPACK_ALIGNMENT */) unpack_align = v; }
 
@@ -137,18 +206,9 @@ NOP(glDepthRangef, (GLfloat a, GLfloat b))
 NOP(glDisable, (GLenum a))
 NOP(glEnable, (GLenum a))
 NOP(glFinish, (void))
-NOP(glFrustumf, (GLfloat a, GLfloat b, GLfloat c, GLfloat d, GLfloat e, GLfloat f))
 NOP(glHint, (GLenum a, GLenum b))
-NOP(glLoadIdentity, (void))
-void glLoadMatrixf(const GLfloat *m) { touch(m, 16 * sizeof(GLfloat)); }
-NOP(glMatrixMode, (GLenum a))
-NOP(glOrthof, (GLfloat a, GLfloat b, GLfloat c, GLfloat d, GLfloat e, GLfloat f))
 NOP(glPointSize, (GLfloat a))
 NOP(glPolygonOffset, (GLfloat a, GLfloat b))
-NOP(glPopMatrix, (void))
-NOP(glPushMatrix, (void))
-NOP(glRotatef, (GLfloat a, GLfloat b, GLfloat c, GLfloat d))
-NOP(glScalef, (GLfloat a, GLfloat b, GLfloat c))
 NOP(glScissor, (GLint a, GLint b, GLsizei c, GLsizei d))
 NOP(glShadeModel, (GLenum a))
 NOP(glStencilFunc, (GLenum a, GLint b, GLuint c))
@@ -156,5 +216,3 @@ NOP(glStencilOp, (GLenum a, GLenum b, GLenum c))
 NOP(glTexEnvf, (GLenum a, GLenum b, GLfloat c))
 NOP(glTexEnvi, (GLenum a, GLenum b, GLint c))
 NOP(glTexParameteri, (GLenum a, GLenum b, GLint c))
-NOP(glTranslatef, (GLfloat a, GLfloat b, GLfloat c))
-NOP(glViewport, (GLint a, GLint b, GLsizei c, GLsizei d))

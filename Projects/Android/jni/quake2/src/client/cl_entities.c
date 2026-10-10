@@ -993,6 +993,24 @@ CL_CalcViewValues(void)
 
 	/* interpolate field of view */
 	ifov = ops->fov + lerp * (ps->fov - ops->fov);
+
+	/* The headset decides the field of view, so a narrower game fov (SoF's sniper scope
+	 * zooms from 95 down to 6 degrees) becomes a magnification of the view instead. */
+	{
+		static float lastzoom = 1.0f;
+		float base = CL_SoF_Active() ? 95.0f : 90.0f;
+		float zoom = 1.0f;
+
+		if (ifov > 1.0f && ifov < base - 1.0f)
+		{
+			zoom = tanf(base * 0.5f * (float)M_PI / 180.0f) / tanf(ifov * 0.5f * (float)M_PI / 180.0f);
+		}
+		if (zoom != lastzoom)
+		{
+			Cvar_SetValue("vr_zoom", zoom);
+			lastzoom = zoom;
+		}
+	}
 	if (horplus->value)
 	{
 		cl.refdef.fov_x = AdaptFov(ifov, cl.refdef.width, cl.refdef.height);

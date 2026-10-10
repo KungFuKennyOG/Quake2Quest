@@ -60,6 +60,7 @@ kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
 kbutton_t in_strafe, in_speed, in_use, in_attack;
 kbutton_t in_altattack; /* Soldier of Fortune alternate fire (button bit 4) */
+kbutton_t in_weapextra1, in_weapextra2; /* SoF weapon extras: bits 8 / 16 (sniper zoom in / out, pistol hands) */
 kbutton_t in_up, in_down;
 
 int in_impulse;
@@ -377,6 +378,11 @@ IN_AltAttackUp(void)
 	KeyUp(&in_altattack);
 }
 
+void IN_WeapExtra1Down(void) { KeyDown(&in_weapextra1); }
+void IN_WeapExtra1Up(void) { KeyUp(&in_weapextra1); }
+void IN_WeapExtra2Down(void) { KeyDown(&in_weapextra2); }
+void IN_WeapExtra2Up(void) { KeyUp(&in_weapextra2); }
+
 void
 IN_Impulse(void)
 {
@@ -606,6 +612,20 @@ CL_FinishMove(usercmd_t *cmd)
 
 	in_altattack.state &= ~2;
 
+	if (in_weapextra1.state & 3)
+	{
+		cmd->buttons |= 8; /* SoF BUTTON_WEAP3 */
+	}
+
+	in_weapextra1.state &= ~2;
+
+	if (in_weapextra2.state & 3)
+	{
+		cmd->buttons |= 16; /* SoF BUTTON_WEAP4 */
+	}
+
+	in_weapextra2.state &= ~2;
+
 	if (anykeydown && (cls.key_dest == key_game))
 	{
 		cmd->buttons |= BUTTON_ANY;
@@ -693,6 +713,10 @@ CL_InitInput(void)
 	Cmd_AddCommand("-use", IN_UseUp);
 	Cmd_AddCommand("+altattack", IN_AltAttackDown);
 	Cmd_AddCommand("-altattack", IN_AltAttackUp);
+	Cmd_AddCommand("+weaponextra1", IN_WeapExtra1Down);
+	Cmd_AddCommand("-weaponextra1", IN_WeapExtra1Up);
+	Cmd_AddCommand("+weaponextra2", IN_WeapExtra2Down);
+	Cmd_AddCommand("-weaponextra2", IN_WeapExtra2Up);
 	Cmd_AddCommand("impulse", IN_Impulse);
 	Cmd_AddCommand("+klook", IN_KLookDown);
 	Cmd_AddCommand("-klook", IN_KLookUp);
@@ -817,6 +841,20 @@ CL_FinalizeCmd(void)
 	}
 
 	in_altattack.state &= ~2;
+
+	if (in_weapextra1.state & 3)
+	{
+		cmd->buttons |= 8; /* SoF BUTTON_WEAP3 */
+	}
+
+	in_weapextra1.state &= ~2;
+
+	if (in_weapextra2.state & 3)
+	{
+		cmd->buttons |= 16; /* SoF BUTTON_WEAP4 */
+	}
+
+	in_weapextra2.state &= ~2;
 
 	// Keyboard events
 	if (anykeydown && cls.key_dest == key_game)

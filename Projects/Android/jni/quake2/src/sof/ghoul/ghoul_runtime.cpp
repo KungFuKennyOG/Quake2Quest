@@ -1211,6 +1211,7 @@ public:
 				{
 					GhoulDrawSurface d;
 					d.objectDir = obj->objectDir;
+					d.part = m.parts[(size_t)sf.part].name;
 					memcpy(d.tint, tint, sizeof(tint));
 					GhoulID matId = sf.material >= 0 && sf.material < (int)m.materials.size()
 						? obj->FindMaterial(m.materials[(size_t)sf.material].name.c_str()) : 0;
@@ -1396,6 +1397,19 @@ void Ghoul_BuildDrawList(IGhoulInst *inst, float time, std::vector<GhoulDrawSurf
 {
 	if (!inst) return;
 	static_cast<GInst *>(inst)->draw(time, 0, out);
+}
+
+const char *Ghoul_PlayingSequenceName(IGhoulInst *inst)
+{
+	if (!inst) return "";
+	GInst *g = static_cast<GInst *>(inst);
+	if (!g->seqId || g->seqId > g->obj->seqs.size()) return "";
+	return g->obj->seqs[g->seqId - 1].base.c_str();
+}
+
+const char *Ghoul_ObjectDir(IGhoulInst *inst)
+{
+	return inst ? static_cast<GInst *>(inst)->obj->objectDir.c_str() : "";
 }
 
 IGhoul *GetGhoul(bool Client, bool Menu)

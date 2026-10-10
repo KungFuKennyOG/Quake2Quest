@@ -568,6 +568,9 @@ static void vrAimBegin(edict_t *ent, VRAimSave &save)
 	if (!off[0] && !off[1] && !off[2] && !ang[0] && !ang[1] && !ang[2]) return; /* no VR (desktop) */
 
 	player_state_t *ps = (player_state_t *)ent->client;
+	/* looking through the sniper scope (the game narrows the fov and hides the gun):
+	   the client magnifies the head's view, so shots go where the head looks */
+	if (ps->fov > 0 && ps->fov < 90) return;
 	float ws = cv_scale ? q2b_cvar_value(cv_scale) : 36.0f;
 	float adj = cv_adjust ? q2b_cvar_value(cv_adjust) : 0.0f;
 	VectorCopy(ps->viewoffset, save.viewoffset);
@@ -597,11 +600,19 @@ static void vrAimEnd(edict_t *ent, VRAimSave &save)
 	VectorCopy(save.viewoffset, ps->viewoffset);
 	VectorCopy(save.viewangles, ps->viewangles);
 }
+/* With the VR scope the sniper rifle is always looking through its scope: SoF throws
+   unzoomed rifle shots up to 4.5 degrees off (fov above 60), so fire it as zoomed. */
+static bool vrScopedRifle(edict_t *ent);
 static void vrFire(void *sh, edict_t *ent, void *inven)
 {
 	VRAimSave save;
 	vrAimBegin(ent, save);
+	player_state_t *ps = ent && ent->client ? (player_state_t *)ent->client : 0;
+	float fov = ps ? ps->fov : 0;
+	bool scoped = ps && vrScopedRifle(ent) && fov > 59;
+	if (scoped) ps->fov = 59;
 	g_origFire(sh, ent, inven);
+	if (scoped) ps->fov = fov;
 	vrAimEnd(ent, save);
 }
 static void vrAltfire(void *sh, edict_t *ent, void *inven)
@@ -1069,7 +1080,27 @@ extern "C" void sofb_clientthink(int num, const sofb_usercmd_t *c)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.msec = (byte)c->msec;
 	/* Q2 buttons: 1 attack, 2 use, 4 alt attack (SoF builds), 128 any. Q2 running is already folded into the move speeds. */
-	cmd.buttons = (byte)(c->buttons & (BUTTON_ATTACK | BUTTON_USE | BUTTON_ALTATTACK | BUTTON_ANY));
+	cmd.buttons = (byte)(c->buttons & (BUTTON_ATTACK | BUTTON_USE | BUTTON_ALTATTACK | BUTTON_WEAP3 | BUTTON_WEAP4 | BUTTON_ANY));
+	/* VR scope on the sniper rifle: the grip (alternate fire) changes the scope's
+	   magnification instead of SoF's scope view, which hides the rifle */
+	if (vrScopedRifle(edictOf(num)))
+	{
+		static bool wasDown;
+		bool down = (cmd.buttons & BUTTON_ALTATTACK) != 0;
+		if (down && !wasDown)
+		{
+			static void *cv_mag;
+			if (!cv_mag) cv_mag = q2b_cvar("vr_scope_mag", "4", 0);
+			float m = q2b_cvar_value(cv_mag);
+			const char *next = m < 3 ? "4" : m < 6 ? "8" : m < 12 ? "16" : "2";
+			q2b_cvar_set("vr_scope_mag", next);
+			char b[64];
+			snprintf(b, sizeof(b), "Scope %sx\n", next);
+			q2b_centerprint(num, b);
+		}
+		wasDown = down;
+		cmd.buttons &= ~BUTTON_ALTATTACK;
+	}
 	cmd.lightlevel = (byte)c->lightlevel;
 	for (int i = 0; i < 3; i++) cmd.angles[i] = c->angles[i];
 	cmd.forwardmove = (short)c->forwardmove;
@@ -1267,6 +1298,7 @@ static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
 	}
 	c.draw.nummeshes = (int)c.meshes.size();
 	c.draw.meshes = c.meshes.empty() ? 0 : &c.meshes[0];
+	c.draw.hasscope = 0;
 	return &c.draw;
 }
 
@@ -1276,11 +1308,408 @@ static const sofdraw_t *hookEntityDraw(int num, float lerpfrac)
 	if (!e || !e->inuse || !e->ghoulInst) return 0;
 	return buildDraw(num, (IGhoulInst *)e->ghoulInst, lerpfrac);
 }
+/* ---- holding the view weapon in VR
+ * SoF's view weapons are made for a flat screen: the model's origin is the camera and the
+ * gun sits out in front, lower right, angled in at the crosshair, with both arms reaching
+ * in from the screen edges. On a controller that hangs the whole arm off the hand. So each
+ * weapon is moved into the hand: the right hand's grip goes to the controller and the
+ * barrel (the muzzle "flash" bolt's forward axis, which the shots also follow) points the
+ * way the controller aims. The sleeves, which only made sense cut off by the screen edge,
+ * are hidden. The fit is taken from the weapon's idle poses, so firing, reloading and
+ * other animations still move the gun in the hand. */
+static void cp3(const float *a, float *b);
+static void normalize3(float *v);
+struct GunFit
+{
+	bool valid;
+	bool measured;                         /* heading taken from the muzzle area */
+	float grip[3], fwd[3], left[3], up[3]; /* in the weapon's entity space */
+};
+static std::map<const void *, GunFit> g_gunAxes; /* model -> orientation, measured once */
+static std::map<std::pair<const void *, std::string>, GunFit> g_gunFits; /* (model, idle sequence) */
+static std::map<const void *, GunFit> g_gunFitLast;                       /* model -> fit in use */
+static GunFit g_gunFitNow;                                                 /* this frame's fit */
+
+static bool partIs(const std::string &part, const char *a, const char *b)
+{
+	std::string p = part;
+	for (size_t i = 0; i < p.size(); i++) p[i] = (char)toupper((unsigned char)p[i]);
+	return p.find(a) != std::string::npos && (!b || p.find(b) != std::string::npos);
+}
+
+static bool fitGun(IGhoulInst *gun, float time, const std::vector<GhoulDrawSurface> &surfs, GunFit &fit)
+{
+	fit.valid = false;
+	fit.measured = false;
+	IGhoulObj *obj = gun->GetGhoulObject();
+	if (!obj) return false;
+
+	/* the grip: middle of the right hand */
+	double sum[3] = { 0, 0, 0 };
+	size_t n = 0;
+	for (int pass = 0; pass < 2 && !n; pass++)
+		for (size_t i = 0; i < surfs.size(); i++)
+		{
+			if (!(pass == 0 ? partIs(surfs[i].part, "_R_", "HAND") : partIs(surfs[i].part, "HAND", 0))) continue;
+			const std::vector<float> &x = surfs[i].xyz;
+			for (size_t k = 0; k + 2 < x.size(); k += 3) { sum[0] += x[k]; sum[1] += x[k + 1]; sum[2] += x[k + 2]; n++; }
+		}
+	if (!n) return false;
+	for (int k = 0; k < 3; k++) fit.grip[k] = (float)(sum[k] / (double)n);
+
+	if (const char *dump = getenv("SOF_GUNDUMP"))
+	{
+		std::string fn = std::string(dump) + "_" + (surfs.empty() ? std::string("?") : surfs[0].objectDir) + "_" + Ghoul_PlayingSequenceName(gun) + ".obj";
+		for (size_t i = strlen(dump); i < fn.size(); i++) if (fn[i] == '/') fn[i] = '_';
+		if (FILE *df = fopen(fn.c_str(), "w"))
+		{
+			size_t base = 1;
+			for (size_t i = 0; i < surfs.size(); i++)
+			{
+				fprintf(df, "o %s\nusemtl %s/%s\n", surfs[i].part.c_str(), surfs[i].objectDir.c_str(), surfs[i].skin.c_str());
+				const std::vector<float> &x = surfs[i].xyz;
+				for (size_t k = 0; k + 2 < x.size(); k += 3) fprintf(df, "v %f %f %f\n", x[k], x[k + 1], x[k + 2]);
+				for (size_t k = 0; k + 1 < surfs[i].st.size(); k += 2) fprintf(df, "vt %f %f\n", surfs[i].st[k], surfs[i].st[k + 1]);
+				for (size_t k = 0; k + 2 < surfs[i].indices.size(); k += 3)
+					fprintf(df, "f %zu/%zu %zu/%zu %zu/%zu\n", base + surfs[i].indices[k], base + surfs[i].indices[k], base + surfs[i].indices[k + 1],
+					        base + surfs[i].indices[k + 1], base + surfs[i].indices[k + 2], base + surfs[i].indices[k + 2]);
+				base += x.size() / 3;
+			}
+			fclose(df);
+		}
+	}
+	/* the barrel: the long axis of the gun around its muzzle (the gun's vertices without
+	   hands and arms, weighted by closeness to the muzzle bolt - the flat models stretch
+	   grips and magazines far down past the screen edge), pointing at the muzzle; the
+	   gun's up is from the hand that holds it toward the muzzle. Without a muzzle bolt
+	   (knife) the whole model's long axis is used, pointing forward. */
+	float f[3] = { 1, 0, 0 }, u[3] = { 0, 0, 1 };
+	{
+		float muzzle[3] = { 0, 0, 0 };
+		GhoulID flash = obj->FindPart("flash");
+		if (flash)
+		{
+			Matrix4 m;
+			gun->GetBoltMatrix(time, m, flash, IGhoulInst::MatrixType::Entity, true);
+			Vect3 r3;
+			m.GetRow(3, r3);
+			muzzle[0] = r3.x(); muzzle[1] = r3.y(); muzzle[2] = r3.z();
+		}
+		std::vector<const float *> pts;
+		for (size_t i = 0; i < surfs.size(); i++)
+		{
+			const std::string &pn = surfs[i].part;
+			if (partIs(pn, "HAND", 0) || partIs(pn, "ARM", 0) || partIs(pn, "SLEEVE", 0)) continue;
+			const std::vector<float> &x = surfs[i].xyz;
+			for (size_t k = 0; k + 2 < x.size(); k += 3) pts.push_back(&x[k]);
+		}
+		if (pts.size() > 8)
+		{
+			double sigma2 = 1e12;
+			if (flash)
+			{
+				double far = 0;
+				for (size_t i = 0; i < pts.size(); i++)
+				{
+					double d = 0;
+					for (int a = 0; a < 3; a++) d += (pts[i][a] - muzzle[a]) * (pts[i][a] - muzzle[a]);
+					if (d > far) far = d;
+				}
+				sigma2 = far * 0.0625; /* sigma: a quarter of the gun's reach from the muzzle */
+				if (sigma2 < 1) sigma2 = 1;
+			}
+			double wsum = 0, mean[3] = { 0, 0, 0 }, cov[3][3] = { { 0 } };
+			std::vector<double> w(pts.size());
+			for (size_t i = 0; i < pts.size(); i++)
+			{
+				double d = 0;
+				if (flash) for (int a = 0; a < 3; a++) d += (pts[i][a] - muzzle[a]) * (pts[i][a] - muzzle[a]);
+				w[i] = exp(-d / sigma2);
+				wsum += w[i];
+				for (int a = 0; a < 3; a++) mean[a] += w[i] * pts[i][a];
+			}
+			for (int a = 0; a < 3; a++) mean[a] /= wsum;
+			for (size_t i = 0; i < pts.size(); i++)
+			{
+				double d[3] = { pts[i][0] - mean[0], pts[i][1] - mean[1], pts[i][2] - mean[2] };
+				for (int a = 0; a < 3; a++) for (int b = 0; b < 3; b++) cov[a][b] += w[i] * d[a] * d[b];
+			}
+			/* the flat weapons are modelled level and upright (only their grips run long),
+			   so keep that and take just the barrel's heading from the muzzle area */
+			double v[2] = { 1, 0.05 };
+			for (int it = 0; it < 64; it++)
+			{
+				double nv[2] = { cov[0][0] * v[0] + cov[0][1] * v[1], cov[1][0] * v[0] + cov[1][1] * v[1] };
+				double l = sqrt(nv[0] * nv[0] + nv[1] * nv[1]);
+				if (l <= 0) break;
+				v[0] = nv[0] / l; v[1] = nv[1] / l;
+			}
+			if (v[0] < 0) { v[0] = -v[0]; v[1] = -v[1]; }
+			/* a heading more than 45 degrees off forward is not a barrel (round muzzle areas) */
+			if (!flash || v[0] < 0.7071) { v[0] = 1; v[1] = 0; }
+			else fit.measured = true;
+			f[0] = (float)v[0]; f[1] = (float)v[1]; f[2] = 0;
+			u[0] = 0; u[1] = 0; u[2] = 1;
+			if (getenv("SOF_DEBUG"))
+			{
+				char b[200];
+				snprintf(b, sizeof(b), "[sof] gun axis: %zu points, muzzle %.1f %.1f %.1f sigma %.1f\n", pts.size(),
+				         muzzle[0], muzzle[1], muzzle[2], sqrt(sigma2));
+				q2b_dprint(b);
+			}
+		}
+	}
+	normalize3(f);
+	float d = u[0] * f[0] + u[1] * f[1] + u[2] * f[2];
+	for (int k = 0; k < 3; k++) u[k] -= d * f[k];
+	normalize3(u);
+	cp3(f, fit.fwd);
+	cp3(u, fit.up);
+	/* left = up x forward */
+	fit.left[0] = u[1] * f[2] - u[2] * f[1];
+	fit.left[1] = u[2] * f[0] - u[0] * f[2];
+	fit.left[2] = u[0] * f[1] - u[1] * f[0];
+	fit.valid = true;
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[300];
+		snprintf(b, sizeof(b), "[sof] gun fit %s (%s): grip %.1f %.1f %.1f fwd %.2f %.2f %.2f up %.2f %.2f %.2f%s\n",
+		         Ghoul_PlayingSequenceName(gun), surfs.empty() ? "?" : surfs[0].objectDir.c_str(),
+		         fit.grip[0], fit.grip[1], fit.grip[2], f[0], f[1], f[2], u[0], u[1], u[2], obj->FindPart("flash") ? "" : " (no flash bolt)");
+		q2b_dprint(b);
+	}
+	return true;
+}
+
+/* entity space of the flat weapon -> the hand's space (grip at the origin, barrel along x) */
+static void gunFitPoint(const GunFit &g, const float *p, float *o)
+{
+	float d[3] = { p[0] - g.grip[0], p[1] - g.grip[1], p[2] - g.grip[2] };
+	o[0] = d[0] * g.fwd[0] + d[1] * g.fwd[1] + d[2] * g.fwd[2];
+	o[1] = d[0] * g.left[0] + d[1] * g.left[1] + d[2] * g.left[2];
+	o[2] = d[0] * g.up[0] + d[1] * g.up[1] + d[2] * g.up[2];
+}
+static void gunFitDir(const GunFit &g, const float *p, float *o)
+{
+	float d[3] = { p[0], p[1], p[2] };
+	o[0] = d[0] * g.fwd[0] + d[1] * g.fwd[1] + d[2] * g.fwd[2];
+	o[1] = d[0] * g.left[0] + d[1] * g.left[1] + d[2] * g.left[2];
+	o[2] = d[0] * g.up[0] + d[1] * g.up[1] + d[2] * g.up[2];
+}
+
 static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 {
 	edict_t *e = edictOf(client);
 	if (!e || !e->client) return 0;
-	return buildDraw(-client, ((player_state_t *)e->client)->gun, lerpfrac);
+	IGhoulInst *gun = ((player_state_t *)e->client)->gun;
+	const sofdraw_t *d = buildDraw(-client, gun, lerpfrac);
+	g_gunFitNow.valid = false;
+	if (!d || !gun || !gun->GetGhoulObject()) return d;
+
+	static void *cv_fit;
+	if (!cv_fit) cv_fit = q2b_cvar("sof_vrgunfit", "1", 0);
+	if (q2b_cvar_value(cv_fit) == 0) return d;
+
+	DrawCache &c = g_drawCache[-client];
+	const void *obj = gun->GetGhoulObject();
+	float time = ((float)g_frame - 1.0f + g_drawLerp) * 0.1f;
+	std::string seq = Ghoul_PlayingSequenceName(gun);
+	for (size_t i = 0; i < seq.size(); i++) seq[i] = (char)tolower((unsigned char)seq[i]);
+	bool idle = seq.compare(0, 4, "idle") == 0 && seq.find("_to_") == std::string::npos;
+
+	GunFit fit;
+	fit.valid = false;
+	if (idle)
+	{
+		std::pair<const void *, std::string> key(obj, seq);
+		std::map<std::pair<const void *, std::string>, GunFit>::iterator it = g_gunFits.find(key);
+		if (it == g_gunFits.end())
+		{
+			GunFit f;
+			fitGun(gun, time, c.surfs, f);
+			it = g_gunFits.insert(std::make_pair(key, f)).first;
+		}
+		fit = it->second;
+		if (fit.valid) g_gunFitLast[obj] = fit;
+	}
+	if (!fit.valid)
+	{
+		std::map<const void *, GunFit>::iterator it = g_gunFitLast.find(obj);
+		if (it != g_gunFitLast.end()) fit = it->second;
+		else if (fitGun(gun, time, c.surfs, fit)) g_gunFitLast[obj] = fit; /* until an idle pose shows */
+	}
+	if (!fit.valid) return d;
+
+	/* one orientation per weapon (the first measured idle pose), so idle fidgets that tip
+	   the gun still play; the grip is taken per idle pose so the hand stays in the hand */
+	{
+		std::map<const void *, GunFit>::iterator ax = g_gunAxes.find(obj);
+		if (ax == g_gunAxes.end() || (!ax->second.measured && fit.measured))
+		{
+			g_gunAxes[obj] = fit;
+			ax = g_gunAxes.find(obj);
+		}
+		cp3(ax->second.fwd, fit.fwd);
+		cp3(ax->second.left, fit.left);
+		cp3(ax->second.up, fit.up);
+	}
+	g_gunFitNow = fit;
+
+	/* which surfaces to draw: no sleeves (they ran off the screen edge), one set of hands
+	   (the model carries three levels of detail) */
+	bool hasHigh = false;
+	for (size_t i = 0; i < c.surfs.size(); i++) if (partIs(c.surfs[i].part, "HIGH_RES", 0)) hasHigh = true;
+	std::vector<char> keep(c.surfs.size(), 1);
+	for (size_t i = 0; i < c.surfs.size(); i++)
+	{
+		const std::string &pn = c.surfs[i].part;
+		if (partIs(pn, "SLEEVE", 0)) keep[i] = 0;
+		if (hasHigh && (partIs(pn, "MEDIUM_RES", 0) || partIs(pn, "LOW_RES", 0))) keep[i] = 0;
+	}
+
+	/* into the hand */
+	for (size_t i = 0; i < c.surfs.size(); i++)
+	{
+		if (!keep[i]) continue;
+		GhoulDrawSurface &s = c.surfs[i];
+		for (size_t k = 0; k + 2 < s.xyz.size(); k += 3) { float o[3]; gunFitPoint(fit, &s.xyz[k], o); cp3(o, &s.xyz[k]); }
+		for (size_t k = 0; k + 2 < s.normal.size(); k += 3) { float o[3]; gunFitDir(fit, &s.normal[k], o); cp3(o, &s.normal[k]); }
+	}
+
+	/* hand and gun extents (now in the hand's space: x along the barrel, z up) */
+	float rhLo = 1e9f, rhHi = -1e9f, gunLo = 1e9f, gunReach = 0;
+	for (size_t i = 0; i < c.surfs.size(); i++)
+	{
+		if (!keep[i]) continue;
+		const std::string &pn = c.surfs[i].part;
+		const std::vector<float> &x = c.surfs[i].xyz;
+		bool rhand = partIs(pn, "_R_", "HAND"), hand = partIs(pn, "HAND", 0) || partIs(pn, "ARM", 0);
+		for (size_t k = 0; k + 2 < x.size(); k += 3)
+		{
+			if (rhand) { if (x[k + 2] < rhLo) rhLo = x[k + 2]; if (x[k + 2] > rhHi) rhHi = x[k + 2]; }
+			else if (!hand)
+			{
+				if (x[k + 2] < gunLo) gunLo = x[k + 2];
+				float r = sqrtf(x[k] * x[k] + x[k + 1] * x[k + 1] + x[k + 2] * x[k + 2]);
+				if (r > gunReach) gunReach = r;
+			}
+		}
+	}
+
+	/* the flat models run grips and magazines far down past the screen edge: shorten
+	   whatever hangs more than half a hand below the hand */
+	if (rhHi > rhLo && gunLo < rhLo)
+	{
+		float allow = 0.5f * (rhHi - rhLo), ext = rhLo - gunLo;
+		if (ext > allow)
+		{
+			float k = allow / ext;
+			for (size_t i = 0; i < c.surfs.size(); i++)
+			{
+				if (!keep[i] || partIs(c.surfs[i].part, "HAND", 0)) continue;
+				std::vector<float> &x = c.surfs[i].xyz;
+				for (size_t v = 0; v + 2 < x.size(); v += 3)
+					if (x[v + 2] < rhLo) x[v + 2] = rhLo + (x[v + 2] - rhLo) * k;
+			}
+		}
+	}
+
+	/* the left hand only shows when it is on the weapon (two-handed grips, reloads); in
+	   one-handed poses it hangs in mid air where the flat screen cut it off */
+	{
+		double sum[3] = { 0, 0, 0 };
+		size_t n = 0;
+		for (size_t i = 0; i < c.surfs.size(); i++)
+		{
+			if (!keep[i] || !partIs(c.surfs[i].part, "_L_", "HAND")) continue;
+			const std::vector<float> &x = c.surfs[i].xyz;
+			for (size_t k = 0; k + 2 < x.size(); k += 3) { sum[0] += x[k]; sum[1] += x[k + 1]; sum[2] += x[k + 2]; n++; }
+		}
+		if (n)
+		{
+			float lh[3] = { (float)(sum[0] / n), (float)(sum[1] / n), (float)(sum[2] / n) };
+			float best = 1e18f;
+			for (size_t i = 0; i < c.surfs.size(); i++)
+			{
+				const std::string &pn = c.surfs[i].part;
+				if (!keep[i] || partIs(pn, "HAND", 0) || partIs(pn, "ARM", 0)) continue;
+				const std::vector<float> &x = c.surfs[i].xyz;
+				for (size_t k = 0; k + 2 < x.size(); k += 3)
+				{
+					float dx = x[k] - lh[0], dy = x[k + 1] - lh[1], dz = x[k + 2] - lh[2];
+					float dd = dx * dx + dy * dy + dz * dz;
+					if (dd < best) best = dd;
+				}
+			}
+			float handSize = rhHi > rhLo ? rhHi - rhLo : 4.0f;
+			/* off the weapon, or hanging below the gun hand (not holding anything) */
+			if (sqrtf(best) > handSize || lh[2] < rhLo)
+				for (size_t i = 0; i < c.surfs.size(); i++)
+					if (partIs(c.surfs[i].part, "_L_", "HAND")) keep[i] = 0;
+		}
+	}
+
+	/* VR rifle scope: the renderer shows the magnified view in the eyepiece. The disc sits
+	   just behind the eyepiece's back face (the eye side), across its widest part. */
+	{
+		static void *cv_scope;
+		if (!cv_scope) cv_scope = q2b_cvar("sof_vrscope", "1", 0);
+		float lo[3] = { 1e9f, 1e9f, 1e9f }, hi[3] = { -1e9f, -1e9f, -1e9f };
+		bool found = false;
+		if (q2b_cvar_value(cv_scope) != 0)
+			for (size_t i = 0; i < c.surfs.size(); i++)
+			{
+				if (!keep[i] || !partIs(c.surfs[i].part, "SCOPEEYE", 0)) continue;
+				const std::vector<float> &x = c.surfs[i].xyz;
+				for (size_t k = 0; k + 2 < x.size(); k += 3)
+					for (int a = 0; a < 3; a++) { if (x[k + a] < lo[a]) lo[a] = x[k + a]; if (x[k + a] > hi[a]) hi[a] = x[k + a]; }
+				found = true;
+			}
+		if (found)
+		{
+			c.draw.hasscope = 1;
+			c.draw.scope[0] = lo[0] - 0.05f;
+			c.draw.scope[1] = 0.5f * (lo[1] + hi[1]);
+			c.draw.scope[2] = 0.5f * (lo[2] + hi[2]);
+			float ry = 0.5f * (hi[1] - lo[1]), rz = 0.5f * (hi[2] - lo[2]);
+			c.draw.scope[3] = (ry > rz ? ry : rz) * 0.95f;
+		}
+	}
+
+	if (const char *dump = getenv("SOF_GUNDUMP2"))
+	{
+		static std::set<std::string> done;
+		std::string fn = std::string(dump) + "_" + c.surfs[0].objectDir + "_" + Ghoul_PlayingSequenceName(gun) + ".obj";
+		for (size_t i = strlen(dump); i < fn.size(); i++) if (fn[i] == '/') fn[i] = '_';
+		if (done.insert(fn).second)
+			if (FILE *df = fopen(fn.c_str(), "w"))
+			{
+				size_t base = 1;
+				for (size_t i = 0; i < c.surfs.size(); i++)
+				{
+					if (!keep[i]) continue;
+					const GhoulDrawSurface &s = c.surfs[i];
+					fprintf(df, "o %s\nusemtl %s/%s\n", s.part.c_str(), s.objectDir.c_str(), s.skin.c_str());
+					for (size_t k = 0; k + 2 < s.xyz.size(); k += 3) fprintf(df, "v %f %f %f\n", s.xyz[k], s.xyz[k + 1], s.xyz[k + 2]);
+					for (size_t k = 0; k + 1 < s.st.size(); k += 2) fprintf(df, "vt %f %f\n", s.st[k], s.st[k + 1]);
+					for (size_t k = 0; k + 2 < s.indices.size(); k += 3)
+						fprintf(df, "f %zu/%zu %zu/%zu %zu/%zu\n", base + s.indices[k], base + s.indices[k], base + s.indices[k + 1],
+						        base + s.indices[k + 1], base + s.indices[k + 2], base + s.indices[k + 2]);
+					base += s.xyz.size() / 3;
+				}
+				fclose(df);
+			}
+	}
+
+	size_t out = 0;
+	for (size_t i = 0; i < c.surfs.size(); i++)
+	{
+		if (!keep[i]) continue;
+		if (out != i) c.meshes[out] = c.meshes[i];
+		out++;
+	}
+	c.draw.nummeshes = (int)out;
+	return &c.draw;
 }
 
 extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
@@ -1785,6 +2214,15 @@ static void angleVectors(const float *angles, float *forward, float *right, floa
 static int g_gunValid;
 static float g_gunOrigin[3], g_gunAngles[3], g_gunScale = 1;
 
+static bool vrScopedRifle(edict_t *ent)
+{
+	static void *cv_scope;
+	if (!cv_scope) cv_scope = q2b_cvar("sof_vrscope", "1", 0);
+	if (q2b_cvar_value(cv_scope) == 0 || !ent || !ent->client) return false;
+	IGhoulInst *gun = ((player_state_t *)ent->client)->gun;
+	return gun && strstr(Ghoul_ObjectDir(gun), "sniperrifle") != 0;
+}
+
 static IGhoulInst *playerGun(void)
 {
 	edict_t *e = edictOf(1);
@@ -1802,7 +2240,11 @@ static void entToWorld(const float *org, const float *ang, float scale, const fl
 		o[k] = (point ? org[k] : 0) + scale * (p[0] * f[k] - p[1] * r[k] + p[2] * u[k]);
 }
 
-static bool boltFrame(IGhoulInst *inst, int bolt, const float *org, const float *ang, float scale, sfx::Frame &out)
+struct GunFit;
+static void gunFitPoint(const GunFit &g, const float *p, float *o);
+static void gunFitDir(const GunFit &g, const float *p, float *o);
+static bool boltFrame(IGhoulInst *inst, int bolt, const float *org, const float *ang, float scale, sfx::Frame &out,
+                      const GunFit *fit = 0)
 {
 	if (!inst) return false;
 	Matrix4 m;
@@ -1813,6 +2255,13 @@ static bool boltFrame(IGhoulInst *inst, int bolt, const float *org, const float 
 		Vect3 v;
 		m.GetRow(r, v);
 		rows[r][0] = v.x(); rows[r][1] = v.y(); rows[r][2] = v.z();
+	}
+	if (fit)
+	{
+		float o[3];
+		for (int r = 0; r < 3; r++) { gunFitDir(*fit, rows[r], o); cp3(o, rows[r]); }
+		gunFitPoint(*fit, rows[3], o);
+		cp3(o, rows[3]);
 	}
 	entToWorld(org, ang, scale, rows[3], true, out.org);
 	/* bolt axes: x -> forward, y -> up, z -> right (matches the muzzle and shell bolts) */
@@ -1856,7 +2305,7 @@ static bool fxResolve(const sfx::Anchor &a, sfx::Frame &out)
 			IGhoulInst *gun = playerGun();
 			if (!g_gunValid || !gun || gun != (IGhoulInst *)a.inst) return false;
 			out.scale = g_gunScale;
-			return boltFrame(gun, a.bolt, g_gunOrigin, g_gunAngles, g_gunScale, out);
+			return boltFrame(gun, a.bolt, g_gunOrigin, g_gunAngles, g_gunScale, out, g_gunFitNow.valid ? &g_gunFitNow : 0);
 		}
 	}
 	return false;

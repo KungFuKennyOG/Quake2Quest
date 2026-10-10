@@ -25,6 +25,7 @@
  */
 
 #include "header/local.h"
+#include "../../../sof/sof_client.h"
 
 #include <src/gl/loader.h>
 
@@ -141,6 +142,11 @@ cvar_t *gl1_stereo;
 cvar_t *gl1_stereo_separation;
 cvar_t *gl1_stereo_anaglyph_colors;
 cvar_t *gl1_stereo_convergence;
+cvar_t *vr_zoom; /* view magnification (SoF sniper scope), set by the client each frame */
+cvar_t *vr_scope_mag; /* magnification of the VR rifle scope */
+static qboolean r_scopepass;     /* drawing the view through the rifle scope */
+static float r_scopetan[2];      /* its frustum: tan of the half angles x, y */
+static float scope_tan[4]; /* unzoomed frustum of the eye being drawn: left, right, down, up */
 cvar_t *gl1_openxr_fov_left[2];
 cvar_t *gl1_openxr_fov_right[2];
 cvar_t *gl1_openxr_fov_up[2];
@@ -347,6 +353,11 @@ R_DrawEntitiesOnList(void)
 			continue; /* solid */
 		}
 
+		if (r_scopepass && (currententity->flags & (RF_WEAPONMODEL | RF_LASERSIGHT)))
+		{
+			continue; /* the scope looks out past the rifle */
+		}
+
 		if (currententity->flags & RF_BEAM)
 		{
 			R_DrawBeam(currententity);
@@ -399,6 +410,11 @@ R_DrawEntitiesOnList(void)
 		if (!(currententity->flags & RF_TRANSLUCENT))
 		{
 			continue; /* solid */
+		}
+
+		if (r_scopepass && (currententity->flags & (RF_WEAPONMODEL | RF_LASERSIGHT)))
+		{
+			continue;
 		}
 
 		if (currententity->flags & RF_BEAM)
@@ -767,11 +783,283 @@ R_SetupFrame(void)
 	}
 }
 
+/*
+ * While the view is magnified (sniper scope), black out everything outside a circle in
+ * the middle of each eye's view and draw the scope's crosshair, like SoF's scope overlay.
+ * The circle stays the same size in the headset whatever the zoom.
+ */
+static void
+R_DrawScopeMask(void)
+{
+	const float radius = 0.36f; /* tan of the scope's angular radius in the headset (~20 degrees) */
+	float l = scope_tan[0], r = scope_tan[1], b = scope_tan[2], tp = scope_tan[3];
+	float cx, cy, rx, ry;
+	GLfloat vtx[2 * 2 * 65];
+	int i;
+
+	if (!vr_zoom || vr_zoom->value <= 1.01f || r <= l || tp <= b)
+	{
+		return;
+	}
+
+	/* the view axis and the circle in normalised device coordinates */
+	cx = -(r + l) / (r - l);
+	cy = -(tp + b) / (tp - b);
+	rx = radius * 2.0f / (r - l);
+	ry = radius * 2.0f / (tp - b);
+
+	for (i = 0; i <= 64; i++)
+	{
+		float a = (float)i * 2.0f * (float)M_PI / 64.0f;
+		vtx[i * 4 + 0] = cx + cosf(a) * rx;
+		vtx[i * 4 + 1] = cy + sinf(a) * ry;
+		vtx[i * 4 + 2] = cx + cosf(a) * 4.0f;
+		vtx[i * 4 + 3] = cy + sinf(a) * 4.0f;
+	}
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glDisable(GL_ALPHA_TEST);
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_TEXTURE_2D);
+	glColor4f(0, 0, 0, 1);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(2, GL_FLOAT, 0, vtx);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 2 * 65);
+
+	{
+		float hy = 0.006f * ry, hx = 0.006f * rx; /* half thickness of the crosshair lines */
+		GLfloat cross[] = {
+			cx - rx, cy - hy, cx + rx, cy - hy,
+			cx - rx, cy + hy, cx + rx, cy + hy,
+		};
+		GLfloat cross2[] = {
+			cx - hx, cy - ry, cx + hx, cy - ry,
+			cx - hx, cy + ry, cx + hx, cy + ry,
+		};
+		glVertexPointer(2, GL_FLOAT, 0, cross);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glVertexPointer(2, GL_FLOAT, 0, cross2);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	}
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	glColor4f(1, 1, 1, 1);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_ALPHA_TEST);
+	glEnable(GL_DEPTH_TEST);
+
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+}
+
+/*
+ * VR rifle scope. The view weapon tells where its eyepiece is (sofdraw_t.scope). Before
+ * the normal view is drawn, the view along the barrel is drawn, magnified, into the part
+ * of the screen the eyepiece covers; then the eyepiece disc is written into the depth
+ * buffer (at the view weapon's depth range), so the normal view fills in everything
+ * around it and the magnified picture stays inside the lens.
+ */
+static void R_ScopeAxes(const entity_t *e, vec3_t f, vec3_t l, vec3_t u)
+{
+	/* the renderer turns GHOUL models by yaw, pitch and the opposite roll (gl1_sof.c) */
+	vec3_t a, r;
+	VectorSet(a, e->angles[0], e->angles[1], -e->angles[2]);
+	AngleVectors(a, f, r, u);
+	VectorScale(r, -1, l);
+}
+
+static void R_ScopeLocalToWorld(const entity_t *e, const float *p, vec3_t out)
+{
+	vec3_t f, l, u;
+	float s = vr_weaponscale ? vr_weaponscale->value : 1.0f;
+	R_ScopeAxes(e, f, l, u);
+	for (int k = 0; k < 3; k++)
+	{
+		out[k] = e->origin[k] + s * (p[0] * f[k] + p[1] * l[k] + p[2] * u[k]);
+	}
+}
+
+void R_SetupFrame(void);
+void R_SetFrustum(void);
+void R_SetupGL(void);
+void R_MarkLeaves(void);
+void R_DrawWorld(void);
+void R_DrawEntitiesOnList(void);
+void R_DrawParticles(void);
+void R_DrawAlphaSurfaces(void);
+
+static void
+R_DrawScope(void)
+{
+	const entity_t *e = NULL;
+	int i;
+
+	for (i = 0; i < r_newrefdef.num_entities; i++)
+	{
+		const entity_t *c = &r_newrefdef.entities[i];
+		if ((c->flags & RF_WEAPONMODEL) && c->sofdraw && c->sofdraw->hasscope)
+		{
+			e = c;
+			break;
+		}
+	}
+	if (!e)
+	{
+		return;
+	}
+
+	float s = vr_weaponscale ? vr_weaponscale->value : 1.0f;
+	float radius = e->sofdraw->scope[3] * s;
+	vec3_t centre, f, l, u;
+	R_ScopeLocalToWorld(e, e->sofdraw->scope, centre);
+	R_ScopeAxes(e, f, l, u);
+
+	/* where the eyepiece lands on the screen */
+	GLfloat mv[16], pj[16];
+	GLint vp[4];
+	glGetFloatv(GL_MODELVIEW_MATRIX, mv);
+	glGetFloatv(GL_PROJECTION_MATRIX, pj);
+	glGetIntegerv(GL_VIEWPORT, vp);
+	float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
+	for (i = 0; i < 16; i++)
+	{
+		float a = (float)i * 2.0f * (float)M_PI / 16.0f;
+		vec3_t p;
+		float eye[4], clip[4];
+		for (int k = 0; k < 3; k++)
+		{
+			p[k] = centre[k] + radius * (cosf(a) * l[k] + sinf(a) * u[k]);
+		}
+		for (int r = 0; r < 4; r++)
+		{
+			eye[r] = mv[r] * p[0] + mv[4 + r] * p[1] + mv[8 + r] * p[2] + mv[12 + r];
+		}
+		for (int r = 0; r < 4; r++)
+		{
+			clip[r] = pj[r] * eye[0] + pj[4 + r] * eye[1] + pj[8 + r] * eye[2] + pj[12 + r] * eye[3];
+		}
+		if (clip[3] <= 0.01f)
+		{
+			return; /* behind the eye */
+		}
+		float sx = vp[0] + (clip[0] / clip[3] * 0.5f + 0.5f) * vp[2];
+		float sy = vp[1] + (clip[1] / clip[3] * 0.5f + 0.5f) * vp[3];
+		if (sx < x0) x0 = sx;
+		if (sx > x1) x1 = sx;
+		if (sy < y0) y0 = sy;
+		if (sy > y1) y1 = sy;
+	}
+	if (x1 - x0 < 4 || y1 - y0 < 4 || x1 < vp[0] || y1 < vp[1] || x0 > vp[0] + vp[2] || y0 > vp[1] + vp[3])
+	{
+		return;
+	}
+
+	/* how big the lens looks from the eye, magnified */
+	vec3_t d;
+	VectorSubtract(centre, r_newrefdef.vieworg, d);
+	float dist = VectorLength(d);
+	if (dist < 0.5f)
+	{
+		dist = 0.5f;
+	}
+	float mag = (vr_scope_mag && vr_scope_mag->value >= 1.0f) ? vr_scope_mag->value : 4.0f;
+	float halftan = (radius / dist) / mag;
+	int rx = (int)floorf(x0), ry = (int)floorf(y0), rw = (int)ceilf(x1) - rx, rh = (int)ceilf(y1) - ry;
+	r_scopetan[0] = halftan * (float)rw / (float)rh; /* square pixels */
+	r_scopetan[1] = halftan;
+
+	{
+		static int logged;
+		if (getenv("SOF_DEBUG") && logged++ < 5)
+		{
+			R_Printf(PRINT_ALL, "[scope] lens %.1f %.1f %.1f r %.2f dist %.1f -> rect %d %d %dx%d, half-tan %.4f (%gx)\n",
+			         centre[0], centre[1], centre[2], radius, dist, rx, ry, rw, rh, halftan, mag);
+		}
+	}
+
+	/* the view through the scope */
+	refdef_t saved = r_newrefdef;
+	VectorMA(centre, 0.5f, f, r_newrefdef.vieworg);
+	r_newrefdef.viewangles[0] = e->angles[0];
+	r_newrefdef.viewangles[1] = e->angles[1];
+	r_newrefdef.viewangles[2] = -e->angles[2];
+	r_newrefdef.fov_y = 2.0f * atanf(halftan) * 180.0f / (float)M_PI + 1.0f;
+	r_newrefdef.fov_x = 2.0f * atanf(r_scopetan[0]) * 180.0f / (float)M_PI + 1.0f;
+	r_scopepass = true;
+	R_SetupFrame();
+	R_SetFrustum();
+	R_SetupGL();
+	glViewport(rx, ry, rw, rh);
+	R_MarkLeaves();
+	R_DrawWorld();
+	R_DrawEntitiesOnList();
+	R_DrawParticles();
+	R_DrawAlphaSurfaces();
+	r_scopepass = false;
+	r_newrefdef = saved;
+
+	/* start the normal view again over it */
+	glEnable(GL_SCISSOR_TEST);
+	glScissor(rx, ry, rw, rh);
+	glDepthMask(GL_TRUE);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_SCISSOR_TEST);
+	R_SetupFrame();
+	R_SetFrustum();
+	R_SetupGL();
+	R_MarkLeaves();
+
+	/* the lens: depth only, at the view weapon's depth range */
+	{
+		GLfloat vtx[3 * 26];
+		vtx[0] = centre[0]; vtx[1] = centre[1]; vtx[2] = centre[2];
+		for (i = 0; i <= 24; i++)
+		{
+			float a = (float)i * 2.0f * (float)M_PI / 24.0f;
+			for (int k = 0; k < 3; k++)
+			{
+				vtx[3 + i * 3 + k] = centre[k] + radius * (cosf(a) * l[k] + sinf(a) * u[k]);
+			}
+		}
+		glDepthRangef(gldepthmin, gldepthmin + 0.3f * (gldepthmax - gldepthmin));
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_TEXTURE_2D);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, vtx);
+		glDrawArrays(GL_TRIANGLE_FAN, 0, 26);
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glEnable(GL_TEXTURE_2D);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthRangef(gldepthmin, gldepthmax);
+		if (gl_cull->value)
+		{
+			glEnable(GL_CULL_FACE);
+		}
+	}
+}
+
 void
 R_MYgluPerspective(GLdouble fovy, GLdouble aspect,
 		GLdouble zNear, GLdouble zFar)
 {
 	GLdouble xmin, xmax, ymin, ymax;
+
+	if (r_scopepass)
+	{
+		glFrustumf(-r_scopetan[0] * zNear, r_scopetan[0] * zNear, -r_scopetan[1] * zNear, r_scopetan[1] * zNear, zNear, zFar);
+		return;
+	}
 
 	if (gl_state.stereo_mode == STEREO_OPENXR && gl_state.camera_separation != 0)
 	{
@@ -779,10 +1067,16 @@ R_MYgluPerspective(GLdouble fovy, GLdouble aspect,
 		if (gl1_openxr_fov_left[eye] && gl1_openxr_fov_right[eye] &&
 			gl1_openxr_fov_up[eye] && gl1_openxr_fov_down[eye])
 		{
-			xmin = gl1_openxr_fov_left[eye]->value * zNear;
-			xmax = gl1_openxr_fov_right[eye]->value * zNear;
-			ymin = gl1_openxr_fov_down[eye]->value * zNear;
-			ymax = gl1_openxr_fov_up[eye]->value * zNear;
+			float zoom = (vr_zoom && vr_zoom->value > 1.0f) ? vr_zoom->value : 1.0f;
+			scope_tan[0] = gl1_openxr_fov_left[eye]->value;
+			scope_tan[1] = gl1_openxr_fov_right[eye]->value;
+			scope_tan[2] = gl1_openxr_fov_down[eye]->value;
+			scope_tan[3] = gl1_openxr_fov_up[eye]->value;
+			/* a scope magnifies: the same screen shows a narrower piece of the world */
+			xmin = scope_tan[0] * zNear / zoom;
+			xmax = scope_tan[1] * zNear / zoom;
+			ymin = scope_tan[2] * zNear / zoom;
+			ymax = scope_tan[3] * zNear / zoom;
 			glFrustumf(xmin, xmax, ymin, ymax, zNear, zFar);
 			return;
 		}
@@ -1141,6 +1435,8 @@ R_RenderView(refdef_t *fd)
 
 	R_MarkLeaves(); /* done here so we know if we're in water */
 
+	R_DrawScope();
+
 	R_DrawWorld();
 
 	R_DrawEntitiesOnList();
@@ -1150,6 +1446,8 @@ R_RenderView(refdef_t *fd)
 	R_DrawParticles();
 
 	R_DrawAlphaSurfaces();
+
+	R_DrawScopeMask();
 
 	R_Flash();
 
@@ -1317,6 +1615,8 @@ R_Register(void)
 	gl1_stereo_separation = ri.Cvar_Get( "gl1_stereo_separation", "-0.4", CVAR_ARCHIVE );
 	gl1_stereo_anaglyph_colors = ri.Cvar_Get( "gl1_stereo_anaglyph_colors", "rc", CVAR_ARCHIVE );
 	gl1_stereo_convergence = ri.Cvar_Get( "gl1_stereo_convergence", "1", CVAR_ARCHIVE );
+	vr_zoom = ri.Cvar_Get("vr_zoom", "1", 0);
+	vr_scope_mag = ri.Cvar_Get("vr_scope_mag", "4", 0);
 	gl1_openxr_fov_left[0] = ri.Cvar_Get("gl1_openxr_fov_left_0", "-1", 0);
 	gl1_openxr_fov_right[0] = ri.Cvar_Get("gl1_openxr_fov_right_0", "1", 0);
 	gl1_openxr_fov_up[0] = ri.Cvar_Get("gl1_openxr_fov_up_0", "1", 0);
