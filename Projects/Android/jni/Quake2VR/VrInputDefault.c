@@ -474,11 +474,19 @@ void HandleInput_Default( ovrInputStateTrackedRemote *pDominantTrackedRemoteNew,
 
 
             //Use (Action)
+#ifdef SOF_BUILD
+            /* Soldier of Fortune opens doors, pushes buttons etc. with +use (off-hand stick click) */
+            if ((pOffTrackedRemoteNew->Buttons & ovrButton_Joystick) !=
+                (pOffTrackedRemoteOld->Buttons & ovrButton_Joystick)) {
+                sendButtonAction("+use", (pOffTrackedRemoteNew->Buttons & ovrButton_Joystick) != 0);
+            }
+#else
             if ((pOffTrackedRemoteNew->Buttons & ovrButton_Joystick) !=
                 (pOffTrackedRemoteOld->Buttons & ovrButton_Joystick)
                 && (pOffTrackedRemoteNew->Buttons & ovrButton_Joystick)) {
 
             }
+#endif
 
             //We need to record if we have started firing primary so that releasing trigger will stop definitely firing, if user has pushed grip
             //in meantime, then it wouldn't stop the gun firing and it would get stuck
