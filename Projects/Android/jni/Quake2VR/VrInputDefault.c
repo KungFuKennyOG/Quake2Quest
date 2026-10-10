@@ -105,8 +105,22 @@ void HandleInput_Default( ovrInputStateTrackedRemote *pDominantTrackedRemoteNew,
     static qboolean inventoryManagementMode = false;
 
 	//Menu button - _can_ appear on either controller if user has switched them in the oculus menu
+#ifdef SOF_BUILD
+	/* Soldier of Fortune has no working menu yet: the menu button quick saves
+	   (dying reloads the quick save). */
+	if (((primaryButtonsNew & ovrButton_Enter) && !(primaryButtonsOld & ovrButton_Enter)) ||
+	    ((secondaryButtonsNew & ovrButton_Enter) && !(secondaryButtonsOld & ovrButton_Enter)))
+	{
+		if (cls.state == ca_active && cl.frame.playerstate.pmove.pm_type == PM_NORMAL)
+		{
+			Cbuf_AddText("save quick\n");
+			SCR_CenterPrint("Quick save");
+		}
+	}
+#else
 	handleTrackedControllerButton(primaryButtonsNew, primaryButtonsOld, ovrButton_Enter, K_ESCAPE);
 	handleTrackedControllerButton(secondaryButtonsNew, secondaryButtonsOld, ovrButton_Enter, K_ESCAPE);
+#endif
 
     if (cls.key_dest == key_menu)
     {

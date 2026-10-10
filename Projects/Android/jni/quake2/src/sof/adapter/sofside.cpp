@@ -231,9 +231,27 @@ static void refreshAllCvars(void)
 static int I_argc(void) { return q2b_argc(); }
 static char *I_argv(int n) { return (char *)q2b_argv(n); }
 static char *I_args(void) { return (char *)q2b_args(); }
+static bool saveExists(const char *slot)
+{
+	std::string path = std::string(q2b_gamedir()) + "/save/" + slot + "/server.ssv";
+	FILE *f = fopen(path.c_str(), "rb");
+	if (f) fclose(f);
+	return f != 0;
+}
+
 static void I_AddCommandString(const char *text)
 {
 	if (getenv("SOF_DEBUG")) { char b[300]; snprintf(b, sizeof(b), "[sof] AddCommandString: %s\n", text); q2b_dprint(b); }
+	if (text && !strncmp(text, "respawn", 7) && (text[7] == 0 || text[7] == '\n' || text[7] == ' ' || text[7] == ';'))
+	{
+		/* SoF's engine restarted from the last save when you die in single player;
+		   use the quick save if there is one, else the save made entering the level */
+		static int lastRespawnFrame = -1000;
+		if (g_frame - lastRespawnFrame < 20) return; /* one load per death (presses repeat it) */
+		lastRespawnFrame = g_frame;
+		q2b_addcommandstring(saveExists("quick") ? "load quick\n" : "load save0\n");
+		return;
+	}
 	q2b_addcommandstring(text);
 }
 static void *I_TagMalloc(int size, int tag) { void *p = q2b_tagmalloc(size, tag); memset(p, 0, (size_t)size); return p; }
@@ -915,6 +933,9 @@ extern "C" int sofb_init(int maxclients)
 	buildImports();
 	sge = getapi(&sgi);
 	if (!sge || sge->apiversion != GAME_API_VERSION) return 0;
+	/* SoF's default key bindings use quicksave / quickload */
+	q2b_addcommandstring("alias quicksave \"save quick\"\nalias quickload \"load quick\"\n");
+
 	/* single player: SoF's chat flood protection only ever fires on stray commands */
 	q2b_cvar_forceset("flood_msgs", "0");
 
