@@ -250,6 +250,35 @@ LM_CreateSurfaceLightmap(msurface_t *surf)
 
 	R_SetCacheState(surf);
 	R_BuildLightMap(surf, base, BLOCK_WIDTH * LIGHTMAP_BYTES);
+
+	/* diagnostics for SoF maps: report surfaces whose baked lighting is all black */
+	{
+		static int reported;
+		int x, y, lit = 0;
+
+		for (y = 0; y < tmax && !lit; y++)
+		{
+			for (x = 0; x < smax; x++)
+			{
+				byte *p = base + (y * BLOCK_WIDTH + x) * LIGHTMAP_BYTES;
+
+				if (p[0] | p[1] | p[2])
+				{
+					lit = 1;
+					break;
+				}
+			}
+		}
+
+		if (!lit && reported < 24)
+		{
+			reported++;
+			R_Printf(PRINT_ALL, "SoF diag: black lightmap on %s (%dx%d, styles %d %d %d %d, %s light data, flags 0x%x)\n",
+					surf->texinfo->image ? surf->texinfo->image->name : "?", smax, tmax,
+					surf->styles[0], surf->styles[1], surf->styles[2], surf->styles[3],
+					surf->samples ? "has" : "no", surf->texinfo->flags);
+		}
+	}
 }
 
 void

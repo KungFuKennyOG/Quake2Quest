@@ -8,7 +8,8 @@ OUT=${OUT:-ref_gl1_asan.so}
 HERE=$(cd "$(dirname "$0")" && pwd)
 Q=$(cd "$HERE/../../../Projects/Android/jni" && pwd)
 S=$Q/quake2/src
-T=$(mktemp -d)
+T=${OBJDIR:-$(mktemp -d)}   # OBJDIR=<dir> keeps the objects (to swap in instrumented copies)
+mkdir -p "$T"
 CF="-c -g -O1 -fPIC -w -fsanitize=address -fno-omit-frame-pointer -DUSE_GLES1 -DYQ2OSTYPE=\"Linux\" -DYQ2ARCH=\"x86_64\" -I$HERE/shim -I$Q/quake2 -I$Q/SupportLibs/gl4es/include -I$Q/SupportLibs/gl4es"
 for f in client/refresh/gl1/qgl.c client/refresh/gl1/gl1_draw.c client/refresh/gl1/gl1_image.c \
          client/refresh/gl1/gl1_light.c client/refresh/gl1/gl1_lightmap.c client/refresh/gl1/gl1_main.c \
@@ -23,5 +24,5 @@ do
 done
 gcc -c -g -O1 -fPIC -fsanitize=address -o "$T/gl_stub.o" "$HERE/gl_stub.c"
 gcc -shared -fsanitize=address -o "$OUT" "$T"/*.o -lm
-rm -rf "$T"
+[ -n "$OBJDIR" ] || rm -rf "$T"
 echo built "$OUT"
