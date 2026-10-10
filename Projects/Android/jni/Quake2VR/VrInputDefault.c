@@ -383,6 +383,25 @@ void HandleInput_Default( ovrInputStateTrackedRemote *pDominantTrackedRemoteNew,
 				}
 			}
 
+#ifdef SOF_BUILD
+            /* Soldier of Fortune: alternate fire on the weapon-hand grip, reload on Y
+               (the Quake 2 weapon wheel that used these is turned off for SoF) */
+            if (vr_use_wheels->value == 0)
+            {
+                if ((pDominantTrackedRemoteNew->Buttons & ovrButton_GripTrigger) !=
+                    (pDominantTrackedRemoteOld->Buttons & ovrButton_GripTrigger))
+                {
+                    sendButtonAction("+altattack", (pDominantTrackedRemoteNew->Buttons & ovrButton_GripTrigger) != 0);
+                }
+
+                if ((secondaryButtonsNew & secondaryButton2) != (secondaryButtonsOld & secondaryButton2) &&
+                    (secondaryButtonsNew & secondaryButton2))
+                {
+                    sendButtonActionSimple("reload");
+                }
+            }
+#endif
+
             //Duck with A
             if ((primaryButtonsNew & primaryButton1) !=
                 (primaryButtonsOld & primaryButton1) &&

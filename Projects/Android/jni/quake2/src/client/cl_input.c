@@ -59,6 +59,7 @@ kbutton_t in_klook;
 kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
 kbutton_t in_strafe, in_speed, in_use, in_attack;
+kbutton_t in_altattack; /* Soldier of Fortune alternate fire (button bit 4) */
 kbutton_t in_up, in_down;
 
 int in_impulse;
@@ -365,6 +366,18 @@ IN_UseUp(void)
 }
 
 void
+IN_AltAttackDown(void)
+{
+	KeyDown(&in_altattack);
+}
+
+void
+IN_AltAttackUp(void)
+{
+	KeyUp(&in_altattack);
+}
+
+void
 IN_Impulse(void)
 {
 	in_impulse = (int)strtol(Cmd_Argv(1), (char **)NULL, 10);
@@ -586,6 +599,13 @@ CL_FinishMove(usercmd_t *cmd)
 
 	in_use.state &= ~2;
 
+	if (in_altattack.state & 3)
+	{
+		cmd->buttons |= 4; /* SoF BUTTON_ALTATTACK */
+	}
+
+	in_altattack.state &= ~2;
+
 	if (anykeydown && (cls.key_dest == key_game))
 	{
 		cmd->buttons |= BUTTON_ANY;
@@ -671,6 +691,8 @@ CL_InitInput(void)
 	Cmd_AddCommand("-attack", IN_AttackUp);
 	Cmd_AddCommand("+use", IN_UseDown);
 	Cmd_AddCommand("-use", IN_UseUp);
+	Cmd_AddCommand("+altattack", IN_AltAttackDown);
+	Cmd_AddCommand("-altattack", IN_AltAttackUp);
 	Cmd_AddCommand("impulse", IN_Impulse);
 	Cmd_AddCommand("+klook", IN_KLookDown);
 	Cmd_AddCommand("-klook", IN_KLookUp);
@@ -788,6 +810,13 @@ CL_FinalizeCmd(void)
 	}
 
 	in_use.state &= ~2;
+
+	if (in_altattack.state & 3)
+	{
+		cmd->buttons |= 4; /* SoF BUTTON_ALTATTACK */
+	}
+
+	in_altattack.state &= ~2;
 
 	// Keyboard events
 	if (anykeydown && cls.key_dest == key_game)

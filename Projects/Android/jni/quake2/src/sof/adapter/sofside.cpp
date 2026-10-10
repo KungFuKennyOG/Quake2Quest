@@ -807,6 +807,9 @@ extern "C" int sofb_init(int maxclients)
 		float v = ws ? q2b_cvar_value(ws) : 0;
 		if (ws && v > 26.24f && v < 26.25f) q2b_cvar_forceset("vr_worldscale", "36");
 	}
+	/* Quake2Quest's weapon/inventory wheels list Quake 2 items; with them on, the
+	   stick doesn't switch weapons. SoF uses stick up/down (weapprev/weapnext). */
+	q2b_cvar_forceset("vr_use_wheels", "0");
 	sge->Init();
 	registerClientHooks();
 	return 1;
@@ -848,8 +851,8 @@ extern "C" void sofb_clientthink(int num, const sofb_usercmd_t *c)
 	usercmd_t cmd;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.msec = (byte)c->msec;
-	/* Q2 buttons: 1 attack, 2 use, 128 any. Q2 running is already folded into the move speeds. */
-	cmd.buttons = (byte)(c->buttons & (BUTTON_ATTACK | BUTTON_USE | BUTTON_ANY));
+	/* Q2 buttons: 1 attack, 2 use, 4 alt attack (SoF builds), 128 any. Q2 running is already folded into the move speeds. */
+	cmd.buttons = (byte)(c->buttons & (BUTTON_ATTACK | BUTTON_USE | BUTTON_ALTATTACK | BUTTON_ANY));
 	cmd.lightlevel = (byte)c->lightlevel;
 	for (int i = 0; i < 3; i++) cmd.angles[i] = c->angles[i];
 	cmd.forwardmove = (short)c->forwardmove;
