@@ -838,7 +838,7 @@ extern "C" void sofb_syncmirrors(void)
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				o.origin[k] = ps->remote_vieworigin[k] * 8.0f;
+				o.origin[k] = ps->remote_vieworigin[k]; /* SoF stores it in 1/8 units already, like pmove.origin */
 				o.viewangles[k] = ps->remote_viewangles[k];
 				o.viewoffset[k] = 0;
 				o.velocity[k] = 0;

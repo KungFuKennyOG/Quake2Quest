@@ -12,34 +12,72 @@
 #include <stdlib.h>
 #include <math.h>
 
-/* ---- video ---- */
+/* ---- video ----
+ * Without SOF_REF this is a null renderer. With SOF_REF=<path to a desktop build of
+ * the GL1 renderer linked against gl_stub.c> the real renderer runs on every frame
+ * (nothing is drawn; run it under AddressSanitizer to catch memory errors). */
+#include <dlfcn.h>
 viddef_t viddef = { 1280, 720 };
 cvar_t *vid_renderer, *vid_gamma, *vid_fullscreen;
 refexport_t re;
-void VID_Init(void) { vid_renderer = Cvar_Get("vid_renderer", "null", 0); vid_gamma = Cvar_Get("vid_gamma", "1", 0); vid_fullscreen = Cvar_Get("vid_fullscreen", "0", 0); }
-void VID_Shutdown(void) {}
+static int real_ref;
+
+static qboolean H_GetModeInfo(int *w, int *h, int mode) { (void)mode; *w = viddef.width; *h = viddef.height; return true; }
+static void H_MenuInit(void) {}
+static void H_WriteScreenshot(int w, int h, int c, const void *d) { (void)w; (void)h; (void)c; (void)d; }
+static qboolean H_InitGraphics(int fs, int *w, int *h) { (void)fs; *w = viddef.width; *h = viddef.height; return true; }
+static qboolean H_GetDesktopMode(int *w, int *h) { *w = viddef.width; *h = viddef.height; return true; }
+
+void VID_Init(void)
+{
+	const char *lib = getenv("SOF_REF");
+	vid_renderer = Cvar_Get("vid_renderer", "null", 0);
+	vid_gamma = Cvar_Get("vid_gamma", "1", 0);
+	vid_fullscreen = Cvar_Get("vid_fullscreen", "0", 0);
+	if (lib)
+	{
+		void *h = dlopen(lib, RTLD_NOW);
+		GetRefAPI_t get = h ? (GetRefAPI_t)dlsym(h, "GetRefAPI") : NULL;
+		refimport_t ri;
+		if (!get) Com_Error(ERR_FATAL, "SOF_REF: %s", dlerror());
+		memset(&ri, 0, sizeof(ri));
+		ri.Cmd_AddCommand = Cmd_AddCommand; ri.Cmd_Argc = Cmd_Argc; ri.Cmd_Argv = Cmd_Argv;
+		ri.Cmd_ExecuteText = Cbuf_ExecuteText; ri.Cmd_RemoveCommand = Cmd_RemoveCommand;
+		ri.Com_VPrintf = Com_VPrintf; ri.Cvar_Get = Cvar_Get; ri.Cvar_Set = Cvar_Set; ri.Cvar_SetValue = Cvar_SetValue;
+		ri.FS_FreeFile = FS_FreeFile; ri.FS_Gamedir = FS_Gamedir; ri.FS_LoadFile = FS_LoadFile;
+		ri.GLimp_InitGraphics = H_InitGraphics; ri.GLimp_GetDesktopMode = H_GetDesktopMode;
+		ri.Sys_Error = Com_Error; ri.Vid_GetModeInfo = H_GetModeInfo; ri.Vid_MenuInit = H_MenuInit;
+		ri.Vid_WriteScreenshot = H_WriteScreenshot;
+		re = get(ri);
+		if (!re.Init(1)) Com_Error(ERR_FATAL, "SOF_REF: renderer Init failed");
+		real_ref = 1;
+		Com_Printf("[render] real renderer %s loaded\n", lib);
+	}
+}
+void VID_Shutdown(void) { if (real_ref) re.Shutdown(); }
 void VID_CheckChanges(void) {}
 int GLimp_GetRefreshRate(void) { return 60; }
 qboolean R_IsVSyncActive(void) { return false; }
 
 static int dummy_model;
-void R_BeginRegistration(char *map) { (void)map; }
-struct model_s *R_RegisterModel(char *name) { (void)name; return (struct model_s *)&dummy_model; }
-struct image_s *R_RegisterSkin(char *name) { (void)name; return (struct image_s *)&dummy_model; }
-void R_SetSky(char *name, float rotate, vec3_t axis) { Com_Printf("[render] R_SetSky '%s' rotate %g\n", name, rotate); (void)axis; }
-void R_EndRegistration(void) {}
-struct image_s *Draw_FindPic(char *name) { (void)name; return (struct image_s *)&dummy_model; }
-void Draw_GetPicSize(int *w, int *h, char *name) { (void)name; *w = 32; *h = 32; }
-void Draw_StretchPic(int x, int y, int w, int h, char *name) { (void)x; (void)y; (void)w; (void)h; (void)name; }
-void Draw_PicScaled(int x, int y, char *pic, float factor) { (void)x; (void)y; (void)pic; (void)factor; }
-void Draw_CharScaled(int x, int y, int num, float scale) { (void)x; (void)y; (void)num; (void)scale; }
-void Draw_TileClear(int x, int y, int w, int h, char *name) { (void)x; (void)y; (void)w; (void)h; (void)name; }
-void Draw_Fill(int x, int y, int w, int h, int c) { (void)x; (void)y; (void)w; (void)h; (void)c; }
-void Draw_FadeScreen(void) {}
-void Draw_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data) { (void)x; (void)y; (void)w; (void)h; (void)cols; (void)rows; (void)data; }
-void R_SetPalette(const unsigned char *palette) { (void)palette; }
-void R_BeginFrame(float camera_separation) { (void)camera_separation; }
-void R_EndFrame(void) {}
+#define FWD(call) do { if (real_ref) { call; } } while (0)
+void R_BeginRegistration(char *map) { FWD(re.BeginRegistration(map)); }
+struct model_s *R_RegisterModel(char *name) { if (real_ref) return re.RegisterModel(name); return (struct model_s *)&dummy_model; }
+struct image_s *R_RegisterSkin(char *name) { if (real_ref) return re.RegisterSkin(name); return (struct image_s *)&dummy_model; }
+void R_SetSky(char *name, float rotate, vec3_t axis) { Com_Printf("[render] R_SetSky '%s' rotate %g\n", name, rotate); FWD(re.SetSky(name, rotate, axis)); }
+void R_EndRegistration(void) { FWD(re.EndRegistration()); }
+struct image_s *Draw_FindPic(char *name) { if (real_ref) return re.DrawFindPic(name); return (struct image_s *)&dummy_model; }
+void Draw_GetPicSize(int *w, int *h, char *name) { if (real_ref) { re.DrawGetPicSize(w, h, name); return; } *w = 32; *h = 32; }
+void Draw_StretchPic(int x, int y, int w, int h, char *name) { FWD(re.DrawStretchPic(x, y, w, h, name)); }
+void Draw_PicScaled(int x, int y, char *pic, float factor) { FWD(re.DrawPicScaled(x, y, pic, factor)); }
+void Draw_CharScaled(int x, int y, int num, float scale) { FWD(re.DrawCharScaled(x, y, num, scale)); }
+void Draw_TileClear(int x, int y, int w, int h, char *name) { FWD(re.DrawTileClear(x, y, w, h, name)); }
+void Draw_Fill(int x, int y, int w, int h, int c) { FWD(re.DrawFill(x, y, w, h, c)); }
+void Draw_FadeScreen(void) { FWD(re.DrawFadeScreen()); }
+void Draw_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data) { FWD(re.DrawStretchRaw(x, y, w, h, cols, rows, data)); }
+void R_SetPalette(const unsigned char *palette) { FWD(re.SetPalette(palette)); }
+void R_BeginFrame(float camera_separation) { FWD(re.BeginFrame(camera_separation)); }
+void R_EndFrame(void) { FWD(re.EndFrame()); }
 
 /* entity transform used by the GL renderer for GHOUL meshes (alias-model convention) */
 static void placePoint(const entity_t *e, const float *p, float *out)
@@ -62,6 +100,24 @@ void R_RenderFrame(refdef_t *fd)
 	int i, m, v, ghouls = 0, tris = 0;
 
 	frames_rendered++;
+	if (real_ref)
+	{
+		/* SOF_TEST_DLIGHT: add a big light just in front of the view every frame so
+		   the renderer's dynamic lightmap path runs (muzzle flashes do this in game) */
+		static dlight_t extra[MAX_DLIGHTS];
+		if (getenv("SOF_TEST_DLIGHT") && fd->num_dlights < MAX_DLIGHTS)
+		{
+			vec3_t f, r, u;
+			memcpy(extra, fd->dlights, sizeof(dlight_t) * fd->num_dlights);
+			AngleVectors(fd->viewangles, f, r, u);
+			VectorMA(fd->vieworg, 64, f, extra[fd->num_dlights].origin);
+			extra[fd->num_dlights].intensity = 1000;
+			VectorSet(extra[fd->num_dlights].color, 1, 0.8f, 0.6f);
+			fd->dlights = extra;
+			fd->num_dlights++;
+		}
+		re.RenderFrame(fd);
+	}
 	for (i = 0; i < fd->num_entities; i++)
 		if (fd->entities[i].sofdraw)
 		{

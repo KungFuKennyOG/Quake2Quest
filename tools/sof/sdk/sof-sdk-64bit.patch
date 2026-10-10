@@ -1623,7 +1623,7 @@ diff -ruN a/Game/gamecpp/q_sh_fx.h b/Game/gamecpp/q_sh_fx.h
  
 diff -ruN a/Game/gamecpp/q_shared.cpp b/Game/gamecpp/q_shared.cpp
 --- a/Game/gamecpp/q_shared.cpp	2026-10-09 16:17:43.310481518 -0400
-+++ b/Game/gamecpp/q_shared.cpp	2026-10-09 16:17:43.338324851 -0400
++++ b/Game/gamecpp/q_shared.cpp	2026-10-09 23:35:42.391791441 -0400
 @@ -1,8 +1,8 @@
  #include "q_shared.h"
 -#include "..\qcommon\mathlib.h"
@@ -1698,6 +1698,15 @@ diff -ruN a/Game/gamecpp/q_shared.cpp b/Game/gamecpp/q_shared.cpp
  {
  	char    *src;
  //
+@@ -1390,7 +1390,7 @@
+ 
+ 		if (!strcmp (key, pkey) )
+ 		{
+-			strcpy (start, s);	// remove this part
++			memmove (start, s, strlen (s) + 1);	// remove this part (regions overlap: memmove, not strcpy)
+ 			return;
+ 		}
+ 
 diff -ruN a/Game/gamecpp/q_shared.h b/Game/gamecpp/q_shared.h
 --- a/Game/gamecpp/q_shared.h	2026-10-09 16:17:43.310515583 -0400
 +++ b/Game/gamecpp/q_shared.h	2026-10-09 16:17:43.338497221 -0400
