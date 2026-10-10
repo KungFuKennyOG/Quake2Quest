@@ -705,7 +705,7 @@ FS_LoadPAK(const char *packPath)
 	fsPackFile_t *files; /* List of files in PAK. */
 	fsPack_t *pack; /* PAK file. */
 	dpackheader_t header; /* PAK file header. */
-	dpackfile_t info[MAX_FILES_IN_PACK]; /* PAK info. */
+	dpackfile_t *info; /* PAK info (heap: SoF's pak0 has ~10k entries). */
 
 	handle = Q_fopen(packPath, "rb");
 
@@ -735,17 +735,29 @@ FS_LoadPAK(const char *packPath)
 	}
 
 	files = Z_Malloc(numFiles * sizeof(fsPackFile_t));
+	info = malloc(numFiles * sizeof(dpackfile_t));
+
+	if (!info)
+	{
+		fclose(handle);
+		Com_Error(ERR_FATAL, "FS_LoadPAK: out of memory reading '%s'", packPath);
+	}
 
 	fseek(handle, header.dirofs, SEEK_SET);
-	fread(info, 1, header.dirlen, handle);
+	fread(info, 1, numFiles * sizeof(dpackfile_t), handle);
 
 	/* Parse the directory. */
 	for (i = 0; i < numFiles; i++)
 	{
 		Q_strlcpy(files[i].name, info[i].name, sizeof(files[i].name));
+		/* SoF paks have mixed-case names; lookups ignore case already, make
+		   listings (FS_ListFiles) behave the same way. */
+		Q_strlwr(files[i].name);
 		files[i].offset = LittleLong(info[i].filepos);
 		files[i].size = LittleLong(info[i].filelen);
 	}
+
+	free(info);
 
 	pack = Z_Malloc(sizeof(fsPack_t));
 	Q_strlcpy(pack->name, packPath, sizeof(pack->name));
