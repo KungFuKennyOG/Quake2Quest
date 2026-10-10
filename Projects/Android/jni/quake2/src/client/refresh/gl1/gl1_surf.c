@@ -537,7 +537,8 @@ R_RenderBrushPoly(msurface_t *fa)
 			 (fa->styles[maps] == 0)) &&
 			  (fa->dlightframe != r_framecount))
 		{
-			unsigned temp[34 * 34];
+			/* one lightmap block: SoF surfaces are larger than Quake 2's 34x34 limit */
+			static unsigned temp[BLOCK_WIDTH * BLOCK_HEIGHT];
 			int smax, tmax;
 
 			smax = (fa->extents[0] >> 4) + 1;
