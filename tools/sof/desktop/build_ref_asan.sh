@@ -9,7 +9,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 Q=$(cd "$HERE/../../../Projects/Android/jni" && pwd)
 S=$Q/quake2/src
 T=$(mktemp -d)
-CF="-c -g -O1 -fPIC -w -fsanitize=address -fno-omit-frame-pointer -DUSE_GLES1 -DYQ2OSTYPE=\"Linux\" -DYQ2ARCH=\"x86_64\" -I$HERE/shim -I$Q/quake2 -I$Q/SupportLibs/gl4es/include"
+CF="-c -g -O1 -fPIC -w -fsanitize=address -fno-omit-frame-pointer -DUSE_GLES1 -DYQ2OSTYPE=\"Linux\" -DYQ2ARCH=\"x86_64\" -I$HERE/shim -I$Q/quake2 -I$Q/SupportLibs/gl4es/include -I$Q/SupportLibs/gl4es"
 for f in client/refresh/gl1/qgl.c client/refresh/gl1/gl1_draw.c client/refresh/gl1/gl1_image.c \
          client/refresh/gl1/gl1_light.c client/refresh/gl1/gl1_lightmap.c client/refresh/gl1/gl1_main.c \
          client/refresh/gl1/gl1_mesh.c client/refresh/gl1/gl1_misc.c client/refresh/gl1/gl1_model.c \
