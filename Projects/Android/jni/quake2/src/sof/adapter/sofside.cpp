@@ -17,6 +17,23 @@
 #include "sofbridge.h"
 #include "../sof_client.h"
 #include "../fx/sof_fx.h"
+#include "q_sh_fx.h"
+/* the effect flags are redefined below as enums (sfx::EFF_*, EFAT_*) */
+#undef EFF_SCALE
+#undef EFF_NUMELEMS
+#undef EFF_POS2
+#undef EFF_DIR
+#undef EFF_MIN
+#undef EFF_MAX
+#undef EFF_LIFETIME
+#undef EFF_RADIUS
+#undef EFAT_POS
+#undef EFAT_ENT
+#undef EFAT_BOLT
+#undef EFAT_BOLTANDINST
+#undef EFAT_POSTOWALL
+#undef EFAT_ALTAXIS
+#undef EFAT_HASFLAGS
 
 #include <dlfcn.h>
 #include <stdarg.h>
@@ -1067,10 +1084,12 @@ extern "C" void sofb_clientthink(int num, const sofb_usercmd_t *c)
 	}
 }
 
+static void fxEntityEvents(void);
 extern "C" void sofb_runframe(void)
 {
 	refreshAllCvars();
 	sge->RunFrame(g_frame++);
+	fxEntityEvents();
 }
 
 extern "C" int sofb_numedicts(void) { return sge ? sge->num_edicts : 0; }
@@ -1290,6 +1309,7 @@ extern "C" float SoF_LevelTime(void)
 extern "C" void CL_SoF_RegisterFxHook(sof_fxframe_t) __attribute__((weak));
 
 static void cp3(const float *a, float *b);
+static void angleVectors(const float *angles, float *forward, float *right, float *up);
 static void normalize3(float *v);
 
 struct MsgReader
@@ -1358,9 +1378,7 @@ static bool parseEffect(MsgReader &r)
 }
 
 /* ---- temp entities (SoF's client-side impact effects) */
-enum { TE_ORANGE_SPARKS = 0, TE_DUST_PUFF = 1, TE_WALLDAMAGE = 6, TE_WALLSEVEREDAMAGE = 7, TE_BLUE_SPARKS = 10,
-       TE_BARREL_SPARKS = 14, TE_RICOCHET = 54 };
-enum { RI_WORLD, RI_WORLD_NOSURF, RI_BMODEL, RI_ENT };
+/* TE_* and RI_* come from q_sh_fx.h */
 enum { SOFSURF_METAL = 1, SOFSURF_BLOOD = 35, SOFSURF_NUM = 43 };
 
 struct Impact
@@ -1420,27 +1438,21 @@ static const SurfImpact g_surfImpact[SOFSURF_NUM] =
 	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/wallspark" },
 };
 
-/* SoF's numbered client sounds (cl_fxs in the SDK's q_sh_fx.cpp) used by impacts */
+/* SoF's numbered client sounds: cl_fxs in the SDK's q_sh_fx.cpp (built into the adapter) */
+static const char *clientSoundName(int i)
+{
+	static std::string names[NUM_CLSFX];
+	if (i < 0 || i >= NUM_CLSFX || !cl_fxs[i].filename) return 0;
+	if (names[i].empty())
+	{
+		names[i] = cl_fxs[i].filename;
+		for (size_t k = 0; k < names[i].size(); k++) names[i][k] = (char)tolower((unsigned char)names[i][k]);
+	}
+	return names[i].c_str();
+}
 static const char *clientSound(int i)
 {
-	switch (i)
-	{
-		case 34: return "weapons/fx/rics/ric1.wav";
-		case 35: return "weapons/fx/rics/ric2.wav";
-		case 36: return "weapons/fx/rics/ric3.wav";
-		case 37: return "impact/surfs/stone.wav";
-		case 38: return "impact/surfs/water.wav";
-		case 39: return "impact/surfs/wood.wav";
-		case 40: return "impact/surfs/grass.wav";
-		case 41: return "impact/surfs/gravel.wav";
-		case 42: return "impact/surfs/sand.wav";
-		case 43: return "impact/surfs/snow.wav";
-		case 79: return "impact/surfs/metal1.wav";
-		case 80: return "impact/surfs/metal2.wav";
-		case 81: return "impact/surfs/metal3.wav";
-		case 84: return "impact/glassbreak/gbsmall.wav";
-	}
-	return 0;
+	return clientSoundName(i);
 }
 
 static float frand01(void) { return (float)(rand() & 0x7fff) / 32767.0f; }
@@ -1611,6 +1623,105 @@ static void wallDamage(MsgReader &r, bool severe)
 			break;
 		case IH_SOUND: sfx::PlaySound(clientSound(39), im.pos, 0, 0.6f, 1); break;
 		default: break;
+	}
+}
+
+/* ---- entity events (footsteps, landing, bullet cracks): SoF's client plays these for
+   one frame from entity_state_t event/event2/event3, which the engine then clears */
+/* event numbers: entity_event_t in q_sh_fx.h */
+
+/* per surface: first of four footstep sounds and the landing sound (cl_fxs numbers) */
+static const unsigned char g_surfFoot[SOFSURF_NUM][2] =
+{
+	{ 30, 76 }, { 2, 73 }, { 22, 74 }, { 22, 74 }, { 22, 74 }, { 22, 74 }, { 18, 72 }, { 18, 72 }, { 18, 72 }, { 6, 75 },
+	{ 10, 77 }, { 10, 77 }, { 10, 77 }, { 10, 77 }, { 26, 78 }, { 26, 78 }, { 26, 78 }, { 30, 76 }, { 30, 76 }, { 30, 76 },
+	{ 30, 76 }, { 30, 76 }, { 30, 76 }, { 30, 76 }, { 30, 76 }, { 14, 71 }, { 14, 71 }, { 10, 77 }, { 2, 73 }, { 2, 73 },
+	{ 2, 73 }, { 2, 73 }, { 2, 73 }, { 30, 76 }, { 30, 76 }, { 30, 76 }, { 10, 77 }, { 2, 73 }, { 2, 73 }, { 2, 73 },
+	{ 26, 78 }, { 2, 73 }, { 2, 73 },
+};
+
+static int surfaceBelow(const float *from, float *hit)
+{
+	float a[3] = { from[0], from[1], from[2] + 10 }, b[3] = { from[0], from[1], from[2] - 64 };
+	q2b_trace_t t;
+	q2b_trace(a, 0, 0, b, -1, 1 | 2 /* MASK_SOLID */, &t);
+	if (hit) cp3(t.endpos, hit);
+	if (t.fraction >= 1 || (t.surfflags & 0x84)) return -1;
+	int surf = (int)(((unsigned)t.surfflags) >> 24);
+	return surf < SOFSURF_NUM ? surf : 0;
+}
+
+static void entityEvent(edict_t *e, int ev)
+{
+	float pos[3];
+	cp3(e->s.origin, pos);
+	if ((ev >= EV_FOOTSTEPLEFT && ev <= EV_FOOTSTEPRIGHTRUN) || ev == EV_FOOTSTEPMETALLEFT || ev == EV_FOOTSTEPMETALRIGHT)
+	{
+		bool right = ev == 4 || ev == 6 || ev == EV_FOOTSTEPMETALRIGHT;
+		bool run = ev == 5 || ev == 6 || ev >= EV_FOOTSTEPMETALLEFT;
+		float f[3], r[3], u[3], ang[3] = { 0, e->s.angles[1], 0 };
+		angleVectors(ang, f, r, u);
+		for (int k = 0; k < 3; k++) pos[k] += r[k] * (right ? 5.0f : -5.0f);
+		int surf = ev >= EV_FOOTSTEPMETALLEFT ? SOFSURF_METAL : surfaceBelow(pos, pos);
+		if (surf < 0) return;
+		const char *snd = clientSoundName(g_surfFoot[surf][0] + (rand() & 3));
+		if (snd) sfx::PlaySound(snd, pos, NUM_FOR_EDICT(e), run ? 1.0f : 0.7f, 1);
+		return;
+	}
+	if ((ev >= EV_FALLSHORT && ev <= EV_FALLFAR) || (ev >= EV_OBJECT_COLLIDE_SHORT && ev <= EV_OBJECT_COLLIDE_FAR))
+	{
+		int surf = surfaceBelow(pos, pos);
+		if (surf < 0) return;
+		const char *snd = clientSoundName(g_surfFoot[surf][1]);
+		if (snd) sfx::PlaySound(snd, pos, NUM_FOR_EDICT(e), ev == EV_FALLSHORT || ev == EV_OBJECT_COLLIDE_SHORT ? 0.8f : 1.0f, 1);
+		if (ev != EV_FALLSHORT && (snd = clientSoundName(101)) != 0) sfx::PlaySound(snd, pos, NUM_FOR_EDICT(e), 1, 1);
+		return;
+	}
+}
+
+static void fxEntityEvents(void)
+{
+	if (!sge) return;
+	static const char *track = getenv("SOF_TRACKENT");
+	if (track && (g_frame % 10) == 0)
+	{
+		int n = atoi(track);
+		if (n == 0 && (g_frame % 50) == 0)
+			for (int i = 1; i < sge->num_edicts; i++)
+			{
+				edict_t *e = EDICT_NUM(i);
+				if (!e->inuse || !(e->svflags & 4)) continue;
+				char b[200];
+				snprintf(b, sizeof(b), "[track] f%d monster %d origin %.1f %.1f %.1f yaw %.0f\n", g_frame, i,
+				         e->s.origin[0], e->s.origin[1], e->s.origin[2], e->s.angles[1]);
+				q2b_dprint(b);
+			}
+		if (n > 0 && n < sge->num_edicts)
+		{
+			edict_t *e = EDICT_NUM(n);
+			char b[200];
+			snprintf(b, sizeof(b), "[track] f%d ent %d origin %.1f %.1f %.1f inuse %d\n", g_frame, n,
+			         e->s.origin[0], e->s.origin[1], e->s.origin[2], e->inuse ? 1 : 0);
+			q2b_dprint(b);
+		}
+	}
+	for (int i = 0; i < sge->num_edicts; i++)
+	{
+		edict_t *e = EDICT_NUM(i);
+		if (!e->inuse) continue;
+		int evs[3] = { e->s.event, e->s.event2, e->s.event3 };
+		for (int k = 0; k < 3; k++)
+			if (evs[k] & 0x7f)
+			{
+				if (getenv("SOF_DEBUG"))
+				{
+					char b[96];
+					snprintf(b, sizeof(b), "[sof fx] entity %d event %d\n", i, evs[k] & 0x7f);
+					q2b_dprint(b);
+				}
+				entityEvent(e, evs[k] & 0x7f);
+			}
+		e->s.event = e->s.event2 = e->s.event3 = 0;
 	}
 }
 

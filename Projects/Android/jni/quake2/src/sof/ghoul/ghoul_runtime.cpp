@@ -555,6 +555,13 @@ public:
 		const SeqRef *s;
 		float ff;
 		if (!frameAt(t, &s, &ff)) return false;
+		return partMatrixAt(s, ff, part, out);
+	}
+	/* the same at a given file frame of a sequence */
+	bool partMatrixAt(const SeqRef *s, float ff, GhoulID part, ghb::Mat4 &out)
+	{
+		out.Identity();
+		if (!part) return true;
 		const ghb::Model &m = s->file->model;
 		if (part > obj->partNames.size()) return false;
 		const char *name = obj->partNames[part - 1].c_str();
@@ -587,8 +594,94 @@ public:
 		out.Mul(chain, ptoRoot);
 	}
 
+	/* Jacobian matrices: how a part moves per second at time t. GHOUL evaluates the part
+	 * at the current point of the sequence and 0.001 of the sequence later (earlier at the
+	 * very end), takes the change B * inverse(A) (in the part's own frame), puts it in
+	 * entity space with the instance XForm and scales it by 1 / (0.001 * sequence length
+	 * in seconds). The AI walks monsters with the translation row of this (root motion)
+	 * and turns them with its first row. */
+	bool jacobian(float t, ghb::Mat4 &out, GhoulID part, bool entity, bool ToRoot)
+	{
+		out.Identity();
+		const SeqRef *s = on ? obj->seq(seqId) : 0;
+		if (!s) return false;
+		const ghb::Sequence &q = s->file->model.sequences[(size_t)s->index];
+		int n = q.numFrames > 0 ? q.numFrames : 1;
+		float spf = (q.msPerFrame > 0 ? q.msPerFrame : 100.0f) / 1000.0f / speedFactor();
+		float tt = paused ? pauseTime : t;
+		bool loop = ec == Loop, rev = reverse;
+		float dur, f;
+		if (ec == HoldFrame)
+		{
+			dur = spf * (float)(n > 1 ? n - 1 : 1);
+			f = n > 1 ? holdPos / (q.msPerFrame > 0 ? q.msPerFrame / 1000.0f : 0.1f) / (float)(n - 1) : 0;
+		}
+		else if (loop)
+		{
+			dur = spf * (float)n;
+			float x = (tt - startTime) / dur;
+			f = x - floorf(x);
+		}
+		else if (ec == BackAndForth)
+		{
+			dur = 2.0f * spf * (float)(n > 1 ? n - 1 : 1);
+			float x = (tt - startTime) / dur;
+			x -= floorf(x);
+			if (x >= 0.5f) { rev = !rev; f = 1.0f - (1.0f - x) * 2.0f; }
+			else f = x + x;
+		}
+		else
+		{
+			dur = spf * (float)(n > 1 ? n - 1 : 1);
+			f = (tt - startTime) / dur;
+		}
+		if (rev) f = 1.0f - f;
+		if (f > 1) f = 1;
+		if (f < 0) f = 0;
+		if (dur <= 0) return false;
+
+		const float eps = 0.001f;
+		bool back = false;
+		if (loop)
+		{
+			float lastF = (float)(n - 1) / (float)n - eps;
+			if (lastF < f) { back = true; f = lastF; }
+		}
+		else if (1.0f < f + eps)
+			back = true;
+		/* sequence fraction -> file frame (loops run over n frames, the rest over n - 1) */
+		float span = loop ? (float)n : (float)(n > 1 ? n - 1 : 0);
+		float fa = (float)q.firstFrame + f * span;
+		float fb = (float)q.firstFrame + (back ? f - eps : f + eps) * span;
+		ghb::Mat4 a, b, ai, bi, d;
+		if (!partMatrixAt(s, fa, part, a) || !partMatrixAt(s, fb, part, b)) return false;
+		if (back) { bi.OrthoInverse(b); d.Mul(a, bi); }
+		else { ai.OrthoInverse(a); d.Mul(b, ai); }
+		ghb::Mat4 r = d;
+		if (entity)
+		{
+			ghb::Mat4 x;
+			if (ToRoot) toRoot(t, x);
+			else fromM4(x, xform);
+			r.Mul(d, x);
+		}
+		float sc = 1.0f / (dur * eps);
+		for (int i = 0; i < 4; i++)
+			for (int k = 0; k < 3; k++) r.m[i][k] *= sc;
+		r.flags = 0; /* not an identity any more */
+		out = r;
+		return true;
+	}
+
 	void computeMatrix(float t, ghb::Mat4 &out, GhoulID part, MatrixType kind, bool ToRoot)
 	{
+		int jk = (int)kind;
+		if (jk == JacobianLocal || jk == JacobianEntity || jk == JacobianLocalInv || jk == JacobianEntityInv)
+		{
+			/* the game only asks for JacobianEntity; the inverse kinds are not used */
+			jacobian(t, out, part, jk == JacobianEntity || jk == JacobianEntityInv, ToRoot);
+			return;
+		}
 		ghb::Mat4 local;
 		partMatrix(t, part, local);
 		int k = (int)kind;

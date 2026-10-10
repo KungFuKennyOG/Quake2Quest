@@ -30,7 +30,8 @@ LOCAL_SRC_FILES := src/sof/adapter/q2side.c \
                    src/sof/ghoul/ghb_model.cpp \
                    src/sof/ghoul/ghb_dirtable.cpp \
                    $(SOF_SDK_DIR)/ghoul/matrix4.cpp \
-                   $(SOF_SDK_DIR)/ghoul/vect3.cpp
+                   $(SOF_SDK_DIR)/ghoul/vect3.cpp \
+                   $(SOF_SDK_DIR)/gamecpp/q_sh_fx.cpp
 LOCAL_LDLIBS := -ldl -llog
 LOCAL_SHARED_LIBRARIES := yquake2
 include $(BUILD_SHARED_LIBRARY)
