@@ -26,7 +26,7 @@ static int dummy_model;
 void R_BeginRegistration(char *map) { (void)map; }
 struct model_s *R_RegisterModel(char *name) { (void)name; return (struct model_s *)&dummy_model; }
 struct image_s *R_RegisterSkin(char *name) { (void)name; return (struct image_s *)&dummy_model; }
-void R_SetSky(char *name, float rotate, vec3_t axis) { (void)name; (void)rotate; (void)axis; }
+void R_SetSky(char *name, float rotate, vec3_t axis) { Com_Printf("[render] R_SetSky '%s' rotate %g\n", name, rotate); (void)axis; }
 void R_EndRegistration(void) {}
 struct image_s *Draw_FindPic(char *name) { (void)name; return (struct image_s *)&dummy_model; }
 void Draw_GetPicSize(int *w, int *h, char *name) { (void)name; *w = 32; *h = 32; }
