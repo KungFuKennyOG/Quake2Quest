@@ -235,6 +235,12 @@ void VR_GetMove(float *forward, float *side, float *up, float *yaw, float *pitch
 	*pitch = 0; *roll = 0;
 }
 void Android_Vibrate(float duration, int channel, float intensity) { (void)duration; (void)channel; (void)intensity; }
-void getVROrigins(vec3_t o, vec3_t a, vec3_t h) { VectorClear(o); VectorClear(a); VectorClear(h); }
+/* SOF_TEST_VRAIM="ox oy oz pitch yaw roll hmdy": fake controller pose for aiming tests */
+void getVROrigins(vec3_t o, vec3_t a, vec3_t h)
+{
+	const char *t = getenv("SOF_TEST_VRAIM");
+	VectorClear(o); VectorClear(a); VectorClear(h);
+	if (t) sscanf(t, "%f %f %f %f %f %f %f", &o[0], &o[1], &o[2], &a[0], &a[1], &a[2], &h[1]);
+}
 float getFOV(void) { return 90.0f; }
 void SinCos(float radians, float *sine, float *cosine) { *sine = sinf(radians); *cosine = cosf(radians); }

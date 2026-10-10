@@ -495,10 +495,89 @@ static void I_SZ_Clear(sizebuf_t *buf) { buf->cursize = 0; buf->overflowed = fal
 class AdapterModelInfo : public IPlayerModelInfoC {};
 static IPlayerModelInfoC *I_NewPlayerModelInfo(char *) { return new AdapterModelInfo; }
 
+/* ---- VR aiming --------------------------------------------------------------
+ * SoF fires from origin + ps.viewoffset along ps.viewangles. In VR the gun is in
+ * the player's hand, so for the duration of each shot those are replaced with the
+ * controller's position and orientation (like Quake2Quest's SV_SetWeapon_Client6DOF).
+ * The player entity itself never moves, so collision and AI are unaffected.
+ * The game hands its fire callbacks to the player module through Sys_GetPlayerAPI;
+ * they are wrapped there. player_sv_import_t starts with:
+ *   GetGhoul, levelTime, FireHelper, AltfireHelper (references are pointers in the ABI). */
+typedef void (*sof_fire_fn)(void *sh, edict_t *ent, void *inven);
+struct PlayerSvImportHead { void *(*GetGhoul)(); float *levelTime; sof_fire_fn FireHelper, AltfireHelper; };
+static sof_fire_fn g_origFire, g_origAltfire;
+
+struct VRAimSave { vec3_t viewoffset, viewangles; bool active; };
+
+static void vrAimBegin(edict_t *ent, VRAimSave &save)
+{
+	save.active = false;
+	if (!ent || !ent->client) return;
+	static void *cv_aim, *cv_scale, *cv_adjust;
+	if (!cv_aim) cv_aim = q2b_cvar("sof_vraim", "1", 0);
+	if (!cv_scale) cv_scale = q2b_cvar("vr_worldscale", "36", 0);
+	if (!cv_adjust) cv_adjust = q2b_cvar("vr_height_adjust", "0", 0);
+	if (cv_aim && q2b_cvar_value(cv_aim) == 0) return;
+
+	float off[3], ang[3], hmd[3];
+	q2b_getvrorigins(off, ang, hmd);
+	if (!off[0] && !off[1] && !off[2] && !ang[0] && !ang[1] && !ang[2]) return; /* no VR (desktop) */
+
+	player_state_t *ps = (player_state_t *)ent->client;
+	float ws = cv_scale ? q2b_cvar_value(cv_scale) : 36.0f;
+	float adj = cv_adjust ? q2b_cvar_value(cv_adjust) : 0.0f;
+	VectorCopy(ps->viewoffset, save.viewoffset);
+	VectorCopy(ps->viewangles, save.viewangles);
+	save.active = true;
+
+	/* eye as the client renders it, plus the controller's offset from the head
+	   (VR axes x, y up, z -> Quake forward = -z, left = x, up = y) */
+	float eyez = ps->viewoffset[2] - 1.57f * ws + (hmd[1] + adj) * ws;
+	ps->viewoffset[0] = -off[2] * ws;
+	ps->viewoffset[1] = off[0] * ws;
+	ps->viewoffset[2] = eyez + off[1] * ws;
+	VectorCopy(ang, ps->viewangles);
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[256];
+		snprintf(b, sizeof(b), "[sof] VR shot from %.1f %.1f %.1f (eye offset %.1f) angles %.1f %.1f %.1f\n",
+			ent->s.origin[0] + ps->viewoffset[0], ent->s.origin[1] + ps->viewoffset[1], ent->s.origin[2] + ps->viewoffset[2],
+			save.viewoffset[2], ang[0], ang[1], ang[2]);
+		q2b_dprint(b);
+	}
+}
+static void vrAimEnd(edict_t *ent, VRAimSave &save)
+{
+	if (!save.active) return;
+	player_state_t *ps = (player_state_t *)ent->client;
+	VectorCopy(save.viewoffset, ps->viewoffset);
+	VectorCopy(save.viewangles, ps->viewangles);
+}
+static void vrFire(void *sh, edict_t *ent, void *inven)
+{
+	VRAimSave save;
+	vrAimBegin(ent, save);
+	g_origFire(sh, ent, inven);
+	vrAimEnd(ent, save);
+}
+static void vrAltfire(void *sh, edict_t *ent, void *inven)
+{
+	VRAimSave save;
+	vrAimBegin(ent, save);
+	g_origAltfire(sh, ent, inven);
+	vrAimEnd(ent, save);
+}
+
 static void *I_Sys_GetPlayerAPI(void *parmscom, void *parmscl, void *parmssv, int isClient)
 {
 	typedef void *(*api2_t)(void *, void *);
 	if (!g_playerLib) return 0;
+	if (!isClient && parmssv)
+	{
+		PlayerSvImportHead *h = (PlayerSvImportHead *)parmssv;
+		if (h->FireHelper && h->FireHelper != vrFire) { g_origFire = h->FireHelper; h->FireHelper = vrFire; }
+		if (h->AltfireHelper && h->AltfireHelper != vrAltfire) { g_origAltfire = h->AltfireHelper; h->AltfireHelper = vrAltfire; }
+	}
 	api2_t f = (api2_t)dlsym(g_playerLib, isClient ? "GetPlayerClientAPI" : "GetPlayerServerAPI");
 	return f ? f(parmscom, isClient ? parmscl : parmssv) : 0;
 }
