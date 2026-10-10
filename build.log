@@ -1,0 +1,837 @@
+Downloading https://services.gradle.org/distributions/gradle-8.5-bin.zip
+.................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+Unzipping /home/runner/.gradle/wrapper/dists/gradle-8.5-bin/5t9huq95ubn472n8rpzujfbqh/gradle-8.5-bin.zip to /home/runner/.gradle/wrapper/dists/gradle-8.5-bin/5t9huq95ubn472n8rpzujfbqh
+Set executable permissions for: /home/runner/.gradle/wrapper/dists/gradle-8.5-bin/5t9huq95ubn472n8rpzujfbqh/gradle-8.5/bin/gradle
+
+Welcome to Gradle 8.5!
+
+Here are the highlights of this release:
+ - Support for running on Java 21
+ - Faster first use with Kotlin DSL
+ - Improved error and warning messages
+
+For more details see https://docs.gradle.org/8.5/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :preBuild UP-TO-DATE
+> Task :preReleaseBuild UP-TO-DATE
+> Task :configureNdkBuildRelease[arm64-v8a]
+
+> Task :buildNdkBuildRelease[arm64-v8a]
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/build/core/build-binary.mk:583: Android NDK: Module yquake2_gl1 depends on undefined modules: SDL2 SDL2_mixer    
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/blit.c:397:44: warning: if statement has empty body [-Wempty-body]
+C/C++:     if(glstate->actual_tex2d[0] != texture);
+C/C++:                                            ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/blit.c:397:44: note: put the semicolon on a separate line to silence this warning
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/buffers.c:306:1: warning: non-void function does not return a value [-Wreturn-type]
+C/C++: }
+C/C++: ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:53:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glLoadMatrixf(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:56:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glLoadMatrixd(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:59:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glMultMatrixf(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:62:9: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         mat(glMultMatrixd(m));
+C/C++:         ^~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:65:9: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         mat(glLoadIdentity());
+C/C++:         ^~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:68:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glRotatef(angle, x, y, z));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:71:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glRotated(angle, x, y, z));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:74:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glScalef(x, y, z));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:77:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glScaled(x, y, z));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:80:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glTranslatef(x, y, z));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:83:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glTranslated(x, y, z));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:86:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glOrtho(l, r, b ,t, n, f));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:89:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glFrustum(l, r, b, t, n, f));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:92:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glPushMatrix());
+C/C++:     ^~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:95:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glPopMatrix());
+C/C++:     ^~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:98:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glLoadTransposeMatrixf(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:101:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glLoadTransposeMatrixd(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:104:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glMultTransposeMatrixf(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:107:5: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     mat(glMultTransposeMatrixd(m));
+C/C++:     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/directstate.c:47:39: note: expanded from macro 'mat'
+C/C++:   gl4es_glGetIntegerv(GL_MATRIX_MODE, &old_mat); \
+C/C++:                                       ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: 19 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/fog.c:19:9: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         else flush();
+C/C++:         ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/framebuffers.c:435:98: warning: self-comparison always evaluates to false [-Wtautological-compare]
+C/C++:             int need_change = (globals4es.potframebuffer && (npot(twidth)!=twidth || npot(theight!=theight)))?1:0;
+C/C++:                                                                                                  ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/framebuffers.c:944:94: warning: & has lower precedence than ==; == will be evaluated first [-Wparentheses]
+C/C++:     if ((internalformat == GL_DEPTH24_STENCIL8 && (hardext.depthstencil==0 || (hardext.vendor&VEND_IMGTEC==VEND_IMGTEC)))) {
+C/C++:                                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/framebuffers.c:944:94: note: place parentheses around the '==' expression to silence this warning
+C/C++:     if ((internalformat == GL_DEPTH24_STENCIL8 && (hardext.depthstencil==0 || (hardext.vendor&VEND_IMGTEC==VEND_IMGTEC)))) {
+C/C++:                                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/framebuffers.c:944:94: note: place parentheses around the & expression to evaluate it first
+C/C++:     if ((internalformat == GL_DEPTH24_STENCIL8 && (hardext.depthstencil==0 || (hardext.vendor&VEND_IMGTEC==VEND_IMGTEC)))) {
+C/C++:                                                                                ~~~~~~~~~~~~~~^~~~~~~~~~~~
+C/C++: 2 warnings generated.
+C/C++: In file included from /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/fpe.c:1:
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/fpe.h:163:12: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C2x, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
+C/C++: fpe_fpe_t *fpe_GetCache();
+C/C++:            ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/fpe.c:187:12: note: conflicting prototype is here
+C/C++: fpe_fpe_t *fpe_GetCache(fpe_cache_t *cur, fpe_state_t *state, int fixed) {
+C/C++:            ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/fpe.c:1185:29: warning: implicit conversion from 'int' to 'GLbyte' (aka 'signed char') changes value from 255 to -1 [-Wconstant-conversion]
+C/C++:                             GL_TYPE_SWITCH_MAX(input, current, w->type,
+C/C++:                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/glcase.h:60:57: note: expanded from macro 'GL_TYPE_SWITCH_MAX'
+C/C++:             GL_TYPE_CASE_MAX(name, var, GL_BYTE, GLbyte, code, 255)   \
+C/C++:             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/glcase.h:23:15: note: expanded from macro 'GL_TYPE_CASE_MAX'
+C/C++:                 type maxv = max;                                                   \
+C/C++:                      ~~~~   ^~~
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:71:10: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:                 strcpy(extensions,
+C/C++:                        ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:105:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcpy(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:117:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_ARB_vertex_array_bgra ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:119:11: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:                         strcat(extensions, "GL_APPLE_texture_2D_limited_npot ");
+C/C++:                                ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:121:11: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:                         strcat(extensions, "GL_ARB_texture_non_power_of_two ");
+C/C++:                                ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:123:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_blend_color ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:125:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_blend_minmax ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:127:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_blend_equation_separate ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:129:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_blend_func_separate ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:131:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_blend_subtract ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:133:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_texture_filter_anisotropic ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:135:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_ARB_texture_mirrored_repeat ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:137:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions,                 
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:143:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_ARB_point_sprite ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:145:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_ARB_texture_cube_map ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:146:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_texture_cube_map ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:149:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_texture_rg ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:152:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_texture_float ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:155:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_texture_half_float ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:158:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_color_buffer_float ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:161:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_color_buffer_half_float ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:164:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_depth_texture ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:165:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_ARB_depth_texture ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:168:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_fog_coord ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:169:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_separate_specular_color ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:170:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_EXT_rescale_normal ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:171:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions, "GL_ARB_ES2_compatibility ");
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:172:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions,
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:185:20: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strcat(extensions,
+C/C++:                    ^~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:118:26: note: passing argument to parameter 'dst' here
+C/C++: char* strcat(char* const dst __pass_object_size, const char* src)
+C/C++:                          ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:190:15: warning: initializing 'char *' with an expression of type 'GLubyte *' (aka 'unsigned char *') converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:         char* p = extensions;
+C/C++:               ^   ~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:197:11: warning: assigning to 'char *' from 'GLubyte *' (aka 'unsigned char *') converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:         p = extensions;
+C/C++:           ^ ~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:202:21: warning: passing 'GLubyte *' (aka 'unsigned char *') to parameter of type 'char *' converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:             strncpy(extensions_list[i], p, sz);
+C/C++:                     ^~~~~~~~~~~~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:195:27: note: passing argument to parameter 'dst' here
+C/C++: char* strncpy(char* const dst __pass_object_size, const char* const src __pass_object_size, size_t n)
+C/C++:                           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:774:45: warning: implicit conversion from 'long' to 'GLfloat' (aka 'float') changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+C/C++:             params[0] = glstate->depth.near*2147483647l;
+C/C++:                                            ~^~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/getter.c:775:44: warning: implicit conversion from 'long' to 'GLfloat' (aka 'float') changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+C/C++:             params[1] = glstate->depth.far*2147483647l;
+C/C++:                                           ~^~~~~~~~~~~
+C/C++: 33 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/glstate.c:396:65: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     gles_glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT_OES, &glstate->readf);
+C/C++:                                                                 ^~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/glstate.c:397:63: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     gles_glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE_OES, &glstate->readt);
+C/C++:                                                               ^~~~~~~~~~~~~~~
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/gl4es.c:832:9: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         else flush();
+C/C++:         ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/light.c:18:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/light.c:78:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/light.c:147:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/light.c:263:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else {
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/light.c:360:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/light.c:404:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: 6 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/listdraw.c:396:49: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:             gl4es_glGetIntegerv(GL_MATRIX_MODE, &matmode);
+C/C++:                                                 ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/listdraw.c:596:49: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:             gl4es_glGetIntegerv(GL_MATRIX_MODE, &matmode);
+C/C++:                                                 ^~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/matvec.c:33:1: warning: non-void function does not return a value [-Wreturn-type]
+C/C++: }
+C/C++: ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/array.c:213:9: warning: implicit conversion from 'int' to 'GLbyte' (aka 'signed char') changes value from 255 to -1 [-Wconstant-conversion]
+C/C++:         GL_TYPE_SWITCH_MAX(out, dst, to,
+C/C++:         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/glcase.h:60:57: note: expanded from macro 'GL_TYPE_SWITCH_MAX'
+C/C++:             GL_TYPE_CASE_MAX(name, var, GL_BYTE, GLbyte, code, 255)   \
+C/C++:             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/glcase.h:23:15: note: expanded from macro 'GL_TYPE_CASE_MAX'
+C/C++:                 type maxv = max;                                                   \
+C/C++:                      ~~~~   ^~~
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/pointsprite.c:45:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/preproc.c:508:23: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                     } else status = 399;  // meh?
+C/C++:                       ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/program.c:519:45: warning: passing 'khint_t *' (aka 'unsigned int *') to parameter of type 'int *' converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         kh_put(attribloclist, attribloc, 1, &ret);
+C/C++:                                             ^~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/include/khash.h:463:51: note: expanded from macro 'kh_put'
+C/C++: #define kh_put(name, h, k, r) kh_put_##name(h, k, r)
+C/C++:                                                   ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/program.c:21:1: note: passing argument to parameter 'ret' here
+C/C++: KHASH_MAP_IMPL_INT(attribloclist, attribloc_t *);
+C/C++: ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/include/khash.h:595:2: note: expanded from macro 'KHASH_MAP_IMPL_INT'
+C/C++:         __KHASH_IMPL(name, , khint32_t, khval_t, 1, kh_int_hash_func, kh_int_hash_equal)
+C/C++:         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/include/khash.h:297:66: note: expanded from macro '__KHASH_IMPL'
+C/C++:         SCOPE khint_t kh_put_##name(kh_##name##_t *h, khkey_t key, int *ret) \
+C/C++:                                                                         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/program.c:726:64: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gles_glGetProgramiv(glprogram->id, GL_VALIDATE_STATUS, &glprogram->valid_result);
+C/C++:                                                                ^~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/raster.c:24:5: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                 } else flush();
+C/C++:                   ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/raster.c:50:5: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                 } else flush();
+C/C++:                   ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/raster.c:89:5: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                 } else flush();
+C/C++:                   ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/raster.c:103:5: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                 } else flush();
+C/C++:                   ^
+C/C++: 4 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/render.c:24:112: warning: implicit conversion from 'int' to 'GLfloat' (aka 'float') changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+C/C++:                 glstate->selectbuf.buffer[glstate->selectbuf.pos+1] = (unsigned int)(glstate->selectbuf.zmin * INT_MAX );
+C/C++:                                                                                                              ~ ^~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/limits.h:46:19: note: expanded from macro 'INT_MAX'
+C/C++: #define INT_MAX   __INT_MAX__
+C/C++:                   ^~~~~~~~~~~
+C/C++: <built-in>:46:21: note: expanded from macro '__INT_MAX__'
+C/C++: #define __INT_MAX__ 2147483647
+C/C++:                     ^~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/render.c:26:112: warning: implicit conversion from 'int' to 'GLfloat' (aka 'float') changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+C/C++:                 glstate->selectbuf.buffer[glstate->selectbuf.pos+2] = (unsigned int)(glstate->selectbuf.zmax * INT_MAX );
+C/C++:                                                                                                              ~ ^~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/limits.h:46:19: note: expanded from macro 'INT_MAX'
+C/C++: #define INT_MAX   __INT_MAX__
+C/C++:                   ^~~~~~~~~~~
+C/C++: <built-in>:46:21: note: expanded from macro '__INT_MAX__'
+C/C++: #define __INT_MAX__ 2147483647
+C/C++:                     ^~~~~~~~~~
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/shaderconv.c:324:28: warning: equality comparison with extraneous parentheses [-Wparentheses-equality]
+C/C++:         else  if ((*newptr == 'f' )) {
+C/C++:                    ~~~~~~~~^~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/shaderconv.c:324:28: note: remove extraneous parentheses around the comparison to silence this warning
+C/C++:         else  if ((*newptr == 'f' )) {
+C/C++:                   ~        ^      ~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/shaderconv.c:324:28: note: use '=' to turn this equality comparison into an assignment
+C/C++:         else  if ((*newptr == 'f' )) {
+C/C++:                            ^~
+C/C++:                            =
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/shaderconv.c:336:28: warning: equality comparison with extraneous parentheses [-Wparentheses-equality]
+C/C++:         else  if ((*newptr == 'f' )) {
+C/C++:                    ~~~~~~~~^~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/shaderconv.c:336:28: note: remove extraneous parentheses around the comparison to silence this warning
+C/C++:         else  if ((*newptr == 'f' )) {
+C/C++:                   ~        ^      ~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/shaderconv.c:336:28: note: use '=' to turn this equality comparison into an assignment
+C/C++:         else  if ((*newptr == 'f' )) {
+C/C++:                            ^~
+C/C++:                            =
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:16:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:230:46: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gl4es_glGetIntegerv(GL_STENCIL_FUNC, &cur->stencil_func);
+C/C++:                                              ^~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:231:52: warning: passing 'GLuint *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gl4es_glGetIntegerv(GL_STENCIL_VALUE_MASK, &cur->stencil_mask);
+C/C++:                                                    ^~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:236:46: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gl4es_glGetIntegerv(GL_STENCIL_FAIL, &cur->stencil_sfail);
+C/C++:                                              ^~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:237:57: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gl4es_glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, &cur->stencil_dpfail);
+C/C++:                                                         ^~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:238:57: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gl4es_glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, &cur->stencil_dppass);
+C/C++:                                                         ^~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:269:39: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:                 gl4es_glGetIntegerv(GL_MATRIX_MODE, &cur->matrix_mode);
+C/C++:                                                     ^~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/wrap/../gl4es.h:31:47: note: passing argument to parameter 'params' here
+C/C++: void gl4es_glGetIntegerv(GLenum pname, GLint *params);
+C/C++:                                               ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:346:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:651:4: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                         enable_disable(GL_VERTEX_ARRAY, cur->vert_enable);
+C/C++:                         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:620:5: note: expanded from macro 'enable_disable'
+C/C++:     else gl4es_glDisableClientState(pname)
+C/C++:     ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:653:4: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                         enable_disable(GL_NORMAL_ARRAY, cur->normal_enable);
+C/C++:                         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:620:5: note: expanded from macro 'enable_disable'
+C/C++:     else gl4es_glDisableClientState(pname)
+C/C++:     ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:655:4: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                         enable_disable(GL_COLOR_ARRAY, cur->color_enable);
+C/C++:                         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:620:5: note: expanded from macro 'enable_disable'
+C/C++:     else gl4es_glDisableClientState(pname)
+C/C++:     ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:657:4: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                         enable_disable(GL_SECONDARY_COLOR_ARRAY, cur->secondary_enable);
+C/C++:                         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:620:5: note: expanded from macro 'enable_disable'
+C/C++:     else gl4es_glDisableClientState(pname)
+C/C++:     ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:659:4: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:                         enable_disable(GL_COLOR_ARRAY, cur->fog_enable);
+C/C++:                         ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/stack.c:620:5: note: expanded from macro 'enable_disable'
+C/C++:     else gl4es_glDisableClientState(pname)
+C/C++:     ^
+C/C++: 13 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/string_utils.c:53:12: warning: using the result of an assignment as a condition without parentheses [-Wparentheses]
+C/C++:     while(p=strstr(p, "\n")) {
+C/C++:           ~^~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/string_utils.c:53:12: note: place parentheses around the assignment to silence this warning
+C/C++:     while(p=strstr(p, "\n")) {
+C/C++:            ^
+C/C++:           (                )
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/string_utils.c:53:12: note: use '==' to turn this assignment into an equality comparison
+C/C++:     while(p=strstr(p, "\n")) {
+C/C++:            ^
+C/C++:            ==
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/pixel.c:92:25: warning: using the result of an assignment as a condition without parentheses [-Wparentheses]
+C/C++:     } else if (tmp.x.exp=255) {
+C/C++:                ~~~~~~~~~^~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/pixel.c:92:25: note: place parentheses around the assignment to silence this warning
+C/C++:     } else if (tmp.x.exp=255) {
+C/C++:                         ^
+C/C++:                (            )
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/pixel.c:92:25: note: use '==' to turn this assignment into an equality comparison
+C/C++:     } else if (tmp.x.exp=255) {
+C/C++:                         ^
+C/C++:                         ==
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texgen.c:38:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else flush();
+C/C++:           ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/glx/hardext.c:171:17: warning: initializing 'const char *' with an expression of type 'const GLubyte *' (aka 'const unsigned char *') converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:     const char* Exts = gles_glGetString(GL_EXTENSIONS);
+C/C++:                 ^      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/glx/hardext.c:294:17: warning: initializing 'const char *' with an expression of type 'const GLubyte *' (aka 'const unsigned char *') converts between pointers to integer types where one is of the unique plain 'char' type and the other is not [-Wpointer-sign]
+C/C++:     const char* vendor = gles_glGetString(GL_VENDOR);
+C/C++:                 ^        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: 2 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:917:50: warning: passing 'GLint *' (aka 'int *') to parameter of type 'GLenum *' (aka 'unsigned int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         proxy_intformat = swizzle_internalformat(&internalformat, format, type);
+C/C++:                                                  ^~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:563:39: note: passing argument to parameter 'internalformat' here
+C/C++: GLenum swizzle_internalformat(GLenum *internalformat, GLenum format, GLenum type) {
+C/C++:                                       ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:1062:13: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:             else if(globals4es.automipmap==2)
+C/C++:             ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:1067:48: warning: passing 'GLint *' (aka 'int *') to parameter of type 'GLenum *' (aka 'unsigned int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:     GLenum new_format = swizzle_internalformat(&internalformat, format, type);
+C/C++:                                                ^~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:563:39: note: passing argument to parameter 'internalformat' here
+C/C++: GLenum swizzle_internalformat(GLenum *internalformat, GLenum format, GLenum type) {
+C/C++:                                       ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:1539:13: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:             else
+C/C++:             ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:1652:11: warning: add explicit braces to avoid dangling else [-Wdangling-else]
+C/C++:         } else {
+C/C++:           ^
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:2611:73: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:             gles_glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT_OES, &glstate->fbo.current_fb->read_format);
+C/C++:                                                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:2612:71: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:             gles_glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE_OES, &glstate->fbo.current_fb->read_type);
+C/C++:                                                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:2660:69: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gles_glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT_OES, &glstate->fbo.current_fb->read_format);
+C/C++:                                                                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/gl4es/src/gl/texture.c:2661:67: warning: passing 'GLenum *' (aka 'unsigned int *') to parameter of type 'GLint *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+C/C++:         gles_glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE_OES, &glstate->fbo.current_fb->read_type);
+C/C++:                                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C/C++: 9 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/openal/OpenAL32/alBuffer.c:507:66: warning: implicit conversion from enumeration type 'enum FmtType' to different enumeration type 'enum UserFmtType' [-Wenum-conversion]
+C/C++:             ConvertData(&((ALubyte*)ALBuf->data)[offset], ALBuf->FmtType,
+C/C++:             ~~~~~~~~~~~                                   ~~~~~~~^~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/openal/OpenAL32/alBuffer.c:579:66: warning: implicit conversion from enumeration type 'enum FmtType' to different enumeration type 'enum UserFmtType' [-Wenum-conversion]
+C/C++:             ConvertData(&((ALubyte*)ALBuf->data)[offset], ALBuf->FmtType,
+C/C++:             ~~~~~~~~~~~                                   ~~~~~~~^~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/openal/OpenAL32/alBuffer.c:624:66: warning: implicit conversion from enumeration type 'enum FmtType' to different enumeration type 'enum UserFmtType' [-Wenum-conversion]
+C/C++:                         &((ALubyte*)ALBuf->data)[offset], ALBuf->FmtType,
+C/C++:                                                           ~~~~~~~^~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/openal/OpenAL32/alBuffer.c:2019:34: warning: implicit conversion from enumeration type 'enum FmtType' to different enumeration type 'enum UserFmtType' [-Wenum-conversion]
+C/C++:         ConvertData(ALBuf->data, DstType, data, SrcType, NewChannels, frames);
+C/C++:         ~~~~~~~~~~~              ^~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/openal/OpenAL32/alBuffer.c:2032:35: warning: implicit conversion from enumeration type 'enum FmtChannels' to different enumeration type 'enum UserFmtChannels' [-Wenum-conversion]
+C/C++:         ALBuf->OriginalChannels = DstChannels;
+C/C++:                                 ~ ^~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/openal/OpenAL32/alBuffer.c:2033:35: warning: implicit conversion from enumeration type 'enum FmtType' to different enumeration type 'enum UserFmtType' [-Wenum-conversion]
+C/C++:         ALBuf->OriginalType     = DstType;
+C/C++:                                 ~ ^~~~~~~
+C/C++: 6 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/client/cl_screen.c:814:18: warning: assigning to 'wheel_icon_t *' from 'const wheel_icon_t[11]' discards qualifiers [-Wincompatible-pointer-types-discards-qualifiers]
+C/C++:         iconlist = weaponIcons;
+C/C++:                  ^ ~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/client/cl_screen.c:817:18: warning: assigning to 'wheel_icon_t *' from 'const wheel_icon_t[6]' discards qualifiers [-Wincompatible-pointer-types-discards-qualifiers]
+C/C++:         iconlist = itemIcons;
+C/C++:                  ^ ~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/client/cl_screen.c:853:38: warning: passing 'const char *' to parameter of type 'char *' discards qualifiers [-Wincompatible-pointer-types-discards-qualifiers]
+C/C++:                                      iconlist[i].command, 1.0f); // Item name
+C/C++:                                      ^~~~~~~~~~~~~~~~~~~
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/client/header/client.h:337:43: note: passing argument to parameter 's' here
+C/C++: void DrawStringScaled(int x, int y, char *s, float factor);
+C/C++:                                           ^
+C/C++: 3 warnings generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/common/unzip/ioapi.c:224:6: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C2x [-Wdeprecated-non-prototype]
+C/C++: void fill_fopen_filefunc (pzlib_filefunc_def)
+C/C++:      ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/backends/unix/main.c:80:6: warning: ignoring return value of function declared with 'warn_unused_result' attribute [-Wunused-result]
+C/C++:                                         realpath(argv[i + 1], datadir);
+C/C++:                                         ^~~~~~~~ ~~~~~~~~~~~~~~~~~~~~
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/quake2/src/common/unzip/miniz.c:3030:9: warning: Using fopen, ftello, fseeko, stat() etc. path for file I/O - this path may not support large files. [-W#pragma-messages]
+C/C++: #pragma message("Using fopen, ftello, fseeko, stat() etc. path for file I/O - this path may not support large files.")
+C/C++:         ^
+C/C++: 1 warning generated.
+C/C++: /home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/jni/SupportLibs/libzip/zip_dirent.c:478:30: warning: 'memset' will set 0 bytes; maybe the arguments got flipped? [-Wuser-defined-warnings]
+C/C++:     memset(&tm, sizeof(tm), 0);
+C/C++:                              ^
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/string.h:144:9: note: from 'diagnose_if' attribute on 'memset':
+C/C++:         __clang_warning_if(c && !n, "'memset' will set 0 bytes; maybe the arguments got flipped?") {
+C/C++:         ^                  ~~~~~~~
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/cdefs.h:147:54: note: expanded from macro '__clang_warning_if'
+C/C++: #define __clang_warning_if(cond, msg) __attribute__((diagnose_if(cond, msg, "warning")))
+C/C++:                                                      ^           ~~~~
+C/C++: 1 warning generated.
+
+> Task :mergeReleaseJniLibFolders
+> Task :mergeReleaseNativeLibs
+> Task :checkReleaseDuplicateClasses
+> Task :generateReleaseBuildConfig
+> Task :javaPreCompileRelease
+> Task :checkReleaseAarMetadata
+> Task :generateReleaseResValues
+> Task :stripReleaseDebugSymbols
+> Task :mapReleaseSourceSetPaths
+> Task :generateReleaseResources
+> Task :extractReleaseNativeSymbolTables
+> Task :mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :packageReleaseResources
+> Task :mergeReleaseResources
+> Task :createReleaseCompatibleScreenManifests
+> Task :extractDeepLinksRelease
+> Task :parseReleaseLocalResources
+
+> Task :processReleaseMainManifest
+/home/runner/work/Quake2Quest/Quake2Quest/Projects/Android/AndroidManifest.xml:23:4-36 Warning:
+	android:extractNativeLibs should not be specified in this source AndroidManifest.xml file. See https://d.android.com/guide/topics/manifest/application-element#extractNativeLibs for more information.
+The AGP Upgrade Assistant can remove the attribute from the AndroidManifest.xml file and update the build file accordingly. See https://d.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :processReleaseManifest
+> Task :desugarReleaseFileDependencies
+> Task :mergeReleaseArtProfile
+> Task :mergeReleaseShaders
+> Task :processReleaseManifestForPackage
+> Task :compileReleaseShaders NO-SOURCE
+> Task :generateReleaseAssets UP-TO-DATE
+> Task :processReleaseResources
+> Task :mergeExtDexRelease
+> Task :mergeReleaseAssets
+> Task :compileReleaseJavaWithJavac
+> Task :dexBuilderRelease
+> Task :mergeReleaseGlobalSynthetics
+> Task :processReleaseJavaRes NO-SOURCE
+> Task :mergeDexRelease
+> Task :compileReleaseArtProfile
+> Task :mergeReleaseJavaResource
+> Task :collectReleaseDependencies
+> Task :sdkReleaseDependencyData
+> Task :validateSigningRelease
+> Task :writeReleaseAppMetadata
+> Task :writeReleaseSigningConfigVersions
+> Task :optimizeReleaseResources
+> Task :compressReleaseAssets
+> Task :packageRelease
+> Task :createReleaseApkListingFileRedirect
+> Task :assembleRelease
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.5/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 1m 33s
+41 actionable tasks: 41 executed
+=== APK build/outputs/apk/release/quake2quest-release.apk
+  1822720  1981-01-01 01:01   lib/arm64-v8a/libc++_shared.so
+  3500120  1981-01-01 01:01   lib/arm64-v8a/libgl4es.so
+  1284608  1981-01-01 01:01   lib/arm64-v8a/libopenal.so
+  1661920  1981-01-01 01:01   lib/arm64-v8a/libopenxr_loader.so
+ 12469416  1981-01-01 01:01   lib/arm64-v8a/libsofgame.so
+   657096  1981-01-01 01:01   lib/arm64-v8a/libsofplayer.so
+  3202680  1981-01-01 01:01   lib/arm64-v8a/libyquake2.so
+  5297072  1981-01-01 01:01   lib/arm64-v8a/libyquake2_game.so
+  1182584  1981-01-01 01:01   lib/arm64-v8a/libyquake2_gl1.so
+=== libc++_shared.so: NEEDED libc.so libm.so libdl.so 
+=== libgl4es.so: NEEDED libdl.so liblog.so libEGL.so libGLESv3.so libc.so libm.so 
+=== libopenal.so: NEEDED libdl.so liblog.so libOpenSLES.so libc.so libm.so 
+=== libopenxr_loader.so: NEEDED libdl.so liblog.so libandroid.so libm.so libc.so 
+=== libsofgame.so: NEEDED liblog.so libc.so libm.so libc++_shared.so libdl.so 
+=== libsofplayer.so: NEEDED liblog.so libc.so libm.so libc++_shared.so libdl.so 
+=== libyquake2.so: NEEDED libgl4es.so libopenal.so libopenxr_loader.so libEGL.so libdl.so liblog.so libandroid.so libOpenSLES.so libz.so libGLESv3.so libc.so libm.so libc++_shared.so 
+=== libyquake2_game.so: NEEDED libyquake2.so libdl.so liblog.so libz.so libc.so libm.so libc++_shared.so 
+=== libyquake2_gl1.so: NEEDED libgl4es.so libEGL.so libdl.so liblog.so libGLESv3.so libz.so libc.so libm.so libc++_shared.so 
+no unresolved symbols
