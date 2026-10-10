@@ -210,6 +210,9 @@ import static android.system.Os.setenv;
 					java.io.FileWriter w = new java.io.FileWriter(cl);
 					w.write("quake2 +set developer 1 +map trn1\n");
 					w.close();
+					// make it show up over USB (MTP only lists indexed files)
+					android.media.MediaScannerConnection.scanFile(this,
+							new String[] { cl.getAbsolutePath() }, null, null);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

@@ -231,7 +231,11 @@ static void refreshAllCvars(void)
 static int I_argc(void) { return q2b_argc(); }
 static char *I_argv(int n) { return (char *)q2b_argv(n); }
 static char *I_args(void) { return (char *)q2b_args(); }
-static void I_AddCommandString(const char *text) { q2b_addcommandstring(text); }
+static void I_AddCommandString(const char *text)
+{
+	if (getenv("SOF_DEBUG")) { char b[300]; snprintf(b, sizeof(b), "[sof] AddCommandString: %s\n", text); q2b_dprint(b); }
+	q2b_addcommandstring(text);
+}
 static void *I_TagMalloc(int size, int tag) { void *p = q2b_tagmalloc(size, tag); memset(p, 0, (size_t)size); return p; }
 static void I_TagFree(void *p) { if (p) q2b_tagfree(p); }
 static void I_FreeTags(int tag) { q2b_freetags(tag); }
@@ -712,6 +716,8 @@ extern "C" int sofb_init(int maxclients)
 	buildImports();
 	sge = getapi(&sgi);
 	if (!sge || sge->apiversion != GAME_API_VERSION) return 0;
+	/* single player: SoF's chat flood protection only ever fires on stray commands */
+	q2b_cvar_forceset("flood_msgs", "0");
 	sge->Init();
 	registerClientHooks();
 	return 1;
@@ -742,7 +748,11 @@ extern "C" int sofb_clientconnect(int num, char *userinfo) { refreshAllCvars(); 
 extern "C" void sofb_clientbegin(int num) { sge->ClientBegin(edictOf(num)); }
 extern "C" void sofb_clientuserinfochanged(int num, char *userinfo) { sge->ClientUserinfoChanged(edictOf(num), userinfo, true); }
 extern "C" void sofb_clientdisconnect(int num) { sge->ClientDisconnect(edictOf(num)); }
-extern "C" void sofb_clientcommand(int num) { sge->ClientCommand(edictOf(num)); }
+extern "C" void sofb_clientcommand(int num)
+{
+	if (getenv("SOF_DEBUG")) { char b[300]; snprintf(b, sizeof(b), "[sof] ClientCommand %d: %s %s\n", num, q2b_argv(0), q2b_args()); q2b_dprint(b); }
+	sge->ClientCommand(edictOf(num));
+}
 
 extern "C" void sofb_clientthink(int num, const sofb_usercmd_t *c)
 {

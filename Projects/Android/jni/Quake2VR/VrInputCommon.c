@@ -1,3 +1,4 @@
+#include <string.h>
 /************************************************************************************
 
 Filename	:	VrInputRight.c 
@@ -120,9 +121,32 @@ float nonLinearFilter(float in)
     return val;
 }
 
+#ifdef SOF_BUILD
+/* Soldier of Fortune names its inventory commands differently, and SoF's game
+   module turns any command it doesn't know into chat (which then trips its
+   flood protection). Translate Quake 2's, drop the ones SoF has no use for. */
+static const char *SoF_TranslateAction(const char *action)
+{
+    if (!strcmp(action, "invprev")) return "itemprev";
+    if (!strcmp(action, "invnext")) return "itemnext";
+    if (!strcmp(action, "invuse")) return "itemuse";
+    if (!strcmp(action, "invdrop")) return "itemdrop";
+    if (!strcmp(action, "inven")) return NULL;          /* no SoF inventory screen yet */
+    if (!strncmp(action, "use ", 4)) return NULL;       /* Quake 2 weapon wheel names */
+    return action;
+}
+#endif
+
 void sendButtonActionSimple(const char* action)
 {
     char command[256];
+#ifdef SOF_BUILD
+    action = SoF_TranslateAction(action);
+    if (!action)
+    {
+        return;
+    }
+#endif
     snprintf( command, sizeof( command ), "%s\n", action );
     Cbuf_AddText( command );
 }
