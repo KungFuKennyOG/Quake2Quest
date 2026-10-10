@@ -72,10 +72,15 @@ R_DrawSoFEntity(entity_t *e)
 	R_RotateForEntity(e);
 	e->angles[PITCH] = -e->angles[PITCH];
 
-	/* GHOUL triangles are counter-clockwise seen from outside, the opposite of Quake 2's
-	   models and world (the renderer culls GL_FRONT), so cull the other side here or the
-	   characters are drawn inside out. A mirrored (left-handed) view weapon flips it back. */
+	/* SoF draws GHOUL models with face culling off: a few triangles in the models are
+	   wound the other way (they were holes when culled). Only the view weapon is culled
+	   (GHOUL triangles are counter-clockwise seen from outside, the opposite of Quake 2's
+	   models, so it culls GL_BACK; a mirrored left-handed weapon flips that back). */
 	glCullFace(GL_BACK);
+	if (!(e->flags & RF_WEAPONMODEL))
+	{
+		glDisable(GL_CULL_FACE);
+	}
 
 	if (e->flags & RF_WEAPONMODEL)
 	{
@@ -157,7 +162,6 @@ R_DrawSoFEntity(entity_t *e)
 			}
 
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glEnable(GL_CULL_FACE);
 			glEnable(GL_ALPHA_TEST);
 			continue;
 		}
@@ -204,6 +208,10 @@ R_DrawSoFEntity(entity_t *e)
 	glPopMatrix();
 
 	glCullFace(GL_FRONT);
+	if (gl_cull->value)
+	{
+		glEnable(GL_CULL_FACE);
+	}
 
 	if (e->flags & RF_DEPTHHACK)
 	{

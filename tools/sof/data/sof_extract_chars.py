@@ -12,7 +12,8 @@ import struct
 import sys
 import zipfile
 
-WANT_PREFIXES = ("ghoul/comskin/", "ghoul/enemy/bolt/", "ghoul/weapon/")
+WANT_PREFIXES = ("ghoul/comskin/", "ghoul/enemy/bolt/", "ghoul/weapon/", "textures/sprites/",
+                 "ghoul/items/projectiles/", "ghoul/objects/generic/chunks_")
 WANT_MESO_EXT = (".tga", ".ifl", ".gsq")
 WANT_FILES = ("ghoul/enemy/meso/meso_tut1.ghb", "ghoul/enemy/ecto/ecto_tut1.ghb")
 
@@ -21,8 +22,9 @@ def wanted(name):
     n = name.lower()
     if n.startswith(WANT_PREFIXES):
         return True
-    if n.startswith("ghoul/enemy/meso/") and n.endswith(WANT_MESO_EXT):
-        return True
+    for d in ("ghoul/enemy/meso/", "ghoul/enemy/ecto/", "ghoul/enemy/female/"):
+        if n.startswith(d) and (n.endswith(WANT_MESO_EXT) or n.endswith("_tut1.ghb")):
+            return True
     return n in WANT_FILES
 
 
