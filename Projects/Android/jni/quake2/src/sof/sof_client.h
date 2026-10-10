@@ -33,8 +33,13 @@ typedef struct sofdraw_s
 
 /* return the meshes of an entity / of a client's view weapon at the current game time;
  * the data stays valid until the next call for the same entity */
-typedef const sofdraw_t *(*sof_entitydraw_t)(int entnum);
-typedef const sofdraw_t *(*sof_viewweapondraw_t)(int clientnum);
+/* Quake 2 sends the view offset as signed bytes in 1/4 units (-32..31.75); SoF's eye
+   height is 35. The server side subtracts this before sending, the client adds it back. */
+#define SOF_VIEWOFFSET_BIAS 16.0f
+
+/* lerpfrac: the client's interpolation fraction between the last two server frames */
+typedef const sofdraw_t *(*sof_entitydraw_t)(int entnum, float lerpfrac);
+typedef const sofdraw_t *(*sof_viewweapondraw_t)(int clientnum, float lerpfrac);
 
 void CL_SoF_RegisterHooks(sof_entitydraw_t entity, sof_viewweapondraw_t viewweapon);
 

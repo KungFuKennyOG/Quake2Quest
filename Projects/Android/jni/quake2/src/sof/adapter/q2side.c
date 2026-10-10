@@ -10,6 +10,7 @@
 #include "../../common/header/shared.h"
 #include "../../game/header/game.h"
 #include "sofbridge.h"
+#include "../sof_client.h"
 
 #define TAG_GAME 765  /* same values as the Q2 game (g_local.h) */
 #define TAG_LEVEL 766
@@ -210,6 +211,12 @@ void q2b_setps(int num, const q2b_ps_t *s)
 		ps->pmove.delta_angles[i] = s->delta_angles[i];
 		ps->viewangles[i] = s->viewangles[i];
 		ps->viewoffset[i] = s->viewoffset[i];
+		if (i == 2)
+		{
+			/* fits the network encoding, see SOF_VIEWOFFSET_BIAS */
+			float v = s->viewoffset[2] - SOF_VIEWOFFSET_BIAS;
+			ps->viewoffset[2] = v < -32.0f ? -32.0f : v > 31.75f ? 31.75f : v;
+		}
 		ps->kick_angles[i] = s->kick_angles[i];
 	}
 	ps->pmove.pm_flags = (byte)s->pm_flags;

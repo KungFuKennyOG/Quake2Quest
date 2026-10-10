@@ -361,7 +361,7 @@ CL_AddPacketEntities(frame_t *frame)
 		/* Soldier of Fortune GHOUL model: meshes come from the game adapter */
 		if ((renderfx & RF_SOFGHOUL) && sof_entitydraw)
 		{
-			ent.sofdraw = sof_entitydraw(s1->number);
+			ent.sofdraw = sof_entitydraw(s1->number, cl.lerpfrac);
 			ent.model = NULL;
 			ent.flags &= ~RF_SOFGHOUL;
 			if (ent.sofdraw && ent.sofdraw->nummeshes)
@@ -797,7 +797,7 @@ CL_AddViewWeapon(player_state_t *ps, player_state_t *ops)
 	if (sof_viewweapondraw)
 	{
 		/* Soldier of Fortune: the view weapon is a GHOUL instance owned by the game */
-		gun.sofdraw = sof_viewweapondraw(cl.playernum + 1);
+		gun.sofdraw = sof_viewweapondraw(cl.playernum + 1, cl.lerpfrac);
 		if (!gun.sofdraw || !gun.sofdraw->nummeshes)
 		{
 			return;

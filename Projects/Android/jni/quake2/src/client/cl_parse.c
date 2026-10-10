@@ -26,6 +26,8 @@
 
 #include "header/client.h"
 #include "input/header/input.h"
+#include "../sof/sof_client.h"
+qboolean CL_SoF_Active(void);
 
 void CL_DownloadFileName(char *dest, int destlen, char *fn);
 void CL_ParseDownload(void);
@@ -616,6 +618,11 @@ CL_ParsePlayerstate(frame_t *oldframe, frame_t *newframe)
 		state->viewoffset[0] = MSG_ReadChar(&net_message) * 0.25f;
 		state->viewoffset[1] = MSG_ReadChar(&net_message) * 0.25f;
 		state->viewoffset[2] = MSG_ReadChar(&net_message) * 0.25f;
+	}
+
+	if ((flags & PS_VIEWOFFSET) && CL_SoF_Active())
+	{
+		state->viewoffset[2] += SOF_VIEWOFFSET_BIAS; /* see sof_client.h */
 	}
 
 	if (flags & PS_VIEWANGLES)

@@ -924,12 +924,16 @@ struct DrawCache
 static std::map<int, DrawCache> g_drawCache;
 static void clearDrawCache(void) { g_drawCache.clear(); }
 
-static const sofdraw_t *buildDraw(int key, IGhoulInst *inst)
+static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
 {
 	if (!inst) return 0;
 	DrawCache &c = g_drawCache[key];
 	c.surfs.clear();
-	Ghoul_BuildDrawList(inst, (float)g_frame * 0.1f, c.surfs);
+	/* The client draws between the last two server frames (cl.lerpfrac); pose the models
+	   at that same moment so animation is smooth and in step with entity movement.
+	   g_frame * 0.1 is the time of the newest server frame. */
+	if (lerpfrac < 0) lerpfrac = 0; else if (lerpfrac > 1) lerpfrac = 1;
+	Ghoul_BuildDrawList(inst, ((float)g_frame - 1.0f + lerpfrac) * 0.1f, c.surfs);
 	c.meshes.resize(c.surfs.size());
 	for (size_t i = 0; i < c.surfs.size(); i++)
 	{
@@ -949,17 +953,17 @@ static const sofdraw_t *buildDraw(int key, IGhoulInst *inst)
 	return &c.draw;
 }
 
-static const sofdraw_t *hookEntityDraw(int num)
+static const sofdraw_t *hookEntityDraw(int num, float lerpfrac)
 {
 	edict_t *e = edictOf(num);
 	if (!e || !e->inuse || !e->ghoulInst) return 0;
-	return buildDraw(num, (IGhoulInst *)e->ghoulInst);
+	return buildDraw(num, (IGhoulInst *)e->ghoulInst, lerpfrac);
 }
-static const sofdraw_t *hookViewWeaponDraw(int client)
+static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 {
 	edict_t *e = edictOf(client);
 	if (!e || !e->client) return 0;
-	return buildDraw(-client, ((player_state_t *)e->client)->gun);
+	return buildDraw(-client, ((player_state_t *)e->client)->gun, lerpfrac);
 }
 
 extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));

@@ -1047,6 +1047,37 @@ public:
 	GhoulID GetStateSequence() { return seqId; }
 
 	/* ---- drawing ---- */
+	/* Vertex positions/normals at a fractional frame: blends the two neighbouring
+	   frames of the sequence so animation is smooth at any render rate. */
+	static void blendedFrame(ghb::FrameCache &cache, const ghb::Model &m, const ghb::Sequence &q, float ff,
+	                         const float **ap, const float **an)
+	{
+		static std::vector<float> bp, bn;
+		int f0 = (int)floorf(ff);
+		float fr = ff - (float)f0;
+		int last = q.firstFrame + (q.numFrames > 0 ? q.numFrames : 1) - 1;
+		const float *p0 = 0, *n0 = 0, *p1 = 0, *n1 = 0;
+		*ap = *an = 0;
+		if (!cache.Get(m, f0, &p0, &n0)) return;
+		if (fr < 0.01f || f0 + 1 > last || !p0)
+		{
+			*ap = p0; *an = n0;
+			return;
+		}
+		bp.assign(p0, p0 + (size_t)m.numAnimPos * 3);
+		if (n0) bn.assign(n0, n0 + (size_t)m.numAnimNor * 3); else bn.clear();
+		if (!cache.Get(m, f0 + 1, &p1, &n1) || !p1)
+		{
+			*ap = &bp[0]; *an = bn.empty() ? 0 : &bn[0];
+			return;
+		}
+		for (size_t i = 0; i < bp.size(); i++) bp[i] += (p1[i] - bp[i]) * fr;
+		if (n1 && !bn.empty())
+			for (size_t i = 0; i < bn.size(); i++) bn[i] += (n1[i] - bn[i]) * fr;
+		*ap = &bp[0];
+		*an = bn.empty() ? 0 : &bn[0];
+	}
+
 	void draw(float t, const ghb::Mat4 *parentChain, std::vector<GhoulDrawSurface> &out)
 	{
 		if (!on) return;
@@ -1057,7 +1088,7 @@ public:
 			const ghb::Model &m = s->file->model;
 			const float *ap = 0, *an = 0;
 			static ghb::FrameCache cache;
-			if (m.numAnimPos) cache.Get(m, (int)(ff + 0.5f), &ap, &an);
+			if (m.numAnimPos) blendedFrame(cache, m, m.sequences[(size_t)s->index], ff, &ap, &an);
 			ghb::Mat4 x;
 			toRoot(t, x);
 			std::vector<int> tris;
