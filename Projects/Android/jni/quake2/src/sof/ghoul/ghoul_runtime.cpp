@@ -1407,6 +1407,43 @@ const char *Ghoul_PlayingSequenceName(IGhoulInst *inst)
 	return g->obj->seqs[g->seqId - 1].base.c_str();
 }
 
+struct SavedPose { GhoulID seqId; float startTime, pauseTime, holdPos; int ec; bool paused, reverse; };
+static std::map<IGhoulInst *, SavedPose> g_savedPoses;
+
+bool Ghoul_SetPose(IGhoulInst *inst, const char *seqName)
+{
+	if (!inst) return false;
+	GInst *g = static_cast<GInst *>(inst);
+	GhoulID id = g->obj->FindSequence(seqName);
+	if (!id) return false;
+	SavedPose s;
+	s.seqId = g->seqId; s.startTime = g->startTime; s.pauseTime = g->pauseTime; s.holdPos = g->holdPos;
+	s.ec = (int)g->ec; s.paused = g->paused; s.reverse = g->reverse;
+	g_savedPoses[inst] = s;
+	g->seqId = id; g->startTime = 0; g->pauseTime = 0; g->holdPos = 0;
+	g->ec = IGhoulInst::Hold; g->paused = true; g->reverse = false;
+	return true;
+}
+
+void Ghoul_RestorePose(IGhoulInst *inst)
+{
+	std::map<IGhoulInst *, SavedPose>::iterator it = g_savedPoses.find(inst);
+	if (it == g_savedPoses.end()) return;
+	GInst *g = static_cast<GInst *>(inst);
+	const SavedPose &s = it->second;
+	g->seqId = s.seqId; g->startTime = s.startTime; g->pauseTime = s.pauseTime; g->holdPos = s.holdPos;
+	g->ec = (IGhoulInst::EndCondition)s.ec; g->paused = s.paused; g->reverse = s.reverse;
+	g_savedPoses.erase(it);
+}
+
+void Ghoul_SequenceNames(IGhoulInst *inst, std::vector<std::string> &out)
+{
+	out.clear();
+	if (!inst) return;
+	GInst *g = static_cast<GInst *>(inst);
+	for (size_t i = 0; i < g->obj->seqs.size(); i++) out.push_back(g->obj->seqs[i].base);
+}
+
 const char *Ghoul_ObjectDir(IGhoulInst *inst)
 {
 	return inst ? static_cast<GInst *>(inst)->obj->objectDir.c_str() : "";

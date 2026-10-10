@@ -552,6 +552,7 @@ struct PlayerSvImportHead { void *(*GetGhoul)(); float *levelTime; sof_fire_fn F
 static sof_fire_fn g_origFire, g_origAltfire;
 
 struct VRAimSave { vec3_t viewoffset, viewangles; bool active; };
+static bool vrMuzzle(float *out); /* world position of the drawn view weapon's muzzle */
 
 static void vrAimBegin(edict_t *ent, VRAimSave &save)
 {
@@ -584,6 +585,21 @@ static void vrAimBegin(edict_t *ent, VRAimSave &save)
 	ps->viewoffset[1] = off[0] * ws;
 	ps->viewoffset[2] = eyez + off[1] * ws;
 	VectorCopy(ang, ps->viewangles);
+	/* the shot leaves the drawn gun's muzzle (along the controller, which the barrel is
+	   fitted to): from the hand it would pass well below the barrel at short range.
+	   Not through a wall the muzzle pokes into. */
+	{
+		float muzzle[3];
+		if (vrMuzzle(muzzle))
+		{
+			float hand[3] = { ent->s.origin[0] + ps->viewoffset[0], ent->s.origin[1] + ps->viewoffset[1],
+			                  ent->s.origin[2] + ps->viewoffset[2] };
+			q2b_trace_t tr;
+			q2b_trace(hand, 0, 0, muzzle, NUM_FOR_EDICT(ent), 1 /* CONTENTS_SOLID */, &tr);
+			if (tr.fraction >= 1)
+				for (int k = 0; k < 3; k++) ps->viewoffset[k] = muzzle[k] - ent->s.origin[k];
+		}
+	}
 	if (getenv("SOF_DEBUG"))
 	{
 		char b[256];
@@ -1324,6 +1340,7 @@ struct GunFit
 	bool valid;
 	bool measured;                         /* heading taken from the muzzle area */
 	float grip[3], fwd[3], left[3], up[3]; /* in the weapon's entity space */
+	float k, sx;                           /* size: hand to a real hand's size, gun stretched to its real length */
 };
 static std::map<const void *, GunFit> g_gunAxes; /* model -> orientation, measured once */
 static std::map<std::pair<const void *, std::string>, GunFit> g_gunFits; /* (model, idle sequence) */
@@ -1337,10 +1354,60 @@ static bool partIs(const std::string &part, const char *a, const char *b)
 	return p.find(a) != std::string::npos && (!b || p.find(b) != std::string::npos);
 }
 
+/* Length of the weapon as the characters carry it (their models are made at about 4/3 of
+   real size): the in-hand view models are drawn far shorter, since a flat screen only shows
+   them end-on. Longest extent of ghoul/enemy/bolt/w_<weapon>.ghb at its first frame. */
+static float worldGunLength(const std::string &objectDir)
+{
+	static std::map<std::string, float> cache;
+	std::map<std::string, float>::iterator it = cache.find(objectDir);
+	if (it != cache.end()) return it->second;
+	static const char *const map[][2] = {
+		{ "pistol1", "w_pistol1" }, { "pistol2", "w_pistol2" }, { "shotgun", "w_shotgun" },
+		{ "sniperrifle", "w_sniperrifle" }, { "assaultrifle", "w_assault_rifle" }, { "machinegun", "w_machinegun" },
+		{ "mpistol", "w_machinepistol" }, { "autoshotgun", "w_autoshotgun" }, { "flamegun", "w_flamethrower" },
+		{ "mpg", "w_mpg" }, { "rocket", "w_rocket" }, { "knife", "w_knife" },
+	};
+	float len = 0;
+	std::string base = objectDir.substr(objectDir.rfind('/') + 1);
+	for (size_t i = 0; i < sizeof(map) / sizeof(map[0]) && !len; i++)
+	{
+		if (strcasecmp(base.c_str(), map[i][0])) continue;
+		std::string path = std::string("ghoul/enemy/bolt/") + map[i][1] + ".ghb";
+		void *buf = 0;
+		int n = q2b_loadfile(path.c_str(), &buf);
+		if (n <= 0 || !buf) break;
+		ghb::Model m;
+		std::string err;
+		if (ghb::Load((const uint8_t *)buf, (size_t)n, m, err))
+		{
+			ghb::FrameCache fc;
+			const float *ap = 0, *an = 0;
+			if (m.numAnimPos) fc.Get(m, 0, &ap, &an);
+			std::vector<int> tris;
+			ghb::BuildTriangles(m, tris);
+			float lo[3] = { 1e9f, 1e9f, 1e9f }, hi[3] = { -1e9f, -1e9f, -1e9f };
+			for (size_t t = 0; t + 3 < tris.size(); t += 4)
+				for (int k = 1; k <= 3; k++)
+				{
+					const ghb::Corner &c = m.corners[(size_t)tris[t + (size_t)k]];
+					const float *p = c.pos < 0 ? &m.staticPos[(size_t)(~c.pos) * 3] : (ap ? ap + (size_t)c.pos * 3 : 0);
+					if (!p) continue;
+					for (int a = 0; a < 3; a++) { if (p[a] < lo[a]) lo[a] = p[a]; if (p[a] > hi[a]) hi[a] = p[a]; }
+				}
+			for (int a = 0; a < 3; a++) if (hi[a] - lo[a] > len) len = hi[a] - lo[a];
+		}
+		q2b_freefile(buf);
+	}
+	return cache[objectDir] = len;
+}
+
 static bool fitGun(IGhoulInst *gun, float time, const std::vector<GhoulDrawSurface> &surfs, GunFit &fit)
 {
 	fit.valid = false;
 	fit.measured = false;
+	fit.k = 0;
+	fit.sx = 1;
 	IGhoulObj *obj = gun->GetGhoulObject();
 	if (!obj) return false;
 
@@ -1450,6 +1517,32 @@ static bool fitGun(IGhoulInst *gun, float time, const std::vector<GhoulDrawSurfa
 			else fit.measured = true;
 			f[0] = (float)v[0]; f[1] = (float)v[1]; f[2] = 0;
 			u[0] = 0; u[1] = 0; u[2] = 1;
+			if (!flash)
+			{
+				/* blades (knife): the flat view holds them upright; point the blade the way
+				   the controller points, along the model's long axis away from the hand */
+				double w3[3] = { 0.3, 0.3, 1 };
+				for (int it = 0; it < 64; it++)
+				{
+					double nv[3];
+					for (int a = 0; a < 3; a++) nv[a] = cov[a][0] * w3[0] + cov[a][1] * w3[1] + cov[a][2] * w3[2];
+					double l = sqrt(nv[0] * nv[0] + nv[1] * nv[1] + nv[2] * nv[2]);
+					if (l <= 0) break;
+					for (int a = 0; a < 3; a++) w3[a] = nv[a] / l;
+				}
+				double sgn = 0;
+				for (int a = 0; a < 3; a++) sgn += (mean[a] - fit.grip[a]) * w3[a];
+				for (int a = 0; a < 3; a++) f[a] = (float)(sgn < 0 ? -w3[a] : w3[a]);
+				/* keep the model's sideways axis; up follows */
+				float l0[3] = { 0, 1, 0 };
+				float lf = l0[0] * f[0] + l0[1] * f[1] + l0[2] * f[2];
+				for (int a = 0; a < 3; a++) l0[a] -= lf * f[a];
+				normalize3(l0);
+				u[0] = f[1] * l0[2] - f[2] * l0[1];
+				u[1] = f[2] * l0[0] - f[0] * l0[2];
+				u[2] = f[0] * l0[1] - f[1] * l0[0];
+				fit.measured = true;
+			}
 			if (getenv("SOF_DEBUG"))
 			{
 				char b[200];
@@ -1489,12 +1582,115 @@ static void gunFitPoint(const GunFit &g, const float *p, float *o)
 	o[1] = d[0] * g.left[0] + d[1] * g.left[1] + d[2] * g.left[2];
 	o[2] = d[0] * g.up[0] + d[1] * g.up[1] + d[2] * g.up[2];
 }
+/* the weapon's size (uniform) and length (along the barrel) - for points on the gun */
+static void gunFitSize(const GunFit &g, float *o)
+{
+	float k = g.k > 0 ? g.k : 1;
+	o[0] *= k * g.sx;
+	o[1] *= k;
+	o[2] *= k;
+}
 static void gunFitDir(const GunFit &g, const float *p, float *o)
 {
 	float d[3] = { p[0], p[1], p[2] };
 	o[0] = d[0] * g.fwd[0] + d[1] * g.fwd[1] + d[2] * g.fwd[2];
 	o[1] = d[0] * g.left[0] + d[1] * g.left[1] + d[2] * g.left[2];
 	o[2] = d[0] * g.up[0] + d[1] * g.up[1] + d[2] * g.up[2];
+}
+
+/* the idle sequence that is the weapon's rest pose */
+static std::string restSequence(IGhoulInst *gun)
+{
+	std::vector<std::string> names;
+	Ghoul_SequenceNames(gun, names);
+	const char *prefer[] = { "idle_a", "idle" };
+	for (int p = 0; p < 2; p++)
+		for (size_t i = 0; i < names.size(); i++)
+			if (!strcasecmp(names[i].c_str(), prefer[p])) return names[i];
+	for (size_t i = 0; i < names.size(); i++)
+		if (!strncasecmp(names[i].c_str(), "idle", 4) && names[i].find("_to_") == std::string::npos) return names[i];
+	return std::string();
+}
+
+static bool partIsGunBody(const std::string &pn)
+{
+	return !partIs(pn, "HAND", 0) && !partIs(pn, "ARM", 0) && !partIs(pn, "SLEEVE", 0);
+}
+
+/* orientation, grip and size of a weapon, from one pose of it */
+static void measureGun(IGhoulInst *gun, const std::string &seq, GunFit &fit)
+{
+	fit.valid = false;
+	bool posed = !seq.empty() && Ghoul_SetPose(gun, seq.c_str());
+	std::vector<GhoulDrawSurface> s;
+	float t = posed ? 0.0f : ((float)g_frame - 1.0f + g_drawLerp) * 0.1f;
+	Ghoul_BuildDrawList(gun, t, s);
+	fitGun(gun, t, s, fit);
+	if (posed) Ghoul_RestorePose(gun);
+	if (!fit.valid) return;
+
+	/* size: the right hand to a real hand's size (12 cm at vr_worldscale 36); the gun
+	   stretched along the barrel to its real length (the characters' model of the same
+	   weapon, at 3/4 - those are made a third larger than life) */
+	bool hasHigh = false;
+	for (size_t i = 0; i < s.size(); i++) if (partIs(s[i].part, "HIGH_RES", 0)) hasHigh = true;
+	float hlo[3] = { 1e9f, 1e9f, 1e9f }, hhi[3] = { -1e9f, -1e9f, -1e9f }, gx0 = 1e9f, gx1 = -1e9f;
+	for (size_t i = 0; i < s.size(); i++)
+	{
+		const std::string &pn = s[i].part;
+		if (hasHigh && (partIs(pn, "MEDIUM_RES", 0) || partIs(pn, "LOW_RES", 0))) continue;
+		bool rhand = partIs(pn, "_R_", "HAND"), body = partIsGunBody(pn);
+		if (!rhand && !body) continue;
+		for (size_t v = 0; v + 2 < s[i].xyz.size(); v += 3)
+		{
+			float o[3];
+			gunFitPoint(fit, &s[i].xyz[v], o);
+			if (rhand) for (int a = 0; a < 3; a++) { if (o[a] < hlo[a]) hlo[a] = o[a]; if (o[a] > hhi[a]) hhi[a] = o[a]; }
+			else { if (o[0] < gx0) gx0 = o[0]; if (o[0] > gx1) gx1 = o[0]; }
+		}
+	}
+	float hand = 0;
+	for (int a = 0; a < 3; a++) if (hhi[a] - hlo[a] > hand) hand = hhi[a] - hlo[a];
+	static void *cv_ws;
+	if (!cv_ws) cv_ws = q2b_cvar("vr_weaponscale", "0.56", 0);
+	float ws = q2b_cvar_value(cv_ws);
+	if (ws <= 0.01f) ws = 1;
+	fit.k = hand > 0.01f ? (4.3f / ws) / hand : 1.0f;
+	fit.sx = 1;
+	std::string dir = s.empty() ? std::string() : s[0].objectDir;
+	float wl = worldGunLength(dir);
+	if (wl > 0 && gx1 > gx0)
+	{
+		fit.sx = (0.75f * wl / ws) / ((gx1 - gx0) * fit.k);
+		if (fit.sx < 0.8f) fit.sx = 0.8f;
+		if (fit.sx > 3.0f) fit.sx = 3.0f;
+	}
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[240];
+		snprintf(b, sizeof(b), "[sof] gun size %s (%s): hand %.1f -> scale %.2f, length %.1f (characters' %.1f) -> stretch %.2f\n",
+		         dir.c_str(), seq.c_str(), hand, fit.k, gx1 - gx0, wl, fit.sx);
+		q2b_dprint(b);
+	}
+}
+
+/* where the right hand holds the weapon in one of its poses */
+static bool measureGrip(IGhoulInst *gun, const char *seq, float *grip)
+{
+	if (!Ghoul_SetPose(gun, seq)) return false;
+	std::vector<GhoulDrawSurface> s;
+	Ghoul_BuildDrawList(gun, 0, s);
+	Ghoul_RestorePose(gun);
+	double sum[3] = { 0, 0, 0 };
+	size_t n = 0;
+	for (size_t i = 0; i < s.size(); i++)
+	{
+		if (!partIs(s[i].part, "_R_", "HAND")) continue;
+		for (size_t v = 0; v + 2 < s[i].xyz.size(); v += 3) { sum[0] += s[i].xyz[v]; sum[1] += s[i].xyz[v + 1]; sum[2] += s[i].xyz[v + 2]; n++; }
+	}
+	if (!n) return false;
+	for (int a = 0; a < 3; a++) grip[a] = (float)(sum[a] / (double)n);
+	return true;
 }
 
 static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
@@ -1517,42 +1713,43 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 	for (size_t i = 0; i < seq.size(); i++) seq[i] = (char)tolower((unsigned char)seq[i]);
 	bool idle = seq.compare(0, 4, "idle") == 0 && seq.find("_to_") == std::string::npos;
 
+	/* the fit is measured on the weapon at rest - the first frame of its idle sequence -
+	   whatever is playing, so a raise or reload animation never skews it */
 	GunFit fit;
 	fit.valid = false;
-	if (idle)
-	{
-		std::pair<const void *, std::string> key(obj, seq);
-		std::map<std::pair<const void *, std::string>, GunFit>::iterator it = g_gunFits.find(key);
-		if (it == g_gunFits.end())
-		{
-			GunFit f;
-			fitGun(gun, time, c.surfs, f);
-			it = g_gunFits.insert(std::make_pair(key, f)).first;
-		}
-		fit = it->second;
-		if (fit.valid) g_gunFitLast[obj] = fit;
-	}
-	if (!fit.valid)
-	{
-		std::map<const void *, GunFit>::iterator it = g_gunFitLast.find(obj);
-		if (it != g_gunFitLast.end()) fit = it->second;
-		else if (fitGun(gun, time, c.surfs, fit)) g_gunFitLast[obj] = fit; /* until an idle pose shows */
-	}
-	if (!fit.valid) return d;
-
-	/* one orientation per weapon (the first measured idle pose), so idle fidgets that tip
-	   the gun still play; the grip is taken per idle pose so the hand stays in the hand */
 	{
 		std::map<const void *, GunFit>::iterator ax = g_gunAxes.find(obj);
-		if (ax == g_gunAxes.end() || (!ax->second.measured && fit.measured))
+		if (ax == g_gunAxes.end())
 		{
-			g_gunAxes[obj] = fit;
-			ax = g_gunAxes.find(obj);
+			GunFit a;
+			measureGun(gun, restSequence(gun), a);
+			ax = g_gunAxes.insert(std::make_pair(obj, a)).first;
 		}
-		cp3(ax->second.fwd, fit.fwd);
-		cp3(ax->second.left, fit.left);
-		cp3(ax->second.up, fit.up);
+		if (!ax->second.valid) return d;
+		fit = ax->second;
+		/* the grip per idle pose (two-handed holds bring the gun in), held through the
+		   animations that follow it */
+		if (idle)
+		{
+			std::pair<const void *, std::string> key(obj, seq);
+			std::map<std::pair<const void *, std::string>, GunFit>::iterator it = g_gunFits.find(key);
+			if (it == g_gunFits.end())
+			{
+				GunFit gp = fit;
+				float grip[3];
+				if (measureGrip(gun, seq.c_str(), grip)) cp3(grip, gp.grip);
+				it = g_gunFits.insert(std::make_pair(key, gp)).first;
+			}
+			cp3(it->second.grip, fit.grip);
+			g_gunFitLast[obj] = fit;
+		}
+		else
+		{
+			std::map<const void *, GunFit>::iterator it = g_gunFitLast.find(obj);
+			if (it != g_gunFitLast.end()) cp3(it->second.grip, fit.grip);
+		}
 	}
+	(void)time;
 	g_gunFitNow = fit;
 
 	/* which surfaces to draw: no sleeves (they ran off the screen edge), one set of hands
@@ -1646,6 +1843,33 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 			if (sqrtf(best) > handSize || lh[2] < rhLo)
 				for (size_t i = 0; i < c.surfs.size(); i++)
 					if (partIs(c.surfs[i].part, "_L_", "HAND")) keep[i] = 0;
+		}
+	}
+
+	/* size (measured with the fit): hand to a real hand's size, gun to its real length */
+	{
+		/* left hand: keeps its spot on the stretched gun (moves, is not stretched) */
+		double lsum = 0;
+		size_t ln = 0;
+		for (size_t i = 0; i < c.surfs.size(); i++)
+		{
+			if (!keep[i] || !partIs(c.surfs[i].part, "_L_", "HAND")) continue;
+			const std::vector<float> &x = c.surfs[i].xyz;
+			for (size_t v = 0; v + 2 < x.size(); v += 3) { lsum += x[v]; ln++; }
+		}
+		float lshift = ln ? (float)(lsum / (double)ln) * fit.k * (fit.sx - 1) : 0;
+		for (size_t i = 0; i < c.surfs.size(); i++)
+		{
+			if (!keep[i]) continue;
+			const std::string &pn = c.surfs[i].part;
+			bool rhand = partIs(pn, "_R_", "HAND"), lhand = partIs(pn, "_L_", "HAND");
+			std::vector<float> &x = c.surfs[i].xyz;
+			for (size_t v = 0; v + 2 < x.size(); v += 3)
+			{
+				x[v] *= fit.k; x[v + 1] *= fit.k; x[v + 2] *= fit.k;
+				if (lhand) x[v] += lshift;
+				else if (!rhand) x[v] *= fit.sx;
+			}
 		}
 	}
 
@@ -2235,6 +2459,7 @@ static void entToWorld(const float *org, const float *ang, float scale, const fl
 {
 	vec3_t f, r, u, a;
 	cp3(ang, a);
+	a[2] = -a[2]; /* the renderer turns GHOUL models by the opposite roll (gl1_sof.c) */
 	angleVectors(a, f, r, u);
 	for (int k = 0; k < 3; k++)
 		o[k] = (point ? org[k] : 0) + scale * (p[0] * f[k] - p[1] * r[k] + p[2] * u[k]);
@@ -2261,7 +2486,17 @@ static bool boltFrame(IGhoulInst *inst, int bolt, const float *org, const float 
 		float o[3];
 		for (int r = 0; r < 3; r++) { gunFitDir(*fit, rows[r], o); cp3(o, rows[r]); }
 		gunFitPoint(*fit, rows[3], o);
+		gunFitSize(*fit, o);
 		cp3(o, rows[3]);
+		/* the muzzle bolts are turned for the flat screen (their effects spray across the
+		   screen toward the crosshair): in the hand they go along the barrel */
+		IGhoulObj *obj = inst->GetGhoulObject();
+		if (obj && bolt && (GhoulID)bolt == obj->FindPart("flash"))
+		{
+			rows[0][0] = 1; rows[0][1] = 0; rows[0][2] = 0; /* forward: the barrel */
+			rows[1][0] = 0; rows[1][1] = 0; rows[1][2] = 1; /* up */
+			rows[2][0] = 1; rows[2][1] = 0; rows[2][2] = 0; /* "right", which the smoke drifts along, is the barrel too */
+		}
 	}
 	entToWorld(org, ang, scale, rows[3], true, out.org);
 	/* bolt axes: x -> forward, y -> up, z -> right (matches the muzzle and shell bolts) */
@@ -2311,6 +2546,18 @@ static bool fxResolve(const sfx::Anchor &a, sfx::Frame &out)
 	return false;
 }
 
+static bool vrMuzzle(float *out)
+{
+	IGhoulInst *gun = playerGun();
+	if (!g_gunValid || !gun || !g_gunFitNow.valid || !gun->GetGhoulObject()) return false;
+	GhoulID flash = gun->GetGhoulObject()->FindPart("flash");
+	if (!flash) return false;
+	sfx::Frame fr;
+	if (!boltFrame(gun, flash, g_gunOrigin, g_gunAngles, g_gunScale, fr, &g_gunFitNow)) return false;
+	cp3(fr.org, out);
+	return true;
+}
+
 static std::map<std::string, std::string> g_fxTexPaths;
 static const char *fxTexturePath(const char *name)
 {
@@ -2335,6 +2582,7 @@ static int fxLoadFile(const char *path, void **buf) { return q2b_loadfile(path, 
 static void fxFreeFile(void *buf) { q2b_freefile(buf); }
 
 /* view weapon notes: SoF's client plays these (WeapSoundHelper / WeaponEffectHelper) */
+static bool fxResolve(const sfx::Anchor &a, sfx::Frame &out);
 static void fxNoteHook(IGhoulInst *inst, const char *token, const char *data)
 {
 	if (!inst || !token || inst != playerGun()) return;
@@ -2351,6 +2599,16 @@ static void fxNoteHook(IGhoulInst *inst, const char *token, const char *data)
 		name[0] = bolt[0] = 0;
 		sscanf(data, "%127s %63s", name, bolt);
 		if (bolt[0]) a.bolt = inst->GetGhoulObject()->FindPart(bolt);
+		if (getenv("SOF_DEBUG"))
+		{
+			sfx::Frame fr;
+			char b[300];
+			bool ok = fxResolve(a, fr);
+			snprintf(b, sizeof(b), "[sof fx] view weapon effect %s at bolt %s (%d): %s org %.1f %.1f %.1f fwd %.2f %.2f %.2f gun %.1f %.1f %.1f\n",
+			         name, bolt, a.bolt, ok ? "ok" : "unresolved", fr.org[0], fr.org[1], fr.org[2], fr.fwd[0], fr.fwd[1], fr.fwd[2],
+			         g_gunOrigin[0], g_gunOrigin[1], g_gunOrigin[2]);
+			q2b_dprint(b);
+		}
 		sfx::Start(name, a, sfx::Params());
 	}
 }

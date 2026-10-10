@@ -54,6 +54,12 @@ void Ghoul_BuildDrawList(IGhoulInst *inst, float time, std::vector<GhoulDrawSurf
 const char *Ghoul_PlayingSequenceName(IGhoulInst *inst);
 /* The object's directory ("weapon/inview/sniperrifle"), or "" */
 const char *Ghoul_ObjectDir(IGhoulInst *inst);
+/* Hold an instance at the first frame of one of its sequences (at time 0) for measuring,
+   then put it back exactly as it was. Not nestable. */
+bool Ghoul_SetPose(IGhoulInst *inst, const char *seqName);
+void Ghoul_RestorePose(IGhoulInst *inst);
+/* Names of the object's sequences, in registration order */
+void Ghoul_SequenceNames(IGhoulInst *inst, std::vector<std::string> &out);
 
 /* ---- .gsq sequence lists (game_import_t entries) ------------------------- */
 class IGhoulObj;

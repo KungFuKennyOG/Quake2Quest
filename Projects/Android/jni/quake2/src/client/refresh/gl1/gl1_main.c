@@ -950,6 +950,12 @@ R_DrawScope(void)
 		}
 		if (clip[3] <= 0.01f)
 		{
+			static int logged;
+			if (getenv("SOF_DEBUG") && logged++ < 3)
+			{
+				R_Printf(PRINT_ALL, "[scope] lens %.1f %.1f %.1f is behind the eye %.1f %.1f %.1f\n",
+				         centre[0], centre[1], centre[2], r_newrefdef.vieworg[0], r_newrefdef.vieworg[1], r_newrefdef.vieworg[2]);
+			}
 			return; /* behind the eye */
 		}
 		float sx = vp[0] + (clip[0] / clip[3] * 0.5f + 0.5f) * vp[2];
@@ -1005,6 +1011,58 @@ R_DrawScope(void)
 	R_DrawEntitiesOnList();
 	R_DrawParticles();
 	R_DrawAlphaSurfaces();
+
+	/* reticle: fine crosshair with thicker outer posts, and a dark rim at the lens edge */
+	{
+		GLfloat strip[2 * 2 * 49];
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_TEXTURE_2D);
+		glDisable(GL_ALPHA_TEST);
+		glDisable(GL_BLEND);
+		glDisable(GL_CULL_FACE);
+		glColor4f(0, 0, 0, 1);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		{
+			const float fine = 0.006f, post = 0.03f, gap = 0.35f;
+			GLfloat q[][8] = {
+				{ -1, -fine, 1, -fine, -1, fine, 1, fine },                  /* fine horizontal */
+				{ -fine, -1, fine, -1, -fine, 1, fine, 1 },                  /* fine vertical */
+				{ -1, -post, -gap, -post, -1, post, -gap, post },            /* posts */
+				{ gap, -post, 1, -post, gap, post, 1, post },
+				{ -post, -1, post, -1, -post, -gap, post, -gap },
+			};
+			for (i = 0; i < 5; i++)
+			{
+				glVertexPointer(2, GL_FLOAT, 0, q[i]);
+				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			}
+		}
+		for (i = 0; i <= 48; i++)
+		{
+			float a = (float)i * 2.0f * (float)M_PI / 48.0f;
+			strip[i * 4 + 0] = cosf(a) * 0.9f;
+			strip[i * 4 + 1] = sinf(a) * 0.9f;
+			strip[i * 4 + 2] = cosf(a) * 1.5f;
+			strip[i * 4 + 3] = sinf(a) * 1.5f;
+		}
+		glVertexPointer(2, GL_FLOAT, 0, strip);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 2 * 49);
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glColor4f(1, 1, 1, 1);
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_DEPTH_TEST);
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+	}
+
 	r_scopepass = false;
 	r_newrefdef = saved;
 

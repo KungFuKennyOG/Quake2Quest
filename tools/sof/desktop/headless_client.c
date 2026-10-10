@@ -239,6 +239,15 @@ void VR_Init(void)
 /* the test drives the player with these cvars */
 void VR_GetMove(float *forward, float *side, float *up, float *yaw, float *pitch, float *roll)
 {
+	/* SOF_TEST_VRAIM also places the drawn view weapon (controller pose) */
+	const char *aim = getenv("SOF_TEST_VRAIM");
+	if (aim)
+	{
+		float h = 0;
+		sscanf(aim, "%f %f %f %f %f %f %f", &weaponoffset[0], &weaponoffset[1], &weaponoffset[2],
+		       &weaponangles[0], &weaponangles[1], &weaponangles[2], &h);
+		hmdPosition[1] = h;
+	}
 	*forward = Cvar_VariableValue("test_forward");
 	*side = 0; *up = 0;
 	*yaw = Cvar_VariableValue("test_yaw");
