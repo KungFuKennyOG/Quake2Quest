@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
 
 /* ---- video ----
  * Without SOF_REF this is a null renderer. With SOF_REF=<path to a desktop build of
@@ -166,11 +167,27 @@ qboolean snd_is_underwater;
 void S_Init(void) {}
 void S_Shutdown(void) {}
 void S_BeginRegistration(void) {}
-struct sfx_s *S_RegisterSound(char *sample) { (void)sample; return NULL; }
+/* sounds are only logged (SOF_SOUNDLOG) so tests can see what the game plays */
+static char snd_names[1024][64];
+static int snd_count;
+struct sfx_s *S_RegisterSound(char *sample)
+{
+	int i;
+	if (!sample || !*sample) return NULL;
+	for (i = 0; i < snd_count; i++) if (!strcmp(snd_names[i], sample)) return (struct sfx_s *)(intptr_t)(i + 1);
+	if (snd_count >= 1024) return NULL;
+	Q_strlcpy(snd_names[snd_count], sample, sizeof(snd_names[0]));
+	return (struct sfx_s *)(intptr_t)(++snd_count);
+}
 void S_EndRegistration(void) {}
 void S_StartSound(vec3_t origin, int entnum, int entchannel, struct sfx_s *sfx, float fvol, float attenuation, float timeofs)
-{ (void)origin; (void)entnum; (void)entchannel; (void)sfx; (void)fvol; (void)attenuation; (void)timeofs; }
-void S_StartLocalSound(char *s) { (void)s; }
+{
+	(void)origin; (void)timeofs;
+	if (getenv("SOF_SOUNDLOG"))
+		Com_Printf("[sound] start %s ent %d chan %d vol %.2f atten %.2f\n",
+			sfx ? snd_names[(intptr_t)sfx - 1] : "(null)", entnum, entchannel, fvol, attenuation);
+}
+void S_StartLocalSound(char *s) { if (getenv("SOF_SOUNDLOG")) Com_Printf("[sound] local %s\n", s); }
 void S_RawSamples(int samples, int rate, int width, int channels, byte *data, float volume)
 { (void)samples; (void)rate; (void)width; (void)channels; (void)data; (void)volume; }
 void S_StopAllSounds(void) {}

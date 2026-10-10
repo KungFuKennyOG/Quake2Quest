@@ -718,6 +718,16 @@ extern "C" int sofb_init(int maxclients)
 	if (!sge || sge->apiversion != GAME_API_VERSION) return 0;
 	/* single player: SoF's chat flood protection only ever fires on stray commands */
 	q2b_cvar_forceset("flood_msgs", "0");
+
+	/* VR scale: SoF people are 64 units tall with eyes 59 units above the floor
+	   (Quake 2's marine: 56 / 46), about 36 units per metre. Quake2Quest's default
+	   is Quake 2's 26.2467, which makes you feel short in SoF; switch it unless the
+	   player has set their own value. */
+	{
+		void *ws = q2b_cvar("vr_worldscale", "36", 0);
+		float v = ws ? q2b_cvar_value(ws) : 0;
+		if (ws && v > 26.24f && v < 26.25f) q2b_cvar_forceset("vr_worldscale", "36");
+	}
 	sge->Init();
 	registerClientHooks();
 	return 1;

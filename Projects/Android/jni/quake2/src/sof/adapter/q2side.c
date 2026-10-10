@@ -240,9 +240,22 @@ void q2b_setnumedicts(int n)
 int q2b_modelindex(const char *name) { return gi.modelindex((char *)name); }
 int q2b_soundindex(const char *name)
 {
-	/* the Q2 protocol has 256 sound slots, SoF uses up to 356: keep the overflow local */
+	/* The Q2 protocol has 256 sound slots, SoF uses up to 356: past the limit new
+	   sounds are silent instead of an overflow error. Only count names not seen yet
+	   (scripts look the same sound up every time they play it). */
+	static char known[MAX_SOUNDS][MAX_QPATH];
+	int i;
+
+	for (i = 0; i < sounds_used; i++)
+	{
+		if (!Q_stricmp(known[i], (char *)name))
+		{
+			return gi.soundindex((char *)name);
+		}
+	}
+
 	if (sounds_used >= MAX_SOUNDS - 2) return 0;
-	sounds_used++;
+	Q_strlcpy(known[sounds_used++], name, MAX_QPATH);
 	return gi.soundindex((char *)name);
 }
 int q2b_imageindex(const char *name) { return gi.imageindex((char *)name); }
@@ -258,7 +271,13 @@ int q2b_cs_lights(void) { return CS_LIGHTS; }
 int q2b_max_sounds(void) { return MAX_SOUNDS; }
 void q2b_sound(int ent, int channel, int soundindex, float volume, float attenuation, float timeofs)
 {
-	if (soundindex <= 0 || soundindex >= MAX_SOUNDS || ent < 0 || ent >= MIRROR_MAX) return;
+	if (soundindex <= 0 || soundindex >= MAX_SOUNDS || ent >= MIRROR_MAX) return;
+	if (ent < 0)
+	{
+		/* SoF plays narration and scripted dialogue with no entity: heard everywhere */
+		ent = 0;
+		attenuation = ATTN_NONE;
+	}
 	gi.sound(M(ent), channel, soundindex, volume, attenuation, timeofs);
 }
 void q2b_positioned_sound(const float *origin, int ent, int channel, int soundindex, float volume, float attenuation, float timeofs)
