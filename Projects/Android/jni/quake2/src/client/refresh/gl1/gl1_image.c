@@ -34,6 +34,10 @@ extern qboolean scrap_dirty;
 extern byte scrap_texels[MAX_SCRAPS][BLOCK_WIDTH * BLOCK_HEIGHT];
 
 static byte intensitytable[256];
+/* Soldier of Fortune characters and effect sprites are true-colour art drawn at their
+   own brightness (SoF has no texture intensity); the Quest brightening of Quake 2's
+   dark palette textures turned skin white */
+static qboolean r_upload_noscale;
 static unsigned char gammatable[256];
 
 cvar_t *intensity;
@@ -469,7 +473,7 @@ void
 R_LightScaleTexture(unsigned *in, int inwidth,
 		int inheight, qboolean only_gamma)
 {
-	if (only_gamma)
+	if (only_gamma || r_upload_noscale)
 	{
 		int i, c;
 		byte *p;
@@ -991,8 +995,10 @@ R_LoadPic(char *name, byte *pic, int width, int realwidth,
 		}
 		else
 		{
+			r_upload_noscale = !Q_strncasecmp(name, "ghoul/", 6) || !Q_strncasecmp(name, "textures/sprites/", 17);
 			image->has_alpha = R_Upload32((unsigned *)pic, width, height,
 						(image->type != it_pic && image->type != it_sky));
+			r_upload_noscale = false;
 		}
 
 		image->upload_width = upload_width; /* after power of 2 and scales */

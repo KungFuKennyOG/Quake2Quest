@@ -8,6 +8,8 @@
 #include "header/local.h"
 #include "../../../sof/sof_client.h"
 
+#define SOF_CLAMP1(x) ((x) > 1.0f ? 1.0f : (x))
+
 static image_t *
 SoF_SkinImage(const char *name)
 {
@@ -179,9 +181,11 @@ R_DrawSoFEntity(entity_t *e)
 			const float *nr = mesh->normal ? mesh->normal + i * 3 : NULL;
 			float l = nr ? 0.75f + 0.25f * nr[2] : 1.0f;
 
-			colors[i * 4 + 0] = shadelight[0] * l * mesh->rgba[0];
-			colors[i * 4 + 1] = shadelight[1] * l * mesh->rgba[1];
-			colors[i * 4 + 2] = shadelight[2] * l * mesh->rgba[2];
+			/* clamped: GLES / gl4es does not clamp vertex colours, so strong map light
+			   would otherwise blow the skins out to white */
+			colors[i * 4 + 0] = SOF_CLAMP1(shadelight[0] * l) * mesh->rgba[0];
+			colors[i * 4 + 1] = SOF_CLAMP1(shadelight[1] * l) * mesh->rgba[1];
+			colors[i * 4 + 2] = SOF_CLAMP1(shadelight[2] * l) * mesh->rgba[2];
 			colors[i * 4 + 3] = alpha * mesh->rgba[3];
 		}
 

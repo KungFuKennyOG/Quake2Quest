@@ -1289,6 +1289,9 @@ extern "C" float SoF_LevelTime(void)
  * and the effects run in sof/fx, which the client asks for every frame (hookFxFrame). */
 extern "C" void CL_SoF_RegisterFxHook(sof_fxframe_t) __attribute__((weak));
 
+static void cp3(const float *a, float *b);
+static void normalize3(float *v);
+
 struct MsgReader
 {
 	const unsigned char *d; size_t n, p; bool bad;
@@ -1354,6 +1357,263 @@ static bool parseEffect(MsgReader &r)
 	return true;
 }
 
+/* ---- temp entities (SoF's client-side impact effects) */
+enum { TE_ORANGE_SPARKS = 0, TE_DUST_PUFF = 1, TE_WALLDAMAGE = 6, TE_WALLSEVEREDAMAGE = 7, TE_BLUE_SPARKS = 10,
+       TE_BARREL_SPARKS = 14, TE_RICOCHET = 54 };
+enum { RI_WORLD, RI_WORLD_NOSURF, RI_BMODEL, RI_ENT };
+enum { SOFSURF_METAL = 1, SOFSURF_BLOOD = 35, SOFSURF_NUM = 43 };
+
+struct Impact
+{
+	float pos[3], normal[3];
+	int surf;        /* SoF surface type (texinfo flags >> 24), -1 unknown */
+	int surfFlags;
+};
+
+/* SoF's per-surface impact data: dust colour, decal sprite, impact sound and handler */
+enum { IH_PUFF, IH_STONE, IH_EFFECT, IH_NONE, IH_SOUND, IH_GLASS };
+struct SurfImpact { unsigned char rgba[4]; int sound; int decal; int handler; const char *effect; };
+static const SurfImpact g_surfImpact[SOFSURF_NUM] =
+{
+	{ { 150, 150, 150, 250 }, 37, 13, IH_STONE, 0 },                          /* default */
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/wallspark" },       /* metal */
+	{ { 180, 140, 100, 250 }, 42, 13, IH_PUFF, 0 },                           /* sand */
+	{ { 200, 200, 200, 250 }, 42, 13, IH_PUFF, 0 },
+	{ { 180, 130, 70, 250 }, 42, 13, IH_PUFF, 0 },
+	{ { 120, 90, 20, 250 }, 42, 13, IH_PUFF, 0 },
+	{ { 160, 160, 160, 250 }, 41, 13, IH_PUFF, 0 },                           /* gravel */
+	{ { 120, 90, 20, 250 }, 41, 13, IH_PUFF, 0 },
+	{ { 180, 140, 30, 250 }, 41, 13, IH_PUFF, 0 },
+	{ { 230, 230, 230, 150 }, 43, 13, IH_PUFF, 0 },                           /* snow */
+	{ { 0, 200, 200, 250 }, 38, 13, IH_EFFECT, "environ/bulletsplash" },      /* liquids */
+	{ { 0, 100, 50, 250 }, 38, 13, IH_EFFECT, "environ/splatgreen" },
+	{ { 190, 100, 40, 250 }, 38, 13, IH_EFFECT, "environ/splatorange" },
+	{ { 180, 140, 20, 250 }, 38, 13, IH_EFFECT, "environ/splatbrown" },
+	{ { 180, 140, 60, 250 }, 39, 43, IH_STONE, 0 },                           /* wood */
+	{ { 120, 90, 30, 250 }, 39, 43, IH_STONE, 0 },
+	{ { 80, 80, 80, 250 }, 39, 43, IH_STONE, 0 },
+	{ { 180, 180, 180, 250 }, 37, 13, IH_STONE, 0 },                          /* stone */
+	{ { 90, 90, 90, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 180, 140, 50, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 130, 90, 30, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 240, 240, 240, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 80, 140, 80, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 120, 20, 20, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 10, 10, 10, 250 }, 37, 13, IH_STONE, 0 },
+	{ { 20, 120, 20, 250 }, 40, 13, IH_STONE, 0 },                            /* grass */
+	{ { 120, 120, 20, 250 }, 40, 13, IH_STONE, 0 },
+	{ { 100, 25, 25, 250 }, 38, 13, IH_EFFECT, "environ/splatred" },
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/wallspark" },       /* metal: steam, water, oil, chem, computers */
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/waterspurt" },
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/oilspurt" },
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/chemspurt" },
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/metal_computer" },
+	{ { 180, 140, 50, 250 }, 37, 13, IH_PUFF, 0 },                            /* snow */
+	{ { 180, 180, 180, 250 }, 37, 13, IH_PUFF, 0 },
+	{ { 180, 180, 180, 250 }, 37, 13, IH_NONE, 0 },                           /* blood */
+	{ { 23, 25, 25, 250 }, 38, 13, IH_EFFECT, "environ/splatblack" },
+	{ { 250, 250, 250, 250 }, 44, 33, IH_GLASS, 0 },                          /* glass */
+	{ { 250, 250, 250, 250 }, 44, 33, IH_EFFECT, "environ/glass_computer" },
+	{ { 250, 250, 250, 250 }, 44, 33, IH_EFFECT, "environ/wallspark" },       /* soda machine */
+	{ { 240, 240, 240, 250 }, 39, 43, IH_SOUND, 0 },                          /* paper wall */
+	{ { 23, 25, 25, 250 }, 44, 13, IH_NONE, 0 },                              /* newspaper */
+	{ { 250, 250, 250, 250 }, 44, 42, IH_EFFECT, "environ/wallspark" },
+};
+
+/* SoF's numbered client sounds (cl_fxs in the SDK's q_sh_fx.cpp) used by impacts */
+static const char *clientSound(int i)
+{
+	switch (i)
+	{
+		case 34: return "weapons/fx/rics/ric1.wav";
+		case 35: return "weapons/fx/rics/ric2.wav";
+		case 36: return "weapons/fx/rics/ric3.wav";
+		case 37: return "impact/surfs/stone.wav";
+		case 38: return "impact/surfs/water.wav";
+		case 39: return "impact/surfs/wood.wav";
+		case 40: return "impact/surfs/grass.wav";
+		case 41: return "impact/surfs/gravel.wav";
+		case 42: return "impact/surfs/sand.wav";
+		case 43: return "impact/surfs/snow.wav";
+		case 79: return "impact/surfs/metal1.wav";
+		case 80: return "impact/surfs/metal2.wav";
+		case 81: return "impact/surfs/metal3.wav";
+		case 84: return "impact/glassbreak/gbsmall.wav";
+	}
+	return 0;
+}
+
+static float frand01(void) { return (float)(rand() & 0x7fff) / 32767.0f; }
+static float frandr(float a, float b) { return a + (b - a) * frand01(); }
+
+static void readDirExp(MsgReader &r, float *d) { r.pos(d); for (int k = 0; k < 3; k++) d[k] *= 0.001f; }
+
+/* FXMSG_WriteRelativePos on the receiving end */
+static bool readImpact(MsgReader &r, Impact &im)
+{
+	im.surf = -1;
+	im.surfFlags = 0;
+	int type = r.byte();
+	switch (type)
+	{
+		case RI_WORLD:
+		{
+			r.pos(im.pos);
+			readDirExp(r, im.normal);
+			/* the surface: trace a little into the wall */
+			float a[3], b[3];
+			for (int k = 0; k < 3; k++) { a[k] = im.pos[k] + im.normal[k] * 4; b[k] = im.pos[k] - im.normal[k] * 4; }
+			q2b_trace_t t;
+			q2b_trace(a, 0, 0, b, -1, 1 /* CONTENTS_SOLID */, &t);
+			if (t.fraction < 1)
+			{
+				im.surf = (int)(((unsigned)t.surfflags) >> 24);
+				im.surfFlags = t.surfflags;
+			}
+			break;
+		}
+		case RI_WORLD_NOSURF:
+			r.pos(im.pos);
+			im.normal[0] = im.normal[1] = 0; im.normal[2] = 1;
+			break;
+		case RI_BMODEL:
+		{
+			float local[3], ldir[3];
+			r.pos(local);
+			readDirExp(r, ldir);
+			int ent = r.shrt();
+			im.surf = r.byte();
+			edict_t *e = edictOf(ent);
+			float yaw = e ? e->s.angles[1] * (float)(M_PI / 180) : 0, c = cosf(yaw), sn = sinf(yaw);
+			/* GetOffsetFromEnt in reverse */
+			float x = c * local[0] + sn * local[1], y = sn * local[0] - c * local[1];
+			im.pos[0] = (e ? e->s.origin[0] : 0) + x;
+			im.pos[1] = (e ? e->s.origin[1] : 0) + y;
+			im.pos[2] = (e ? e->s.origin[2] : 0) + local[2];
+			im.normal[0] = c * ldir[0] - sn * ldir[1];
+			im.normal[1] = sn * ldir[0] + c * ldir[1];
+			im.normal[2] = ldir[2];
+			break;
+		}
+		case RI_ENT:
+			r.pos(im.pos);
+			readDirExp(r, im.normal);
+			im.surf = r.byte();
+			normalize3(im.normal);
+			break;
+		default:
+			return false;
+	}
+	return !r.bad;
+}
+
+/* the dust puff thrown off most surfaces */
+static void impactPuff(const Impact &im, const float *dir, int count, int style)
+{
+	static const struct { float alongNormal, alongDir, fall; int lifeMs, grow, tex; } puffs[4] =
+	{
+		{ 30, 10, -150, 600, 3, 9 }, { 30, 10, -120, 600, 2, 12 }, { 20, 10, -100, 500, 2, 12 }, { 20, 10, -100, 1000, 2, 9 }
+	};
+	if (style < 0 || style > 3 || im.surf < 0 || im.surf >= SOFSURF_NUM) return;
+	if (count > 4) count = 4;
+	float sn = frandr(0.8f, 1.2f), sd = frandr(0.8f, 1.2f);
+	const SurfImpact &si = g_surfImpact[im.surf];
+	for (int i = 1; i <= count; i++)
+	{
+		sfx::Raw p;
+		p.tex = sfx::SpriteName(puffs[style].tex);
+		p.life = puffs[style].lifeMs * 0.001f;
+		float a = i * puffs[style].alongNormal * sn, b = i * puffs[style].alongDir * sd;
+		for (int k = 0; k < 3; k++) p.vel[k] = b * dir[k] + a * im.normal[k];
+		p.vel[2] += 8.0f * i;
+		p.acc[2] = i * puffs[style].fall;
+		cp3(im.pos, p.pos);
+		p.size0 = p.size1 = (float)count;
+		p.grow0 = p.grow1 = (float)(puffs[style].grow * i) / p.life;
+		memcpy(p.rgba, si.rgba, 4);
+		p.alphaRate = -(float)si.rgba[3] / p.life;
+		p.rot = frandr(0, 6.2831853f);
+		sfx::SpawnRaw(p);
+	}
+}
+
+/* stone / wood / grass: chips of dust kicked out of the wall, then a puff */
+static void impactStone(const Impact &im, const float *dir, int size)
+{
+	for (int n = 0; n < 3; n++)
+	{
+		sfx::Raw p;
+		p.tex = sfx::SpriteName(0);
+		p.life = 0.6f;
+		for (int k = 0; k < 3; k++)
+			p.vel[k] = (frandr(0, 0.2f) + im.normal[k] - 0.1f) * (float)((rand() & 31) + 16) + (float)(rand() & 15) - 7.0f;
+		cp3(im.pos, p.pos);
+		p.size0 = p.size1 = (float)size * 1.5f;
+		p.rgba[0] = p.rgba[1] = p.rgba[2] = 200; p.rgba[3] = 100;
+		p.rot = (float)(rand() % 628) * 0.01f;
+		p.grow0 = p.grow1 = (float)size * 1.6667f;
+		p.alphaRate = -100 * 1.6667f;
+		p.rotVel = (float)(rand() % 628) * 0.01f;
+		sfx::SpawnRaw(p);
+	}
+	impactPuff(im, dir, (size > 2) + 1, 2);
+}
+
+/* TE_WALLDAMAGE: bullet hole, impact sound and the surface's dust / sparks / splash */
+static void wallDamage(MsgReader &r, bool severe)
+{
+	Impact im;
+	if (!readImpact(r, im)) return;
+	float dir[3];
+	readDirExp(r, dir);
+	int size = r.byte(), markType = r.byte(), debris = r.byte();
+	(void)debris;
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[200];
+		snprintf(b, sizeof(b), "[sof fx] wall damage at %.0f %.0f %.0f surf %d flags %x size %d mark %d debris %d\n",
+		         im.pos[0], im.pos[1], im.pos[2], im.surf, im.surfFlags, size, markType, debris);
+		q2b_dprint(b);
+	}
+	if (r.bad || im.surf < 0 || im.surf >= SOFSURF_NUM) return;
+	if (im.surfFlags & 0x84) return; /* sky / no-draw */
+	const SurfImpact &si = g_surfImpact[im.surf];
+	float fsize = severe ? 6.0f : (float)size;
+
+	/* impact sound */
+	if ((fsize > 1.5f || fsize == 0) && im.surf != SOFSURF_BLOOD)
+	{
+		float vol = (fsize * 0.0666667f * 0.4f + 0.2f) * 2;
+		if (vol > 1) vol = 1;
+		if (fsize == 0) vol = 0.6f;
+		int snd = si.sound == 44 ? 79 + rand() % 3 : si.sound;
+		if (clientSound(snd)) sfx::PlaySound(clientSound(snd), im.pos, 0, vol, 1);
+	}
+
+	/* bullet hole */
+	int decal = markType == 1 ? si.decal : markType == 2 ? 34 : 0;
+	if (decal && markType == 1)
+	{
+		if (fsize > 3) fsize = 3;
+		float half = fsize * 0.6f + frandr(0, 0.1f);
+		unsigned char c[4] = { si.rgba[0], si.rgba[1], si.rgba[2], (unsigned char)(200 + rand() % 41) };
+		sfx::Decal(sfx::SpriteName(decal), im.pos, im.normal, half, c);
+	}
+
+	switch (si.handler)
+	{
+		case IH_PUFF: impactPuff(im, dir, size, 0); break;
+		case IH_STONE: impactStone(im, dir, size); break;
+		case IH_EFFECT: sfx::StartAt(si.effect, im.pos, im.normal); break;
+		case IH_GLASS:
+			impactPuff(im, dir, (size > 2) + 1, 2);
+			sfx::PlaySound(clientSound(84), im.pos, 0, 0.6f, 1);
+			break;
+		case IH_SOUND: sfx::PlaySound(clientSound(39), im.pos, 0, 0.6f, 1); break;
+		default: break;
+	}
+}
+
 static bool parseTempEnt(MsgReader &r)
 {
 	int type = r.byte();
@@ -1363,7 +1623,13 @@ static bool parseTempEnt(MsgReader &r)
 		snprintf(b, sizeof(b), "[sof fx] temp entity %d (%d bytes)\n", type, (int)(r.n - r.p));
 		q2b_dprint(b);
 	}
-	return false; /* temp entities: not decoded yet (the rest of the message is dropped) */
+	switch (type)
+	{
+		case TE_WALLDAMAGE: wallDamage(r, false); break;
+		case TE_WALLSEVEREDAMAGE: wallDamage(r, true); break;
+		default: break; /* not decoded yet */
+	}
+	return false; /* one temp entity per message */
 }
 
 static void handleMessage(void)

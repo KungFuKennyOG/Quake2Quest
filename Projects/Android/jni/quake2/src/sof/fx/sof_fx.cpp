@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <map>
+#include <set>
 
 namespace sfx {
 
@@ -53,6 +54,13 @@ static void perpendiculars(const float *n, float *r, float *u)
 	vcross(n, t, r); vnorm(r);
 	vcross(r, n, u); vnorm(u);
 }
+/* stable pointers for texture names */
+static const char *intern(const std::string &s)
+{
+	static std::set<std::string> pool;
+	return pool.insert(s).first->c_str();
+}
+
 static std::string lower(const char *s)
 {
 	std::string o(s ? s : "");
@@ -297,13 +305,15 @@ struct Particle
 	int alphaStyle, colorStyle;
 	float birth, death;
 	unsigned pflags;
-	std::string tex;
+	const char *tex;               /* interned (see intern()), so Particle stays plain data */
 	int effect;                    /* attached: index into g_effects, else -1 */
 	bool decelerate;
 };
 
 static std::vector<Effect *> g_effects;
 static std::vector<Particle> g_particles;
+static std::vector<Particle> g_decals;
+static size_t g_nextDecal;
 static std::vector<Sound> g_pendingSounds;
 static std::vector<Light> g_lights;
 struct TimedLight { Light l; float die, radius0; };
@@ -321,6 +331,8 @@ void Clear()
 	g_particles.clear();
 	g_pendingSounds.clear();
 	g_timedLights.clear();
+	g_decals.clear();
+	g_nextDecal = 0;
 }
 
 int NumParticles() { return (int)g_particles.size(); }
@@ -468,7 +480,7 @@ static void spawnParticle(const PDef &pd, const float *pos, const Context &c, fl
 	if ((pd.flags & PF_RANDOM_ADD) && frand(0, 1) < 0.5f) p.pflags |= PF_ADDITIVE;
 	p.birth = g_time;
 	p.death = (pd.flags & PF_ONE_FRAME) ? g_time + 0.001f : g_time + life;
-	p.tex = pd.tex;
+	p.tex = intern(pd.tex);
 	p.effect = attached ? effectIndex : -1;
 	p.decelerate = (pd.flags & PF_DECELERATE) != 0;
 
@@ -767,6 +779,94 @@ static void particleColor(const Particle &p, unsigned char out[4])
 	out[3] = (unsigned char)a;
 }
 
+/* ---------------------------------------------------------------- direct particles */
+
+static const char *g_sprites[] =
+{
+	"smoke2", "bldglob4", "bldglob5", "bldglob6", "blood_pool2", "footstep", "footstp2", "lit", "ring1", "dirt",
+	"sparkpart", "water", "powder", "bhole2", "lightning", "sparkpartblue", "flare", "waterdrop", "dent", "rain",
+	"mflash", "shock2", "shock3", "shock4", "boom3", "boom5", "scorch", "toxic_ooze", "explode1", "scorchwht",
+	"snow", "bubble", "pipeleft", "bhole_glass3", "slash", "ring2", "beam", "flash1", "mflash3", "mflash4",
+	"flare2", "smoke3", "bhole_mtl", "bhole_wd", "minimiflash1", "minimiflash2", "minimiflash3", "expfire1", "expfire2", "expfire3",
+	"expfire4", "smkgrn", "smkgry", "smkwht", "firestreak", "whitestreak", "puddle"
+};
+
+const char *SpriteName(int index)
+{
+	static std::string names[sizeof(g_sprites) / sizeof(g_sprites[0])];
+	if (index < 0 || index >= (int)(sizeof(g_sprites) / sizeof(g_sprites[0]))) index = 0;
+	if (names[index].empty()) names[index] = std::string("textures/sprites/") + g_sprites[index];
+	return names[index].c_str();
+}
+
+static Particle rawToParticle(const Raw &r)
+{
+	Particle p;
+	memset(&p, 0, sizeof(p));
+	p.type = r.oriented ? PT_ORIENTED : PT_SPRITE;
+	vcopy(r.pos, p.pos); vcopy(r.vel, p.vel); vcopy(r.acc, p.acc); vcopy(r.normal, p.axis);
+	p.size0 = r.size0; p.size1 = r.size1; p.grow0 = r.grow0; p.grow1 = r.grow1;
+	p.rot = r.rot; p.rotVel = r.rotVel;
+	p.rgb[0] = r.rgba[0]; p.rgb[1] = r.rgba[1]; p.rgb[2] = r.rgba[2];
+	p.alpha = r.rgba[3];
+	p.alphaParam = r.alphaRate;
+	p.alphaStyle = 0;
+	p.colorStyle = 1;
+	p.pflags = r.blend == 1 ? PF_ADDITIVE : r.blend == 2 ? PF_SUBTRACTIVE : 0;
+	p.birth = g_time;
+	p.death = g_time + (r.life > 0 ? r.life : 0.001f);
+	p.tex = intern(r.tex);
+	p.effect = -1;
+	return p;
+}
+
+void SpawnRaw(const Raw &r)
+{
+	if (g_particles.size() > 4096) return;
+	g_particles.push_back(rawToParticle(r));
+}
+
+
+void Decal(const char *tex, const float *pos, const float *normal, float halfSize, const unsigned char rgba[4])
+{
+	Raw r;
+	r.tex = tex;
+	r.life = 1e9f;
+	for (int k = 0; k < 3; k++) r.pos[k] = pos[k] + normal[k] * 0.3f; /* off the wall: no z-fighting */
+	vcopy(normal, r.normal);
+	r.oriented = true;
+	r.size0 = r.size1 = halfSize;
+	r.rot = frand(0, 6.2831853f);
+	memcpy(r.rgba, rgba, 4);
+	Particle p = rawToParticle(r);
+	const size_t maxDecals = 512;
+	if (g_decals.size() < maxDecals) g_decals.push_back(p);
+	else { g_decals[g_nextDecal] = p; g_nextDecal = (g_nextDecal + 1) % maxDecals; }
+}
+
+void PlaySound(const char *name, const float *org, int ent, float volume, float attenuation)
+{
+	if (!name || !*name) return;
+	Sound s;
+	s.name = lower(name);
+	vcopy(org, s.org);
+	s.ent = ent;
+	s.volume = volume;
+	s.attenuation = attenuation;
+	s.local = false;
+	g_pendingSounds.push_back(s);
+}
+
+void StartAt(const char *name, const float *pos, const float *dir)
+{
+	Anchor a;
+	a.kind = ANCHOR_POS;
+	vcopy(pos, a.pos);
+	Params p;
+	if (dir) { p.flags |= EFF_DIR; vcopy(dir, p.dir); }
+	Start(name, a, p);
+}
+
 /* ---------------------------------------------------------------- output */
 
 static Batch &batchFor(Output &out, const std::string &tex, int blend, bool noDepth)
@@ -806,7 +906,7 @@ static void toWorld(const Particle &p, const float *local, float *w)
 
 static void drawParticle(const Particle &p, const float *vright, const float *vup, const float *vieworg, Output &out)
 {
-	const char *texPath = g_host.texturePath ? g_host.texturePath(p.tex.c_str()) : p.tex.c_str();
+	const char *texPath = g_host.texturePath ? g_host.texturePath(p.tex) : p.tex;
 	if (!texPath || !*texPath) return;
 	int blend = (p.pflags & PF_SUBTRACTIVE) ? 2 : (p.pflags & PF_ADDITIVE) ? 1 : 0;
 	Batch &b = batchFor(out, texPath, blend, (p.pflags & PF_NO_ZBUFFER) != 0);
@@ -901,6 +1001,7 @@ void Run(float time, const float vieworg[3], const float vright[3], const float 
 	}
 	g_particles.resize(w);
 
+	for (size_t i = 0; i < g_decals.size(); i++) drawParticle(g_decals[i], vright, vup, vieworg, out);
 	for (size_t i = 0; i < g_particles.size(); i++) drawParticle(g_particles[i], vright, vup, vieworg, out);
 
 	/* lights fade out over their lifetime */

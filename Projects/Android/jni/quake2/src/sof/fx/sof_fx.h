@@ -100,6 +100,35 @@ void Run(float time, const float vieworg[3], const float vright[3], const float 
 
 int NumParticles();
 
+/* a particle made directly (temp entities do this instead of loading an effect) */
+struct Raw
+{
+	std::string tex;            /* "textures/sprites/smoke2" */
+	float life;                 /* seconds */
+	float pos[3], vel[3], acc[3];
+	float size0, size1;         /* half width / half height */
+	float grow0, grow1;         /* per second */
+	float rot, rotVel;
+	unsigned char rgba[4];
+	float alphaRate;            /* alpha units (0..255) per second */
+	int blend;                  /* 0 alpha, 1 additive, 2 subtractive */
+	bool oriented;              /* lies in the plane of normal instead of facing the camera */
+	float normal[3];
+	Raw() : life(1), size0(1), size1(1), grow0(0), grow1(0), rot(0), rotVel(0), alphaRate(0), blend(0), oriented(false)
+	{
+		for (int i = 0; i < 3; i++) pos[i] = vel[i] = acc[i] = normal[i] = 0;
+		rgba[0] = rgba[1] = rgba[2] = rgba[3] = 255;
+	}
+};
+void SpawnRaw(const Raw &r);
+/* a mark on a surface (bullet hole, scorch): oriented, long lived, oldest recycled first */
+void Decal(const char *tex, const float *pos, const float *normal, float halfSize, const unsigned char rgba[4]);
+void PlaySound(const char *name, const float *org, int ent, float volume, float attenuation);
+/* start an effect at a point, its forward axis along dir */
+void StartAt(const char *name, const float *pos, const float *dir);
+/* SoF's numbered sprite list (temp entities refer to textures by index) */
+const char *SpriteName(int index);
+
 } // namespace sfx
 
 #endif

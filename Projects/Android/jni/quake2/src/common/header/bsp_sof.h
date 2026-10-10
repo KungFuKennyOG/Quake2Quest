@@ -161,8 +161,9 @@ BSP_ConvertSoF(const unsigned char *in, int inlen, int *outlen, const char **err
 	}
 
 	/* texinfo: same layout, but SoF surface flags differ from Q2. Keep LIGHT, SLICK,
-	 * SKY, WARP, FLOWING, NODRAW and the SoF alpha-texture bit (0x800); drop the
-	 * deprecated TRANS33/66 bits and SoF-only high bits (material ids etc.). */
+	 * SKY, WARP, FLOWING, NODRAW, the SoF alpha-texture bit (0x800) and the material
+	 * type in the top byte (the game reads flags >> 24 for footsteps, bullet impacts and
+	 * damage); drop the deprecated TRANS33/66 bits and other SoF-only bits. */
 	{
 		int n = llen[BSP_L_TEXINFO] / BSP_TEXINFO_SIZE;
 		unsigned char *t = out + nofs[BSP_L_TEXINFO];
@@ -170,7 +171,7 @@ BSP_ConvertSoF(const unsigned char *in, int inlen, int *outlen, const char **err
 		{
 			int32_t f;
 			memcpy(&f, t + 32, 4);
-			f &= (0x01 | 0x02 | 0x04 | 0x08 | 0x40 | 0x80 | 0x800);
+			f &= (int32_t)(0x01 | 0x02 | 0x04 | 0x08 | 0x40 | 0x80 | 0x800 | 0xff000000u);
 			memcpy(t + 32, &f, 4);
 		}
 	}
