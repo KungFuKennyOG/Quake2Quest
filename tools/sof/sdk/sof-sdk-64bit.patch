@@ -24,7 +24,7 @@ diff -ruN a/Game/gamecpp/CWeaponInfo.h b/Game/gamecpp/CWeaponInfo.h
  //---------------------------------------------------------------------------------------
 diff -ruN a/Game/gamecpp/ai.cpp b/Game/gamecpp/ai.cpp
 --- a/Game/gamecpp/ai.cpp	2026-10-09 16:17:43.306126216 -0400
-+++ b/Game/gamecpp/ai.cpp	2026-10-09 16:17:43.323448247 -0400
++++ b/Game/gamecpp/ai.cpp	2026-10-10 01:33:15.542044868 -0400
 @@ -9,7 +9,7 @@
  #include "m_snowcatai.h"
  #include "fields.h"
@@ -45,6 +45,33 @@ diff -ruN a/Game/gamecpp/ai.cpp b/Game/gamecpp/ai.cpp
  
  	current_action.MakePtr(*(int *)&orig->current_action);
  	recycle_action.MakePtr(*(int *)&orig->recycle_action);
+@@ -766,7 +766,7 @@
+ 			index_list[i] = (*is).GetIndex();
+ 		}	
+ 		gi.AppendToSavegame('AISE', index_list, count * sizeof(int));
+-		delete index_list;
++		delete [] index_list;
+ 	}
+ 
+ 	count = decisions.size();
+@@ -779,7 +779,7 @@
+ 			index_list[i] = (*id).GetIndex();
+ 		}
+ 		gi.AppendToSavegame('AIDE', index_list, count * sizeof(int));
+-		delete index_list;
++		delete [] index_list;
+ 	}
+ 
+ 	count = actions.size();
+@@ -792,7 +792,7 @@
+ 			index_list[i] = (*ia).GetIndex();
+ 		}
+ 		gi.AppendToSavegame('AIAE', index_list, count * sizeof(int));
+-		delete index_list;
++		delete [] index_list;
+ 	}
+ }
+ 
 diff -ruN a/Game/gamecpp/ai.h b/Game/gamecpp/ai.h
 --- a/Game/gamecpp/ai.h	2026-10-09 16:17:43.306174991 -0400
 +++ b/Game/gamecpp/ai.h	2026-10-09 16:17:43.323743835 -0400

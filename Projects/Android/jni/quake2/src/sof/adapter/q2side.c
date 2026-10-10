@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /* engine functions used directly (the adapter is linked against the engine) */
 int   FS_LoadFile(char *path, void **buffer);
@@ -341,8 +342,15 @@ void q2b_vibrate(float duration, int channel, float intensity)
 
 /* ---------------------------------------------------------------- game_export_t */
 
+static char start_cwd[MAX_OSPATH]; /* the normal working directory (see SavePathBegin) */
+
 static void G_Init(void)
 {
+	if (!getcwd(start_cwd, sizeof(start_cwd)))
+	{
+		start_cwd[0] = 0;
+	}
+
 	cvar_t *mc = gi.cvar("maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH);
 	int i;
 	maxclients = (int)mc->value;
@@ -383,10 +391,69 @@ static void G_SpawnEntities(char *mapname, char *entities, char *spawnpoint)
 	sofb_syncmirrors();
 }
 
-static void G_WriteGame(char *filename, qboolean autosave) { (void)filename; (void)autosave; }
-static void G_ReadGame(char *filename) { (void)filename; }
-static void G_WriteLevel(char *filename) { (void)filename; }
-static void G_ReadLevel(char *filename) { (void)filename; }
+/*
+ * The server changes into save/current before calling these and passes a relative
+ * name. SoF's save/load code also loads files (scripts) through the filesystem,
+ * whose pak paths may be relative to the normal working directory; so run SoF
+ * from that directory with an absolute save file name.
+ */
+typedef struct { char cwd[MAX_OSPATH]; char abs[MAX_OSPATH * 2]; } savepath_t;
+
+static const char *SavePathBegin(savepath_t *sp, const char *filename)
+{
+	sp->cwd[0] = 0;
+	if (!getcwd(sp->cwd, sizeof(sp->cwd)))
+	{
+		sp->cwd[0] = 0;
+	}
+	if (filename[0] == '/' || !sp->cwd[0])
+	{
+		Q_strlcpy(sp->abs, filename, sizeof(sp->abs));
+	}
+	else
+	{
+		snprintf(sp->abs, sizeof(sp->abs), "%s/%s", sp->cwd, filename);
+	}
+	if (start_cwd[0] && chdir(start_cwd) != 0)
+	{
+		/* keep going in the current directory */
+	}
+	return sp->abs;
+}
+
+static void SavePathEnd(savepath_t *sp)
+{
+	if (sp->cwd[0] && chdir(sp->cwd) != 0)
+	{
+		/* nothing sensible to do */
+	}
+}
+
+static void G_WriteGame(char *filename, qboolean autosave)
+{
+	savepath_t sp;
+	sofb_writegame(SavePathBegin(&sp, filename), autosave);
+	SavePathEnd(&sp);
+}
+static void G_ReadGame(char *filename)
+{
+	savepath_t sp;
+	sofb_readgame(SavePathBegin(&sp, filename));
+	SavePathEnd(&sp);
+}
+static void G_WriteLevel(char *filename)
+{
+	savepath_t sp;
+	sofb_writelevel(SavePathBegin(&sp, filename));
+	SavePathEnd(&sp);
+}
+static void G_ReadLevel(char *filename)
+{
+	savepath_t sp;
+	sofb_readlevel(SavePathBegin(&sp, filename));
+	SavePathEnd(&sp);
+	ge.num_edicts = sofb_numedicts() > ge.num_edicts ? sofb_numedicts() : ge.num_edicts;
+}
 
 static qboolean G_ClientConnect(edict_t *ent, char *userinfo)
 {

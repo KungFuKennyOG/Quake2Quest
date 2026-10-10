@@ -173,6 +173,10 @@ void  sofb_clientthink(int num, const sofb_usercmd_t *cmd);
 void  sofb_runframe(void);
 void  sofb_syncmirrors(void);              /* copy SoF entity / player state into the mirrors */
 int   sofb_numedicts(void);
+void  sofb_writegame(const char *filename, int autosave);
+void  sofb_readgame(const char *filename);
+void  sofb_writelevel(const char *filename);
+void  sofb_readlevel(const char *filename);
 
 #ifdef __cplusplus
 }

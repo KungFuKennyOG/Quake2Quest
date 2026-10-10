@@ -584,8 +584,128 @@ static void *I_Sys_GetPlayerAPI(void *parmscom, void *parmscl, void *parmssv, in
 static void I_Sys_UnloadPlayer(int) {}
 static float I_flrand(float min, float max) { return min + (max - min) * ((float)rand() / (float)RAND_MAX); }
 static int I_irand(int min, int max) { if (max <= min) return min; return min + rand() % (max - min + 1); }
-static qboolean I_AppendToSavegame(unsigned long, void *, int) { return true; }
-static int I_ReadFromSavegame(unsigned long, void *, int, void **addressptr) { if (addressptr) *addressptr = 0; return 0; }
+/* ---- save games -----------------------------------------------------------
+ * SoF's game writes saves as a sequence of chunks (4 character id, length, data)
+ * and reads them back in the same order. They are kept in memory and written to /
+ * read from the files the Quake 2 server names (WriteGame/WriteLevel...). */
+static std::vector<unsigned char> g_save;
+static size_t g_savePos;
+
+static qboolean I_AppendToSavegame(unsigned long chid, void *data, int length)
+{
+	uint32_t id = (uint32_t)chid;
+	int32_t len = length > 0 ? length : 0;
+	const unsigned char *h = (const unsigned char *)&id, *l = (const unsigned char *)&len;
+	g_save.insert(g_save.end(), h, h + 4);
+	g_save.insert(g_save.end(), l, l + 4);
+	if (len && data) g_save.insert(g_save.end(), (const unsigned char *)data, (const unsigned char *)data + len);
+	else if (len) g_save.insert(g_save.end(), (size_t)len, 0);
+	return true;
+}
+
+static void chunkName(uint32_t id, char out[5])
+{
+	/* multi-character constants: 'GAME' is 0x47414D45 */
+	for (int i = 0; i < 4; i++) { char c = (char)((id >> (24 - 8 * i)) & 0xff); out[i] = c >= 32 && c < 127 ? c : '?'; }
+	out[4] = 0;
+}
+
+static int I_ReadFromSavegame(unsigned long chid, void *address, int length, void **addressptr)
+{
+	if (addressptr) *addressptr = 0;
+	if (g_savePos + 8 > g_save.size())
+	{
+		char want[5];
+		chunkName((uint32_t)chid, want);
+		q2b_error((std::string("Save game is truncated (reading ") + want + ")").c_str());
+		return 0;
+	}
+	uint32_t id;
+	int32_t len;
+	memcpy(&id, &g_save[g_savePos], 4);
+	memcpy(&len, &g_save[g_savePos + 4], 4);
+	if (id != (uint32_t)chid || len < 0 || g_savePos + 8 + (size_t)len > g_save.size())
+	{
+		char want[5], got[5];
+		chunkName((uint32_t)chid, want);
+		chunkName(id, got);
+		q2b_error((std::string("Save game does not match this version (expected ") + want + ", found " + got + ")").c_str());
+		return 0;
+	}
+	const unsigned char *src = &g_save[g_savePos + 8];
+	g_savePos += 8 + (size_t)len;
+	if (addressptr)
+	{
+		/* the game frees these with TagFree; some (strings) live for the whole game */
+		void *p = I_TagMalloc(len + 1, 765 /* TAG_GAME */);
+		memcpy(p, src, (size_t)len);
+		*addressptr = p;
+	}
+	if (address)
+	{
+		/* length 0 means "the whole chunk" (e.g. GHOUL instance states of unknown size) */
+		int n = length <= 0 ? len : (len < length ? len : length);
+		memcpy(address, src, (size_t)n);
+		if (length > n) memset((char *)address + n, 0, (size_t)(length - n));
+	}
+	return len;
+}
+
+static bool saveToFile(const char *filename)
+{
+	FILE *f = fopen(filename, "wb");
+	if (!f) { q2b_dprint((std::string("SoF: can't write save ") + filename + "\n").c_str()); return false; }
+	bool ok = g_save.empty() || fwrite(&g_save[0], 1, g_save.size(), f) == g_save.size();
+	fclose(f);
+	return ok;
+}
+
+static bool loadFromFile(const char *filename)
+{
+	g_save.clear();
+	g_savePos = 0;
+	FILE *f = fopen(filename, "rb");
+	if (!f) { q2b_dprint((std::string("SoF: can't read save ") + filename + "\n").c_str()); return false; }
+	fseek(f, 0, SEEK_END);
+	long n = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	if (n > 0)
+	{
+		g_save.resize((size_t)n);
+		if (fread(&g_save[0], 1, (size_t)n, f) != (size_t)n) g_save.clear();
+	}
+	fclose(f);
+	return true;
+}
+
+extern "C" void sofb_writegame(const char *filename, int autosave)
+{
+	g_save.clear();
+	sge->WriteGame(autosave != 0);
+	saveToFile(filename);
+	g_save.clear();
+}
+extern "C" void sofb_readgame(const char *filename)
+{
+	if (!loadFromFile(filename)) return;
+	sge->ReadGame(false);
+	g_save.clear();
+}
+extern "C" void sofb_writelevel(const char *filename)
+{
+	g_save.clear();
+	sge->WriteLevel();
+	saveToFile(filename);
+	g_save.clear();
+}
+extern "C" void sofb_readlevel(const char *filename)
+{
+	if (!loadFromFile(filename)) return;
+	sge->ReadLevel();
+	g_save.clear();
+	q2b_setnumedicts(sge->num_edicts);
+	sofb_syncmirrors();
+}
 static void *I_GetGhoul(void) { return Ghoul_Get(false, false); }
 static int g_isClientVal = 0;
 static int *g_isClientPtr = &g_isClientVal;
