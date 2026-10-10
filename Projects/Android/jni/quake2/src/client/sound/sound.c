@@ -78,6 +78,79 @@ qboolean snd_is_underwater_enabled;
 /* ----------------------------------------------------------------- */
 
 /*
+ * Soldier of Fortune .adp sounds (dialogue, many effects): a 4 byte little endian
+ * sample rate followed by mono IMA (DVI) ADPCM, high nibble first, decoder state
+ * starting at 0. Decodes into a malloc'd buffer of 16 bit samples.
+ */
+static const int adp_index[16] = { -1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8 };
+static const int adp_step[89] = {
+	7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
+	50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230,
+	253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963,
+	1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327,
+	3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487,
+	12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767
+};
+
+static short *
+S_DecodeADP(const byte *data, int size, wavinfo_t *info)
+{
+	int i, val = 0, idx = 0, rate, n;
+	short *out;
+
+	if (size <= 4)
+	{
+		return NULL;
+	}
+
+	rate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+
+	if (rate < 4000 || rate > 96000)
+	{
+		rate = 22050;
+	}
+
+	n = (size - 4) * 2;
+	out = malloc(n * sizeof(short));
+
+	if (!out)
+	{
+		return NULL;
+	}
+
+	for (i = 0; i < n; i++)
+	{
+		int b = data[4 + (i >> 1)];
+		int nib = (i & 1) ? (b & 15) : (b >> 4);
+		int step = adp_step[idx];
+		int diff = step >> 3;
+
+		if (nib & 4) diff += step;
+		if (nib & 2) diff += step >> 1;
+		if (nib & 1) diff += step >> 2;
+
+		val = (nib & 8) ? val - diff : val + diff;
+		val = val < -32768 ? -32768 : val > 32767 ? 32767 : val;
+
+		idx += adp_index[nib];
+		idx = idx < 0 ? 0 : idx > 88 ? 88 : idx;
+
+		out[i] = (short)val;
+	}
+
+	memset(info, 0, sizeof(*info));
+	info->rate = rate;
+	info->width = 2;
+	info->channels = 1;
+	info->loopstart = -1;
+	info->samples = n;
+	info->dataofs = 0;
+
+	return out;
+}
+
+
+/*
  * Loads one sample into memory
  */
 sfxcache_t *
@@ -130,6 +203,38 @@ S_LoadSound(sfx_t *s)
 		s->cache = NULL;
 		Com_DPrintf("Couldn't load %s\n", namebuffer);
 		return NULL;
+	}
+
+	{
+		int len = strlen(namebuffer);
+
+		if (len > 4 && !Q_stricmp(namebuffer + len - 4, ".adp"))
+		{
+			short *pcm = S_DecodeADP(data, size, &info);
+
+			FS_FreeFile(data);
+
+			if (!pcm)
+			{
+				s->cache = NULL;
+				return NULL;
+			}
+
+			sc = NULL;
+#if USE_OPENAL
+			if (sound_started == SS_OAL)
+			{
+				sc = AL_UploadSfx(s, &info, (byte *)pcm);
+			}
+#else
+			if (sound_started == SS_SDL)
+			{
+				SDL_Cache(s, &info, (byte *)pcm);
+			}
+#endif
+			free(pcm);
+			return sc;
+		}
 	}
 
 	info = GetWavinfo(s->name, data, size);
