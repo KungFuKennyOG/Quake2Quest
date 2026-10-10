@@ -60,4 +60,10 @@ void GSQ_TurnOffParts(char *dirname, char *poff_file, IGhoulObj *obj, IGhoulInst
 /* Look up an instance by its UUID (local game: client and server share instances). */
 IGhoulInst *Ghoul_FindInst(short uuid);
 
+/* Called for every animation note an instance passes (token, e.g. "effect", and the note's
+ * text); the adapter uses it to run the client-side parts of SoF (view weapon sounds and
+ * muzzle effects) that the game leaves to SoF's own client. */
+typedef void (*GhoulNoteHook)(IGhoulInst *inst, const char *token, const char *data);
+void Ghoul_SetNoteHook(GhoulNoteHook hook);
+
 #endif

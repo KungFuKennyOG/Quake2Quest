@@ -31,6 +31,17 @@
 /* Soldier of Fortune GHOUL drawing hooks, registered by the SoF game adapter */
 static sof_entitydraw_t sof_entitydraw;
 static sof_viewweapondraw_t sof_viewweapondraw;
+static sof_fxframe_t sof_fxframe;
+
+/* the pose the SoF view weapon was drawn with this frame (for effects on its bolts) */
+static qboolean sof_gunvalid;
+static vec3_t sof_gunorigin, sof_gunangles;
+
+void
+CL_SoF_RegisterFxHook(sof_fxframe_t fx)
+{
+	sof_fxframe = fx;
+}
 
 void
 CL_SoF_RegisterHooks(sof_entitydraw_t entity, sof_viewweapondraw_t viewweapon)
@@ -846,6 +857,12 @@ CL_AddViewWeapon(player_state_t *ps, player_state_t *ops)
 
 	gun.flags = RF_MINLIGHT | RF_DEPTHHACK | RF_WEAPONMODEL;
 	gun.backlerp = 1.0f - cl.lerpfrac;
+	if (gun.sofdraw)
+	{
+		sof_gunvalid = true;
+		VectorCopy(gun.origin, sof_gunorigin);
+		VectorCopy(gun.angles, sof_gunangles);
+	}
 	VectorCopy(gun.origin, gun.oldorigin); /* don't lerp at all */
     //HACK!
     CL_UpdateLaserSightOrigins(/*gun.origin*/);
@@ -996,6 +1013,65 @@ CL_CalcViewValues(void)
 }
 
 /*
+ * Soldier of Fortune client effects: sprites/lines as one world-space entity,
+ * plus their dynamic lights and sounds
+ */
+static void
+CL_AddSoFEffects(void)
+{
+	const soffxframe_t *fx;
+	int i;
+
+	if (!sof_fxframe)
+	{
+		return;
+	}
+
+	fx = sof_fxframe(cl.time * 0.001f, cl.refdef.vieworg, cl.refdef.viewangles, sof_gunvalid,
+			sof_gunorigin, sof_gunangles, vr_weaponscale ? vr_weaponscale->value : 1.0f);
+
+	if (!fx)
+	{
+		return;
+	}
+
+	if (fx->draw.nummeshes > 0)
+	{
+		entity_t ent = {0};
+		ent.sofdraw = &fx->draw;
+		ent.flags = RF_TRANSLUCENT | RF_FULLBRIGHT;
+		ent.alpha = 1.0f;
+		V_AddEntity(&ent);
+	}
+
+	for (i = 0; i < fx->numlights; i++)
+	{
+		const soffxlight_t *l = &fx->lights[i];
+		V_AddLight((float *)l->origin, l->radius, l->color[0], l->color[1], l->color[2]);
+	}
+
+	for (i = 0; i < fx->numsounds; i++)
+	{
+		const soffxsound_t *snd = &fx->sounds[i];
+		struct sfx_s *sfx = S_RegisterSound((char *)snd->name);
+
+		if (!sfx)
+		{
+			continue;
+		}
+
+		if (snd->local)
+		{
+			S_StartSound(NULL, cl.playernum + 1, 0, sfx, snd->volume, ATTN_NORM, 0);
+		}
+		else
+		{
+			S_StartSound((float *)snd->origin, snd->entnum, 0, sfx, snd->volume, snd->attenuation, 0);
+		}
+	}
+}
+
+/*
  * Emits all entities, particles, and lights to the refresh
  */
 void
@@ -1036,10 +1112,12 @@ CL_AddEntities(void)
 		cl.lerpfrac = 1.0;
 	}
 
+	sof_gunvalid = false;
 	CL_CalcViewValues();
 	CL_AddPacketEntities(&cl.frame);
 	CL_AddTEnts();
 	CL_AddParticles();
+	CL_AddSoFEffects();
 	CL_AddDLights();
 	CL_AddLightStyles();
 }

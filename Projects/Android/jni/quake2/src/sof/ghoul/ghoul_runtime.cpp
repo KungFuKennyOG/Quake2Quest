@@ -25,6 +25,7 @@
 namespace {
 
 GhoulEngineImports g_imp;
+GhoulNoteHook g_noteHook;
 bool g_inited = false;
 std::string g_level;
 
@@ -939,6 +940,7 @@ public:
 		if (notelog && token)
 			dprintf("[ghoul note] %s t=%.2f token %s callbacks %d%s\n", obj->objectDir.c_str(), now,
 			        token <= obj->tokens.size() ? obj->tokens[token - 1].c_str() : "?", (int)notes.size(), callbacksOn ? "" : " (off)");
+		if (g_noteHook && token && token <= obj->tokens.size()) g_noteHook(this, obj->tokens[token - 1].c_str(), data);
 		if (!callbacksOn || !token) return;
 		std::vector<NoteCB> copy(notes);
 		for (size_t i = 0; i < copy.size(); i++)
@@ -1307,3 +1309,5 @@ IGhoul *GetGhoul(bool Client, bool Menu)
 {
 	return Ghoul_Get(Client, Menu);
 }
+
+void Ghoul_SetNoteHook(GhoulNoteHook hook) { g_noteHook = hook; }

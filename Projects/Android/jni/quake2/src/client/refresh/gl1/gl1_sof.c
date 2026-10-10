@@ -114,6 +114,54 @@ R_DrawSoFEntity(entity_t *e)
 		int n = mesh->numverts;
 		float alpha = (e->flags & RF_TRANSLUCENT) ? e->alpha : 1.0f;
 
+		if (mesh->colors)
+		{
+			/* effects (sprites, lines): unlit vertex colours, blended, never written to depth */
+			if (n <= 0 || mesh->numindices <= 0)
+			{
+				continue;
+			}
+
+			R_Bind(SoF_SkinImage(mesh->skin)->texnum);
+			glDisable(GL_ALPHA_TEST);
+			glDisable(GL_CULL_FACE);
+			glEnable(GL_BLEND);
+			glDepthMask(GL_FALSE);
+
+			if (mesh->blend == SOFBLEND_ADD)
+			{
+				glBlendFunc(GL_ONE, GL_ONE);
+			}
+			else if (mesh->blend == SOFBLEND_SUBTRACT)
+			{
+				glBlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+			}
+			else
+			{
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			}
+
+			if (mesh->nodepth)
+			{
+				glDisable(GL_DEPTH_TEST);
+			}
+
+			glVertexPointer(3, GL_FLOAT, 0, mesh->xyz);
+			glTexCoordPointer(2, GL_FLOAT, 0, mesh->st);
+			glColorPointer(4, GL_UNSIGNED_BYTE, 0, mesh->colors);
+			glDrawElements(GL_TRIANGLES, mesh->numindices, GL_UNSIGNED_SHORT, mesh->indices);
+
+			if (mesh->nodepth)
+			{
+				glEnable(GL_DEPTH_TEST);
+			}
+
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glEnable(GL_CULL_FACE);
+			glEnable(GL_ALPHA_TEST);
+			continue;
+		}
+
 		if (n <= 0 || mesh->numindices <= 0 || n > 4096)
 		{
 			continue;

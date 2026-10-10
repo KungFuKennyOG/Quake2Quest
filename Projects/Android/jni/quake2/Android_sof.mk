@@ -25,6 +25,7 @@ LOCAL_C_INCLUDES := $(SOF_SDK_DIR)/gamecpp $(SOF_SDK_DIR)/qcommon $(SOF_SDK_DIR)
 LOCAL_SRC_FILES := src/sof/adapter/q2side.c \
                    src/sof/adapter/sofside.cpp \
                    src/sof/ghoul/ghoul_runtime.cpp \
+                   src/sof/fx/sof_fx.cpp \
                    src/sof/ghoul/ghoul_gsq.cpp \
                    src/sof/ghoul/ghb_model.cpp \
                    src/sof/ghoul/ghb_dirtable.cpp \

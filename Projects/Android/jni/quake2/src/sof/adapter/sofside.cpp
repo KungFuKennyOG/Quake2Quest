@@ -16,6 +16,7 @@
 #include "ghb_model.h"
 #include "sofbridge.h"
 #include "../sof_client.h"
+#include "../fx/sof_fx.h"
 
 #include <dlfcn.h>
 #include <stdarg.h>
@@ -31,6 +32,8 @@
 
 static void registerClientHooks(void);
 static void clearDrawCache(void);
+static void fxRegister(void);
+static void fxUnregister(void);
 extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
 extern "C" void CL_SoF_RegisterHooks(sof_entitydraw_t, sof_viewweapondraw_t) __attribute__((weak));
 
@@ -468,19 +471,25 @@ static void I_DebugGraph(float, int) {}
 static bool I_DamageTexture(struct mtexinfo_s *, int) { return false; }
 static int I_SurfaceTypeList(byte *mat_list, int max_size) { if (mat_list && max_size > 0) memset(mat_list, 0, (size_t)max_size); return 0; }
 static void I_Update(float, bool) {}
-/* SoF's own network messages (effects, HUD, ...) are not understood by the Q2 client yet: dropped */
-static void I_multicast(vec3_t, multicast_t) {}
-static void I_multicastignore(vec3_t, multicast_t, int) {}
-static void I_unicast(edict_t *, qboolean) {}
-static void I_WriteChar(int) {}
-static void I_WriteByte(int) {}
-static void I_WriteShort(int) {}
-static void I_WriteLong(int) {}
-static void I_WriteFloat(float) {}
-static void I_WriteString(char *) {}
-static void I_WritePosition(vec3_t) {}
-static void I_WriteDir(vec3_t) {}
-static void I_WriteAngle(float) {}
+/* SoF's own network messages: the game writes them with gi.Write*() and sends them with
+ * multicast/unicast. This is a local game, so they are decoded here and the effects are
+ * run by the client-side effects system (sof/fx) directly; others are dropped. */
+static std::vector<unsigned char> g_msg;
+static void msgPut(const void *p, size_t n) { const unsigned char *b = (const unsigned char *)p; g_msg.insert(g_msg.end(), b, b + n); }
+static void handleMessage(void);
+static void I_multicast(vec3_t, multicast_t) { handleMessage(); }
+static void I_multicastignore(vec3_t, multicast_t, int) { handleMessage(); }
+static void I_unicast(edict_t *, qboolean) { handleMessage(); }
+static void I_WriteChar(int c) { signed char b = (signed char)c; msgPut(&b, 1); }
+static void I_WriteByte(int c) { unsigned char b = (unsigned char)c; msgPut(&b, 1); }
+static void I_WriteShort(int c) { short v = (short)c; msgPut(&v, 2); }
+static void I_WriteLong(int c) { int v = c; msgPut(&v, 4); }
+static void I_WriteFloat(float f) { msgPut(&f, 4); }
+static void I_WriteString(char *s) { if (!s) s = (char *)""; msgPut(s, strlen(s) + 1); }
+/* positions and directions travel as plain floats (both ends are in this process) */
+static void I_WritePosition(vec3_t v) { msgPut(v, 12); }
+static void I_WriteDir(vec3_t v) { msgPut(v, 12); }
+static void I_WriteAngle(float f) { msgPut(&f, 4); }
 static void SZ_Write(sizebuf_t *buf, const void *data, int length)
 {
 	if (!buf || !buf->data) return;
@@ -959,6 +968,7 @@ extern "C" int sofb_init(int maxclients)
 extern "C" void sofb_shutdown(void)
 {
 	if (CL_SoF_RegisterHooks) CL_SoF_RegisterHooks(0, 0);
+	fxUnregister();
 	if (Pmove_SetSoFHeights) Pmove_SetSoFHeights(0);
 	clearDrawCache();
 	if (sge) sge->Shutdown();
@@ -972,6 +982,7 @@ extern "C" void sofb_spawnentities(const char *mapname, const char *entities, co
 {
 	Ghoul_SetLevelName(mapname);
 	g_effects.clear();
+	sfx::Clear();
 	g_ghoulModelIndex = q2b_modelindex("#sofghoul");
 	refreshAllCvars();
 	sge->SpawnEntities((char *)mapname, (char *)entities, (char *)spawnpoint);
@@ -1188,6 +1199,8 @@ static const char *skinPath(const std::string &dir, const std::string &skin)
 	return (g_skinPaths[key] = found).c_str();
 }
 
+static float g_drawLerp;   /* the client's last interpolation fraction */
+
 struct DrawCache
 {
 	std::vector<GhoulDrawSurface> surfs;
@@ -1206,6 +1219,7 @@ static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
 	   at that same moment so animation is smooth and in step with entity movement.
 	   g_frame * 0.1 is the time of the newest server frame. */
 	if (lerpfrac < 0) lerpfrac = 0; else if (lerpfrac > 1) lerpfrac = 1;
+	g_drawLerp = lerpfrac;
 	Ghoul_BuildDrawList(inst, ((float)g_frame - 1.0f + lerpfrac) * 0.1f, c.surfs);
 	c.meshes.resize(c.surfs.size());
 	for (size_t i = 0; i < c.surfs.size(); i++)
@@ -1220,6 +1234,9 @@ static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
 		m.indices = s.indices.empty() ? 0 : &s.indices[0];
 		m.skin = skinPath(s.objectDir, s.skin);
 		for (int k = 0; k < 4; k++) m.rgba[k] = s.tint[k];
+		m.colors = 0;
+		m.blend = SOFBLEND_NONE;
+		m.nodepth = 0;
 	}
 	c.draw.nummeshes = (int)c.meshes.size();
 	c.draw.meshes = c.meshes.empty() ? 0 : &c.meshes[0];
@@ -1244,6 +1261,7 @@ static void registerClientHooks(void)
 {
 	if (Pmove_SetSoFHeights) Pmove_SetSoFHeights(1);
 	if (CL_SoF_RegisterHooks) CL_SoF_RegisterHooks(hookEntityDraw, hookViewWeaponDraw);
+	fxRegister();
 }
 
 /* The local client renders GHOUL entities by asking the server-side instances directly
@@ -1263,3 +1281,336 @@ extern "C" float SoF_LevelTime(void)
 {
 	return (float)g_frame * 0.1f;
 }
+
+/* ------------------------------------------------------------------ client effects
+ * SoF's client runs effects (.eft) for svc_effect messages, temp entities and the view
+ * weapon's "effect"/"sound" animation notes. Here the game and the client share one
+ * process, so the messages are decoded straight from the game's writes (handleMessage)
+ * and the effects run in sof/fx, which the client asks for every frame (hookFxFrame). */
+extern "C" void CL_SoF_RegisterFxHook(sof_fxframe_t) __attribute__((weak));
+
+struct MsgReader
+{
+	const unsigned char *d; size_t n, p; bool bad;
+	MsgReader(const std::vector<unsigned char> &v) : d(v.empty() ? 0 : &v[0]), n(v.size()), p(0), bad(false) {}
+	bool need(size_t k) { if (p + k > n) { bad = true; return false; } return true; }
+	int byte() { if (!need(1)) return 0; return d[p++]; }
+	int shrt() { short v = 0; if (need(2)) { memcpy(&v, d + p, 2); p += 2; } return v; }
+	int lng() { int v = 0; if (need(4)) { memcpy(&v, d + p, 4); p += 4; } return v; }
+	float flt() { float v = 0; if (need(4)) { memcpy(&v, d + p, 4); p += 4; } return v; }
+	void pos(float *o) { o[0] = flt(); o[1] = flt(); o[2] = flt(); }
+};
+
+enum { SOF_SVC_TEMP_ENTITY = 1, SOF_SVC_EFFECT = 5 };
+enum { EFAT_POS = 0x01, EFAT_ENT = 0x02, EFAT_BOLT = 0x04, EFAT_BOLTANDINST = 0x08, EFAT_ALTAXIS = 0x40, EFAT_HASFLAGS = 0x80 };
+
+static bool parseEffect(MsgReader &r)
+{
+	int id = r.byte();
+	int sf = r.byte();
+	sfx::Anchor a;
+	if (sf & EFAT_POS) { a.kind = sfx::ANCHOR_POS; r.pos(a.pos); }
+	else if (sf & EFAT_ENT) { a.kind = sfx::ANCHOR_ENT; a.ent = r.shrt(); }
+	else if (sf & EFAT_BOLT)
+	{
+		a.kind = sfx::ANCHOR_BOLT;
+		a.ent = r.shrt();
+		if (sf & EFAT_BOLTANDINST)
+		{
+			a.uuid = r.shrt();
+			a.inst = Ghoul_FindInst((short)a.uuid);
+		}
+		a.bolt = r.shrt();
+		a.altAxis = (sf & EFAT_ALTAXIS) != 0;
+	}
+	sfx::Params p;
+	if (sf & EFAT_HASFLAGS)
+	{
+		int fl = r.byte();
+		p.flags = (unsigned)fl;
+		if (fl & sfx::EFF_SCALE) p.scale = (float)r.shrt() / 128.0f;
+		if (fl & sfx::EFF_NUMELEMS) p.numElements = r.byte();
+		if (fl & sfx::EFF_POS2) r.pos(p.pos2);
+		if (fl & sfx::EFF_DIR) { r.pos(p.dir); for (int k = 0; k < 3; k++) p.dir[k] /= 2048.0f; }
+		if (fl & sfx::EFF_MIN) r.pos(p.mins);
+		if (fl & sfx::EFF_MAX) r.pos(p.maxs);
+		if (fl & sfx::EFF_LIFETIME) p.lifetime = (float)r.shrt() / 128.0f;
+		if (fl & sfx::EFF_RADIUS) p.radius = (float)r.byte();
+	}
+	if (r.bad) return false;
+	if (id < 1 || id > (int)g_effects.size()) return true;
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[256];
+		snprintf(b, sizeof(b), "[sof fx] effect %s (anchor %d ent %d bolt %d)\n", g_effects[(size_t)id - 1].c_str(), a.kind, a.ent, a.bolt);
+		q2b_dprint(b);
+	}
+	if (a.kind == sfx::ANCHOR_BOLT && !a.inst)
+	{
+		edict_t *e = edictOf(a.ent);
+		if (e && e->inuse && e->ghoulInst) { a.inst = e->ghoulInst; a.uuid = ((IGhoulInst *)a.inst)->MyUUID(); }
+	}
+	sfx::Start(g_effects[(size_t)id - 1].c_str(), a, p);
+	return true;
+}
+
+static bool parseTempEnt(MsgReader &r)
+{
+	int type = r.byte();
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[128];
+		snprintf(b, sizeof(b), "[sof fx] temp entity %d (%d bytes)\n", type, (int)(r.n - r.p));
+		q2b_dprint(b);
+	}
+	return false; /* temp entities: not decoded yet (the rest of the message is dropped) */
+}
+
+static void handleMessage(void)
+{
+	MsgReader r(g_msg);
+	while (r.p < r.n && !r.bad)
+	{
+		int cmd = r.byte();
+		if (cmd == SOF_SVC_EFFECT) { if (!parseEffect(r)) break; }
+		else if (cmd == SOF_SVC_TEMP_ENTITY) { if (!parseTempEnt(r)) break; }
+		else break;
+	}
+	g_msg.clear();
+}
+
+/* ---- anchors */
+static void cp3(const float *a, float *b) { b[0] = a[0]; b[1] = a[1]; b[2] = a[2]; }
+static void normalize3(float *v)
+{
+	float l = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	if (l > 0) { v[0] /= l; v[1] /= l; v[2] /= l; }
+}
+/* Quake's AngleVectors (the adapter does not link the game's q_shared) */
+static void angleVectors(const float *angles, float *forward, float *right, float *up)
+{
+	float sr, sp, sy, cr, cp, cy, a;
+	a = angles[1] * (float)(M_PI * 2 / 360); sy = sinf(a); cy = cosf(a);
+	a = angles[0] * (float)(M_PI * 2 / 360); sp = sinf(a); cp = cosf(a);
+	a = angles[2] * (float)(M_PI * 2 / 360); sr = sinf(a); cr = cosf(a);
+	if (forward) { forward[0] = cp * cy; forward[1] = cp * sy; forward[2] = -sp; }
+	if (right) { right[0] = -1 * sr * sp * cy + -1 * cr * -sy; right[1] = -1 * sr * sp * sy + -1 * cr * cy; right[2] = -1 * sr * cp; }
+	if (up) { up[0] = cr * sp * cy + -sr * -sy; up[1] = cr * sp * sy + -sr * cy; up[2] = cr * cp; }
+}
+static int g_gunValid;
+static float g_gunOrigin[3], g_gunAngles[3], g_gunScale = 1;
+
+static IGhoulInst *playerGun(void)
+{
+	edict_t *e = edictOf(1);
+	if (!e || !e->inuse || !e->client) return 0;
+	return ((player_state_t *)e->client)->gun;
+}
+
+/* entity space (x forward, y left, z up) -> world, the way the renderer places GHOUL models */
+static void entToWorld(const float *org, const float *ang, float scale, const float *p, bool point, float *o)
+{
+	vec3_t f, r, u, a;
+	cp3(ang, a);
+	angleVectors(a, f, r, u);
+	for (int k = 0; k < 3; k++)
+		o[k] = (point ? org[k] : 0) + scale * (p[0] * f[k] - p[1] * r[k] + p[2] * u[k]);
+}
+
+static bool boltFrame(IGhoulInst *inst, int bolt, const float *org, const float *ang, float scale, sfx::Frame &out)
+{
+	if (!inst) return false;
+	Matrix4 m;
+	inst->GetBoltMatrix(((float)g_frame - 1.0f + g_drawLerp) * 0.1f, m, (GhoulID)bolt, IGhoulInst::MatrixType::Entity, true);
+	float rows[4][3];
+	for (int r = 0; r < 4; r++)
+	{
+		Vect3 v;
+		m.GetRow(r, v);
+		rows[r][0] = v.x(); rows[r][1] = v.y(); rows[r][2] = v.z();
+	}
+	entToWorld(org, ang, scale, rows[3], true, out.org);
+	/* bolt axes: x -> forward, y -> up, z -> right (matches the muzzle and shell bolts) */
+	entToWorld(org, ang, 1, rows[0], false, out.fwd);
+	entToWorld(org, ang, 1, rows[1], false, out.up);
+	entToWorld(org, ang, 1, rows[2], false, out.right);
+	normalize3(out.fwd); normalize3(out.up); normalize3(out.right);
+	return true;
+}
+
+static bool fxResolve(const sfx::Anchor &a, sfx::Frame &out)
+{
+	switch (a.kind)
+	{
+		case sfx::ANCHOR_POS:
+		{
+			cp3(a.pos, out.org);
+			vec3_t z = { 0, 0, 0 };
+			angleVectors(z, out.fwd, out.right, out.up);
+			return true;
+		}
+		case sfx::ANCHOR_ENT:
+		{
+			edict_t *e = edictOf(a.ent);
+			if (!e || !e->inuse) return false;
+			cp3(e->s.origin, out.org);
+			angleVectors(e->s.angles, out.fwd, out.right, out.up);
+			return true;
+		}
+		case sfx::ANCHOR_BOLT:
+		{
+			edict_t *e = edictOf(a.ent);
+			if (!e || !e->inuse) return false;
+			IGhoulInst *inst = (IGhoulInst *)a.inst;
+			if (inst && Ghoul_FindInst((short)a.uuid) != inst) return false;
+			if (!inst) return false;
+			return boltFrame(inst, a.bolt, e->s.origin, e->s.angles, 1, out);
+		}
+		case sfx::ANCHOR_VIEWWEAPON:
+		{
+			IGhoulInst *gun = playerGun();
+			if (!g_gunValid || !gun || gun != (IGhoulInst *)a.inst) return false;
+			out.scale = g_gunScale;
+			return boltFrame(gun, a.bolt, g_gunOrigin, g_gunAngles, g_gunScale, out);
+		}
+	}
+	return false;
+}
+
+static std::map<std::string, std::string> g_fxTexPaths;
+static const char *fxTexturePath(const char *name)
+{
+	std::string key = name ? name : "";
+	std::map<std::string, std::string>::iterator it = g_fxTexPaths.find(key);
+	if (it != g_fxTexPaths.end()) return it->second.c_str();
+	std::string found;
+	static const char *exts[] = { ".m32", ".tga", ".pcx", 0 };
+	for (int e = 0; exts[e] && found.empty(); e++)
+		if (fileExists(key + exts[e])) found = key + exts[e];
+	if (found.empty() && !key.empty())
+	{
+		char b[160];
+		snprintf(b, sizeof(b), "SoF effects: missing texture %s\n", key.c_str());
+		q2b_dprint(b);
+		found = key + ".m32"; /* drawn as the "no texture" pattern */
+	}
+	return (g_fxTexPaths[key] = found).c_str();
+}
+
+static int fxLoadFile(const char *path, void **buf) { return q2b_loadfile(path, buf); }
+static void fxFreeFile(void *buf) { q2b_freefile(buf); }
+
+/* view weapon notes: SoF's client plays these (WeapSoundHelper / WeaponEffectHelper) */
+static void fxNoteHook(IGhoulInst *inst, const char *token, const char *data)
+{
+	if (!inst || !token || inst != playerGun()) return;
+	sfx::Anchor a;
+	a.kind = sfx::ANCHOR_VIEWWEAPON;
+	a.inst = inst;
+	a.ent = 1;
+	if (!strcasecmp(token, "sound"))
+		sfx::NoteSound(data, a);
+	else if (!strcasecmp(token, "effect") && data && *data)
+	{
+		/* "weapons/playermz/pistol2 flash": effect name, then the bolt it comes from */
+		char name[128], bolt[64];
+		name[0] = bolt[0] = 0;
+		sscanf(data, "%127s %63s", name, bolt);
+		if (bolt[0]) a.bolt = inst->GetGhoulObject()->FindPart(bolt);
+		sfx::Start(name, a, sfx::Params());
+	}
+}
+
+static sfx::Output g_fxOut;
+static std::vector<sofmesh_t> g_fxMeshes;
+static std::vector<soffxlight_t> g_fxLights;
+static std::vector<soffxsound_t> g_fxSounds;
+static soffxframe_t g_fxFrame;
+
+static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const float *viewangles,
+                                       int gunvalid, const float *gunorigin, const float *gunangles, float gunscale)
+{
+	g_gunValid = gunvalid;
+	if (gunvalid)
+	{
+		cp3(gunorigin, g_gunOrigin);
+		cp3(gunangles, g_gunAngles);
+		g_gunScale = gunscale > 0 ? gunscale : 1;
+	}
+	vec3_t f, r, u, va;
+	cp3(viewangles, va);
+	angleVectors(va, f, r, u);
+	sfx::Run(time, vieworg, r, u, g_fxOut);
+
+	g_fxMeshes.resize(g_fxOut.batches.size());
+	for (size_t i = 0; i < g_fxOut.batches.size(); i++)
+	{
+		const sfx::Batch &b = g_fxOut.batches[i];
+		sofmesh_t &m = g_fxMeshes[i];
+		memset(&m, 0, sizeof(m));
+		m.numverts = (int)(b.xyz.size() / 3);
+		m.xyz = b.xyz.empty() ? 0 : &b.xyz[0];
+		m.st = b.st.empty() ? 0 : &b.st[0];
+		m.numindices = (int)b.indices.size();
+		m.indices = b.indices.empty() ? 0 : &b.indices[0];
+		m.skin = b.texture.c_str();
+		m.rgba[0] = m.rgba[1] = m.rgba[2] = m.rgba[3] = 1;
+		m.colors = b.rgba.empty() ? 0 : &b.rgba[0];
+		m.blend = b.blend == 1 ? SOFBLEND_ADD : b.blend == 2 ? SOFBLEND_SUBTRACT : SOFBLEND_ALPHA;
+		m.nodepth = b.noDepth;
+	}
+	g_fxFrame.draw.nummeshes = (int)g_fxMeshes.size();
+	g_fxFrame.draw.meshes = g_fxMeshes.empty() ? 0 : &g_fxMeshes[0];
+
+	g_fxLights.resize(g_fxOut.lights.size());
+	for (size_t i = 0; i < g_fxOut.lights.size(); i++)
+	{
+		cp3(g_fxOut.lights[i].org, g_fxLights[i].origin);
+		g_fxLights[i].radius = g_fxOut.lights[i].radius;
+		cp3(g_fxOut.lights[i].rgb, g_fxLights[i].color);
+	}
+	g_fxFrame.numlights = (int)g_fxLights.size();
+	g_fxFrame.lights = g_fxLights.empty() ? 0 : &g_fxLights[0];
+
+	g_fxSounds.resize(g_fxOut.sounds.size());
+	for (size_t i = 0; i < g_fxOut.sounds.size(); i++)
+	{
+		const sfx::Sound &s = g_fxOut.sounds[i];
+		soffxsound_t &o = g_fxSounds[i];
+		o.name = s.name.c_str();
+		cp3(s.org, o.origin);
+		o.entnum = s.ent;
+		o.volume = s.volume;
+		o.attenuation = s.attenuation;
+		o.local = s.local;
+		if (getenv("SOF_SOUNDLOG"))
+		{
+			char b[256];
+			snprintf(b, sizeof(b), "[sof fx] sound %s%s\n", s.name.c_str(), s.local ? " (view weapon)" : "");
+			q2b_dprint(b);
+		}
+	}
+	g_fxFrame.numsounds = (int)g_fxSounds.size();
+	g_fxFrame.sounds = g_fxSounds.empty() ? 0 : &g_fxSounds[0];
+	return &g_fxFrame;
+}
+
+static void fxRegister(void)
+{
+	sfx::Host h;
+	h.loadFile = fxLoadFile;
+	h.freeFile = fxFreeFile;
+	h.resolve = fxResolve;
+	h.texturePath = fxTexturePath;
+	sfx::Init(h);
+	Ghoul_SetNoteHook(fxNoteHook);
+	if (CL_SoF_RegisterFxHook) CL_SoF_RegisterFxHook(hookFxFrame);
+}
+
+static void fxUnregister(void)
+{
+	if (CL_SoF_RegisterFxHook) CL_SoF_RegisterFxHook(0);
+	Ghoul_SetNoteHook(0);
+	sfx::Clear();
+}
+
