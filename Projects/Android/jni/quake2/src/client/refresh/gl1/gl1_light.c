@@ -32,7 +32,8 @@ int r_dlightframecount;
 vec3_t pointcolor;
 cplane_t *lightplane; /* used as shadow plane */
 vec3_t lightspot;
-static float s_blocklights[34 * 34 * 3];
+/* one full lightmap block: SoF surfaces are bigger than Quake 2's (trn1 has 57x17) */
+static float s_blocklights[BLOCK_WIDTH * BLOCK_HEIGHT * 3];
 
 void
 R_RenderDlight(dlight_t *light)
@@ -509,7 +510,7 @@ R_BuildLightMap(msurface_t *surf, byte *dest, int stride)
 	tmax = (surf->extents[1] >> 4) + 1;
 	size = smax * tmax;
 
-	if (size > (sizeof(s_blocklights) >> 4))
+	if (size > BLOCK_WIDTH * BLOCK_HEIGHT)
 	{
 		ri.Sys_Error(ERR_DROP, "Bad s_blocklights size");
 	}

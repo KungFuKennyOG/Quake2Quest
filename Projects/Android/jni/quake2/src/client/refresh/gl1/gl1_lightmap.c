@@ -220,6 +220,17 @@ LM_CreateSurfaceLightmap(msurface_t *surf)
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
 
+	/* A surface whose lightmap can't fit in one block (possible in SoF maps)
+	   is drawn unlit (full bright) instead of aborting the level load. */
+	if (smax >= BLOCK_WIDTH || tmax >= BLOCK_HEIGHT)
+	{
+		if (smax >= BLOCK_WIDTH) surf->extents[0] = (BLOCK_WIDTH - 2) << 4;
+		if (tmax >= BLOCK_HEIGHT) surf->extents[1] = (BLOCK_HEIGHT - 2) << 4;
+		surf->samples = NULL;
+		smax = (surf->extents[0] >> 4) + 1;
+		tmax = (surf->extents[1] >> 4) + 1;
+	}
+
 	if (!LM_AllocBlock(smax, tmax, &surf->light_s, &surf->light_t))
 	{
 		LM_UploadBlock(false);
