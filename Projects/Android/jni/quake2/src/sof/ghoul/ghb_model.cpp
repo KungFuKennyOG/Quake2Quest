@@ -667,9 +667,14 @@ void DecodeRotation(uint32_t dw, float rows[3][3])
 	cross3(W, V, R);
 	if (dw & 0x80000000u) { W[0] = -W[0]; W[1] = -W[1]; W[2] = -W[2]; }
 	norm3(W);
-	memcpy(rows[0], V, 12);
-	memcpy(rows[1], R, 12);
-	memcpy(rows[2], W, 12);
+	/* V, R, W are the matrix COLUMNS (GHOUL's decoder fills them with Matrix4::SetColumn);
+	   storing them as rows rotated every bolt-on the wrong way round */
+	for (int k = 0; k < 3; k++)
+	{
+		rows[k][0] = V[k];
+		rows[k][1] = R[k];
+		rows[k][2] = W[k];
+	}
 }
 
 static void trackFrame(const Model &m, const Node &n, int f, float rows[3][3], float pos[3])

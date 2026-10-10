@@ -72,6 +72,11 @@ R_DrawSoFEntity(entity_t *e)
 	R_RotateForEntity(e);
 	e->angles[PITCH] = -e->angles[PITCH];
 
+	/* GHOUL triangles are counter-clockwise seen from outside, the opposite of Quake 2's
+	   models and world (the renderer culls GL_FRONT), so cull the other side here or the
+	   characters are drawn inside out. A mirrored (left-handed) view weapon flips it back. */
+	glCullFace(GL_BACK);
+
 	if (e->flags & RF_WEAPONMODEL)
 	{
 		float s = vr_weaponscale ? vr_weaponscale->value : 1.0f;
@@ -79,7 +84,7 @@ R_DrawSoFEntity(entity_t *e)
 		if (gl_lefthand && gl_lefthand->value == 1.0F)
 		{
 			glScalef(s, -s, s);
-			glCullFace(GL_BACK);
+			glCullFace(GL_FRONT);
 		}
 		else
 		{
@@ -150,10 +155,7 @@ R_DrawSoFEntity(entity_t *e)
 	glColor4f(1, 1, 1, 1);
 	glPopMatrix();
 
-	if ((e->flags & RF_WEAPONMODEL) && gl_lefthand && gl_lefthand->value == 1.0F)
-	{
-		glCullFace(GL_FRONT);
-	}
+	glCullFace(GL_FRONT);
 
 	if (e->flags & RF_DEPTHHACK)
 	{

@@ -578,8 +578,10 @@ public:
 		parent->partMatrix(t, parentBolt, pb);
 		ghb::Mat4 ptoRoot;
 		parent->toRoot(t, ptoRoot);
-		/* our XForm applies in child space before the bolt alignment */
-		tmp.Mul(x, inv);
+		/* our XForm applies in bolt space, after moving onto our own bolt: the game scales
+		   bolt-ons (hats, glasses on the bigger "meso" bodies) and expects them to grow
+		   around the attachment point rather than around their model origin */
+		tmp.Mul(inv, x);
 		chain.Mul(tmp, pb);
 		out.Mul(chain, ptoRoot);
 	}
@@ -665,6 +667,11 @@ public:
 				cur = sf * (q.msPerFrame > 0 ? q.msPerFrame : 100.0f) / 1000.0f;
 			}
 		}
+		static const char *notelog = getenv("SOF_GHOUL_NOTELOG");
+		if (notelog)
+			dprintf("[ghoul play] %s t=%.2f seq %s -> %s\n", obj->objectDir.c_str(), Now,
+			        seqId && seqId <= obj->seqs.size() ? obj->seqs[seqId - 1].base.c_str() : "-",
+			        Seq && Seq <= obj->seqs.size() ? obj->seqs[Seq - 1].base.c_str() : "-");
 		seqId = Seq;
 		ec = e;
 		reverse = reverseAnim;
@@ -926,13 +933,17 @@ public:
 		return k;
 	}
 
-	void fireToken(GhoulID token, float now)
+	void fireToken(GhoulID token, float now, const char *data = 0)
 	{
+		static const char *notelog = getenv("SOF_GHOUL_NOTELOG");
+		if (notelog && token)
+			dprintf("[ghoul note] %s t=%.2f token %s callbacks %d%s\n", obj->objectDir.c_str(), now,
+			        token <= obj->tokens.size() ? obj->tokens[token - 1].c_str() : "?", (int)notes.size(), callbacksOn ? "" : " (off)");
 		if (!callbacksOn || !token) return;
 		std::vector<NoteCB> copy(notes);
 		for (size_t i = 0; i < copy.size(); i++)
 			if (copy[i].token == token || copy[i].token == 0)
-				copy[i].cb->Execute(this, user, now, 0);
+				copy[i].cb->Execute(this, user, now, data); /* the note's text, e.g. a sound name */
 	}
 
 	void ServerUpdate(float Time)
@@ -963,7 +974,7 @@ public:
 				}
 				else
 					hit = raw0 < nf && raw1 >= nf;
-				if (hit) fireToken(obj->FindNoteToken(q.notes[i].token.c_str()), Time);
+				if (hit) fireToken(obj->FindNoteToken(q.notes[i].token.c_str()), Time, q.notes[i].data.c_str());
 			}
 			/* synthesised end-of-sequence note */
 			bool eos = false;
@@ -1116,6 +1127,15 @@ public:
 					if (skin) d.skin = obj->skins[skin - 1].name;
 					else if (sf.material >= 0 && sf.material < (int)m.materials.size())
 						d.skin = lower(m.materials[(size_t)sf.material].texture); /* the model's default texture */
+					static const char *drawlog = getenv("SOF_GHOUL_DRAWLOG");
+					if (drawlog)
+					{
+						static std::set<std::string> seen;
+						std::string key = obj->objectDir + " | part " + m.parts[(size_t)sf.part].name + " | mat " +
+							(sf.material >= 0 && sf.material < (int)m.materials.size() ? m.materials[(size_t)sf.material].name : std::string("?")) +
+							" | skin " + d.skin;
+						if (seen.insert(key).second) dprintf("[ghoul draw] %s\n", key.c_str());
+					}
 					out.push_back(d);
 					it = surfOut.insert(std::make_pair(si, out.size() - 1)).first;
 				}

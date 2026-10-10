@@ -144,15 +144,25 @@ void R_RenderFrame(refdef_t *fd)
 			for (m = 0; m < e->sofdraw->nummeshes; m++)
 			{
 				const sofmesh_t *ms = &e->sofdraw->meshes[m];
-				fprintf(f, "# skin %s\n", ms->skin);
+				fprintf(f, "# skin %s\nusemtl %s\n", ms->skin, ms->skin[0] ? ms->skin : "none");
 				for (v = 0; v < ms->numverts; v++)
 				{
 					float w[3];
 					placePoint(e, ms->xyz + v * 3, w);
 					fprintf(f, "v %f %f %f\n", w[0], w[1], w[2]);
+					fprintf(f, "vt %f %f\n", ms->st ? ms->st[v * 2] : 0.0f, ms->st ? ms->st[v * 2 + 1] : 0.0f);
+					if (ms->normal)
+					{
+						/* rotate the normal like a point, without the origin */
+						float n[3], o[3] = { 0, 0, 0 }, z[3] = { 0, 0, 0 };
+						placePoint(e, ms->normal + v * 3, n);
+						placePoint(e, z, o);
+						fprintf(f, "vn %f %f %f\n", n[0] - o[0], n[1] - o[1], n[2] - o[2]);
+					}
 				}
 				for (v = 0; v + 2 < ms->numindices; v += 3)
-					fprintf(f, "f %d %d %d\n", base + ms->indices[v], base + ms->indices[v + 1], base + ms->indices[v + 2]);
+					fprintf(f, "f %d/%d %d/%d %d/%d\n", base + ms->indices[v], base + ms->indices[v], base + ms->indices[v + 1],
+					        base + ms->indices[v + 1], base + ms->indices[v + 2], base + ms->indices[v + 2]);
 				base += ms->numverts;
 			}
 		}

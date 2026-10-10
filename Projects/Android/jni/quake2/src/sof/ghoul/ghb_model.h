@@ -161,7 +161,7 @@ private:
 /* Matrix of a node (bolt or part) at a fractional frame (linear interpolation between frames). */
 void NodeMatrix(const Model &m, const Node &n, float frame, Mat4 &out);
 
-/* Decode a rotation dword of a compressed node track into rows 0..2 of out. */
+/* Decode a rotation dword of a compressed node track into the 3x3 rotation of a node matrix (rows[row][col]). */
 void DecodeRotation(uint32_t dw, float rows[3][3]);
 
 /* Triangle list for all surfaces: appends (surface, corner0, corner1, corner2). */

@@ -977,9 +977,49 @@ extern "C" void sofb_spawnentities(const char *mapname, const char *entities, co
 	sge->SpawnEntities((char *)mapname, (char *)entities, (char *)spawnpoint);
 }
 
-extern "C" int sofb_clientconnect(int num, char *userinfo) { refreshAllCvars(); return sge->ClientConnect(edictOf(num), userinfo); }
+/* SoF's own client predicts the view weapon and tells the server when it fired; the
+   server then only fires on those "fire events". The Quake 2 client never sends them, so
+   the userinfo always says "predicting 0" and the server fires from the attack button. */
+static void sofUserinfo(const char *in, std::string &out)
+{
+	out.clear();
+	const char *p = in ? in : "";
+	while (*p == '\\')
+	{
+		const char *k = p + 1, *v = strchr(k, '\\');
+		if (!v) break;
+		const char *e = strchr(v + 1, '\\');
+		if (!e) e = v + 1 + strlen(v + 1);
+		if (!((size_t)(v - k) == 10 && !strncasecmp(k, "predicting", 10))) out.append(p, (size_t)(e - p));
+		p = e;
+	}
+	out += "\\predicting\\0";
+}
+static void copyBack(char *userinfo, const std::string &info)
+{
+	/* the game may add a "rejmsg" for the engine; Quake 2's buffer is 512 bytes */
+	if (userinfo && info.size() < 512) memcpy(userinfo, info.c_str(), info.size() + 1);
+}
+extern "C" int sofb_clientconnect(int num, char *userinfo)
+{
+	refreshAllCvars();
+	std::string info;
+	sofUserinfo(userinfo, info);
+	char buf[1024];
+	snprintf(buf, sizeof(buf), "%s", info.c_str());
+	int ok = sge->ClientConnect(edictOf(num), buf);
+	copyBack(userinfo, buf);
+	return ok;
+}
 extern "C" void sofb_clientbegin(int num) { sge->ClientBegin(edictOf(num)); }
-extern "C" void sofb_clientuserinfochanged(int num, char *userinfo) { sge->ClientUserinfoChanged(edictOf(num), userinfo, true); }
+extern "C" void sofb_clientuserinfochanged(int num, char *userinfo)
+{
+	std::string info;
+	sofUserinfo(userinfo, info);
+	char buf[1024];
+	snprintf(buf, sizeof(buf), "%s", info.c_str());
+	sge->ClientUserinfoChanged(edictOf(num), buf, true);
+}
 extern "C" void sofb_clientdisconnect(int num) { sge->ClientDisconnect(edictOf(num)); }
 extern "C" void sofb_clientcommand(int num)
 {
