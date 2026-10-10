@@ -556,6 +556,14 @@ CL_CheckOrDownloadFile(char *filename)
 		return true;
 	}
 
+#ifdef SOF_BUILD
+	/* Soldier of Fortune is played locally from the user's own paks; nothing
+	   is ever downloaded. Quake 2-style lookups (env/<sky>rt.tga, .wal
+	   textures) miss for SoF data and would otherwise ask the local server,
+	   which on the Quest got stuck retrying the first sky image. */
+	return true;
+#endif
+
 	if (strstr(filename, "..") || strstr(filename, ":") || (*filename == '.') || (*filename == '/'))
 	{
 		Com_Printf("Refusing to download a path with ..: %s\n", filename);
