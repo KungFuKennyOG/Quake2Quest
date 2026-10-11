@@ -64,6 +64,9 @@ void splitPath(const char *path, std::string &dir, std::string &base)
  * Score how well a pack tag fits the current map name. */
 int levelScore(const std::string &tag)
 {
+	/* SOF_GHOUL_PACK=<tag> (desktop testing): prefer that pack on any map */
+	static const char *force = getenv("SOF_GHOUL_PACK");
+	if (force && *force && !strcasecmp(force, tag.c_str())) return 4;
 	if (g_level.empty()) return tag == "player" ? 1 : 0;
 	std::string lv = g_level;
 	size_t sl = lv.find_last_of('/');
