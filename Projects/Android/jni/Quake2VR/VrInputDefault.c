@@ -535,11 +535,38 @@ void HandleInput_Default( ovrInputStateTrackedRemote *pDominantTrackedRemoteNew,
             remote_movementForward = v[1];
 
 
+#ifdef SOF_BUILD
+            /* X: tap = objectives (SoF's help screen), hold = weapon wheel (the game side
+               draws it around the gun hand and takes out the weapon the hand is on at release) */
+            {
+                static int xDownTime = -1;
+                static qboolean wheelOpen = false;
+                qboolean xDown = (secondaryButtonsNew & secondaryButton1) != 0;
+                qboolean xWasDown = (secondaryButtonsOld & secondaryButton1) != 0;
+                if (xDown && !xWasDown) {
+                    xDownTime = Sys_Milliseconds();
+                }
+                if (xDown && !wheelOpen && xDownTime >= 0 && Sys_Milliseconds() - xDownTime > 300) {
+                    wheelOpen = true;
+                    Cvar_Set("sof_vrwheel", "1");
+                }
+                if (!xDown && xWasDown) {
+                    if (wheelOpen) {
+                        Cvar_Set("sof_vrwheel", "0");
+                    } else {
+                        sendButtonActionSimple("cmd help");
+                    }
+                    wheelOpen = false;
+                    xDownTime = -1;
+                }
+            }
+#else
             //show help computer while X/A pressed
             if ((secondaryButtonsNew & secondaryButton1) !=
                  (secondaryButtonsOld & secondaryButton1)) {
                 sendButtonActionSimple("cmd help");
             }
+#endif
 
 
             //Use (Action)

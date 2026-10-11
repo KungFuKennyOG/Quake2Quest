@@ -147,6 +147,8 @@ extern int numgltextures;
 
 extern image_t *r_notexture;
 extern image_t *r_particletexture;
+extern image_t *r_sofhudtexture;
+void R_InitSoFHudTexture(void);
 extern entity_t *currententity;
 extern model_t *currentmodel;
 extern int r_visframecount;

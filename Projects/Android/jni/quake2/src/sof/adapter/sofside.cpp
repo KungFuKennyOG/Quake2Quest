@@ -16,6 +16,7 @@
 #include "ghb_model.h"
 #include "sofbridge.h"
 #include "../sof_client.h"
+#include "../sof_hudfont.h"
 #include "../fx/sof_fx.h"
 #include "q_sh_fx.h"
 /* the effect flags are redefined below as enums (sfx::EFF_*, EFAT_*) */
@@ -51,6 +52,7 @@ static void registerClientHooks(void);
 static void clearDrawCache(void);
 static void clearDebris(void);
 static void clearExplosions(void);
+extern "C" float SoF_LevelTime(void);
 static void fxRegister(void);
 static void fxUnregister(void);
 extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
@@ -79,11 +81,25 @@ static std::string vfmt(const char *fmt, va_list ap)
 
 static void I_bprintf(int level, char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); q2b_bprint(level, s.c_str()); }
 static void I_dprintf(char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); q2b_dprint(s.c_str()); }
-static void I_cprintf(edict_t *e, int level, char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); q2b_cprint(numOf(e), level, s.c_str()); }
+/* VR subtitles: what the game says to the player is also shown on a panel in front of
+   them (and centred prints only there while the VR HUD is on) */
+static void hudSubtitle(const char *text);
+static bool vrHudOn(void);
+static void I_cprintf(edict_t *e, int level, char *fmt, ...)
+{
+	va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a);
+	q2b_cprint(numOf(e), level, s.c_str());
+	if (level >= 2 && numOf(e) == 1) hudSubtitle(s.c_str());
+}
 static void I_clprintf(edict_t *e, edict_t *, int, char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); q2b_cprint(numOf(e), 2, s.c_str()); }
 static void I_welcomeprint(edict_t *) {}
-static void I_centerprintf(edict_t *e, char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); q2b_centerprint(numOf(e), s.c_str()); }
-static void I_cinprintf(edict_t *e, int, int, int, char *text) { q2b_centerprint(numOf(e), text); }
+static void centerOrSubtitle(int num, const char *text)
+{
+	if (vrHudOn() && num <= 1) hudSubtitle(text);
+	else q2b_centerprint(num, text);
+}
+static void I_centerprintf(edict_t *e, char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); centerOrSubtitle(numOf(e), s.c_str()); }
+static void I_cinprintf(edict_t *e, int, int, int, char *text) { centerOrSubtitle(numOf(e), text); }
 static void I_Con_ClearNotify(void) {}
 static void I_error(char *fmt, ...) { va_list a; va_start(a, fmt); std::string s = vfmt(fmt, a); va_end(a); q2b_error(s.c_str()); }
 static void I_Sys_ConsoleOutput(char *s) { q2b_dprint(s); }
@@ -161,9 +177,9 @@ static void spOut(edict_t *ent, unsigned short ID, va_list ap)
 	std::map<unsigned short, SPString>::iterator it = g_strings.find(ID);
 	if (it == g_strings.end()) return;
 	std::string s = vfmt(it->second.text.c_str(), ap);
-	if (it->second.centered) q2b_centerprint(ent ? numOf(ent) : 1, s.c_str());
-	else if (ent) q2b_cprint(numOf(ent), 2, s.c_str());
-	else q2b_bprint(2, s.c_str());
+	if (it->second.centered) centerOrSubtitle(ent ? numOf(ent) : 1, s.c_str());
+	else if (ent) { q2b_cprint(numOf(ent), 2, s.c_str()); if (numOf(ent) == 1) hudSubtitle(s.c_str()); }
+	else { q2b_bprint(2, s.c_str()); hudSubtitle(s.c_str()); }
 }
 static void I_SP_Print(edict_t *ent, unsigned short ID, ...) { va_list a; va_start(a, ID); spOut(ent, ID, a); va_end(a); }
 static void I_SP_Print_Obit(edict_t *ent, unsigned short ID, ...) { va_list a; va_start(a, ID); spOut(ent, ID, a); va_end(a); }
@@ -176,8 +192,8 @@ static int I_SP_SPrint(char *buffer, int size, unsigned short ID, ...)
 	return (int)strlen(buffer);
 }
 static const char *I_SP_GetStringText(unsigned short ID) { return spText(ID); }
-static void I_bcaption(int, unsigned short id) { q2b_centerprint(1, spText(id)); }
-static void I_captionprintf(edict_t *e, unsigned short id) { q2b_centerprint(numOf(e), spText(id)); }
+static void I_bcaption(int, unsigned short id) { centerOrSubtitle(1, spText(id)); }
+static void I_captionprintf(edict_t *e, unsigned short id) { centerOrSubtitle(numOf(e), spText(id)); }
 
 /* ------------------------------------------------------------------ cvars (SoF layout shadows of engine cvars) */
 
@@ -1287,6 +1303,83 @@ struct DrawCache
 	sofdraw_t draw;
 };
 static std::map<int, DrawCache> g_drawCache;
+/* ---- VR HUD panels: text and flat panels as unlit, blended quads on the HUD font
+   texture (sof_hudfont.h), built in whatever space they are drawn in */
+struct HudMesh
+{
+	std::vector<float> xyz, st;
+	std::vector<unsigned short> idx;
+	std::vector<unsigned char> rgba;
+	void clear() { xyz.clear(); st.clear(); idx.clear(); rgba.clear(); }
+	/* o: bottom-left corner, u: right edge, v: up edge */
+	void quad(const float *o, const float *u, const float *v, int cell, const unsigned char *c)
+	{
+		if (xyz.size() / 3 + 4 > 65000) return;
+		float s0, t0, s1, t1;
+		sofhud_cell(cell, &s0, &t0, &s1, &t1);
+		if (cell == SOFHUD_WHITE) { float ds = (s1 - s0) * 0.25f, dt = (t1 - t0) * 0.25f; s0 += ds; s1 -= ds; t0 += dt; t1 -= dt; }
+		unsigned short b = (unsigned short)(xyz.size() / 3);
+		const float cs[4][2] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+		for (int i = 0; i < 4; i++)
+		{
+			for (int k = 0; k < 3; k++) xyz.push_back(o[k] + u[k] * cs[i][0] + v[k] * cs[i][1]);
+			st.push_back(cs[i][0] ? s1 : s0);
+			st.push_back(cs[i][1] ? t0 : t1);
+			for (int k = 0; k < 4; k++) rgba.push_back(c[k]);
+		}
+		const unsigned short tri[6] = { 0, 1, 2, 0, 2, 3 };
+		for (int i = 0; i < 6; i++) idx.push_back((unsigned short)(b + tri[i]));
+	}
+	/* a filled rectangle: centre c, half extents along r and up */
+	void panel(const float *centre, const float *r, const float *up, float hw, float hh, const unsigned char *col)
+	{
+		float o[3], u[3], v[3];
+		for (int k = 0; k < 3; k++) { o[k] = centre[k] - r[k] * hw - up[k] * hh; u[k] = r[k] * 2 * hw; v[k] = up[k] * 2 * hh; }
+		quad(o, u, v, SOFHUD_WHITE, col);
+	}
+	/* text with its baseline-left at o; h = glyph height (7 dots); returns the advance */
+	static float advance(float h) { return h * 24.0f / 28.0f; }
+	float text(const char *str, const float *o, const float *r, const float *up, float h, const unsigned char *col)
+	{
+		float cell = h * 32.0f / 28.0f, adv = advance(h);
+		/* the glyph sits at texel (6, 2) of its cell: shift the cell so the dots start at o */
+		float dx = cell * SOFHUD_GLYPH_X / 32.0f, dy = cell * (32 - SOFHUD_GLYPH_Y - 28) / 32.0f;
+		float x = 0;
+		for (const char *p = str; *p; p++, x += adv)
+		{
+			if (*p == ' ') continue;
+			float co[3], u[3], v[3];
+			for (int k = 0; k < 3; k++)
+			{
+				co[k] = o[k] + r[k] * (x - dx) - up[k] * dy;
+				u[k] = r[k] * cell;
+				v[k] = up[k] * cell;
+			}
+			quad(co, u, v, sofhud_charcell((unsigned char)*p), col);
+		}
+		return x;
+	}
+	void toMesh(sofmesh_t &m) const
+	{
+		memset(&m, 0, sizeof(m));
+		m.numverts = (int)(xyz.size() / 3);
+		m.xyz = xyz.empty() ? 0 : &xyz[0];
+		m.st = st.empty() ? 0 : &st[0];
+		m.numindices = (int)idx.size();
+		m.indices = idx.empty() ? 0 : &idx[0];
+		m.skin = SOFHUD_TEXTURE;
+		m.rgba[0] = m.rgba[1] = m.rgba[2] = m.rgba[3] = 1;
+		m.colors = rgba.empty() ? 0 : &rgba[0];
+		m.blend = SOFBLEND_ALPHA;
+	}
+};
+static HudMesh g_gunHud;
+
+/* the player's HUD stats (SoF's ps.stats) */
+enum { SOFSTAT_INV_TYPE = 0, SOFSTAT_HEALTH = 1, SOFSTAT_CLIP_AMMO = 2, SOFSTAT_AMMO = 3, SOFSTAT_CLIP_MAX = 4,
+       SOFSTAT_ARMOR = 5, SOFSTAT_WEAPON = 6, SOFSTAT_INV_COUNT = 7, SOFSTAT_FLAGS = 8, SOFSTAT_DAMAGELOC = 14,
+       SOFSTAT_DAMAGEDIR = 15 };
+
 static void clearDrawCache(void) { g_drawCache.clear(); }
 
 static const sofdraw_t *buildDrawAt(int key, IGhoulInst *inst, float time)
@@ -1942,7 +2035,70 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 		if (out != i) c.meshes[out] = c.meshes[i];
 		out++;
 	}
-	c.draw.nummeshes = (int)out;
+	c.meshes.resize(out);
+
+	/* the ammo counter on top of the gun, just above the hand, tilted toward the eye */
+	g_gunHud.clear();
+	{
+		static void *cv_hud, *cv_hand, *cv_ws;
+		if (!cv_hud) { cv_hud = q2b_cvar("sof_vrhud", "1", 0); cv_hand = q2b_cvar("hand", "0", 0); cv_ws = q2b_cvar("vr_weaponscale", "1", 0); }
+		const short *st = ((player_state_t *)e->client)->stats;
+		int clip = st[SOFSTAT_CLIP_AMMO], spare = st[SOFSTAT_AMMO], clipMax = st[SOFSTAT_CLIP_MAX];
+		if (q2b_cvar_value(cv_hud) != 0 && clipMax > 0)
+		{
+			float ws = q2b_cvar_value(cv_ws) > 0 ? q2b_cvar_value(cv_ws) : 1, H = 4.3f / ws;
+			/* the top of the gun above the hand, and where that top surface ends at the back */
+			float top = -1e9f, rear = 1e9f;
+			for (int pass = 0; pass < 2; pass++)
+				for (size_t i = 0; i < c.surfs.size(); i++)
+				{
+					if (!keep[i] || partIs(c.surfs[i].part, "HAND", 0) || partIs(c.surfs[i].part, "ARM", 0)) continue;
+					const std::vector<float> &x = c.surfs[i].xyz;
+					for (size_t k = 0; k + 2 < x.size(); k += 3)
+					{
+						if (fabsf(x[k + 1]) > H) continue;
+						if (pass == 0) { if (fabsf(x[k]) < 1.5f * H && x[k + 2] > top) top = x[k + 2]; }
+						else if (x[k + 2] > top - 0.35f * H && x[k] < rear) rear = x[k];
+					}
+				}
+			if (top < -1e8f) { top = H; rear = -0.5f * H; }
+			float right[3] = { 0, q2b_cvar_value(cv_hand) == 1 ? 1.0f : -1.0f, 0 };
+			/* lying on the back of the top, tilted 35 degrees toward the eye */
+			float up[3] = { 0.82f, 0, 0.57f }, n[3] = { -0.57f, 0, 0.82f };
+			float hBig = 0.16f * H, hSmall = 0.10f * H;
+			char a[16], b[16];
+			snprintf(a, sizeof(a), "%d", clip);
+			snprintf(b, sizeof(b), "/%d", spare);
+			float wBig = HudMesh::advance(hBig) * strlen(a), wSmall = HudMesh::advance(hSmall) * strlen(b), w = wBig + wSmall;
+			float hh = hBig * 0.5f + 0.06f * H;
+			float centre[3] = { rear + up[0] * hh + 0.05f * H, 0, top + up[2] * hh + 0.03f * H };
+			/* a rifle scope's eyepiece is there: beside the scope instead, on the off-hand side */
+			if (c.draw.hasscope)
+			{
+				float sr = c.draw.scope[3];
+				centre[0] = c.draw.scope[0] + up[0] * hh + 0.1f * H;
+				centre[2] = c.draw.scope[2] - sr * 0.3f;
+				for (int k = 0; k < 3; k++) centre[k] -= right[k] * (sr * 1.3f + w * 0.5f + 0.1f * H);
+			}
+			static const unsigned char bg[4] = { 0, 0, 0, 150 };
+			g_gunHud.panel(centre, right, up, w * 0.5f + 0.08f * H, hh, bg);
+			bool low = clip * 4 <= clipMax, empty = clip == 0;
+			unsigned char col[4] = { 255, 170, 40, 255 };
+			if (low) { col[0] = 255; col[1] = 60; col[2] = 40; }
+			if (empty && ((int)(SoF_LevelTime() * 3) & 1)) col[3] = 90;
+			float o[3];
+			for (int k = 0; k < 3; k++) o[k] = centre[k] + n[k] * 0.02f * H - right[k] * w * 0.5f - up[k] * hBig * 0.5f;
+			float adv = g_gunHud.text(a, o, right, up, hBig, col);
+			for (int k = 0; k < 3; k++) o[k] += right[k] * adv;
+			unsigned char col2[4] = { (unsigned char)(col[0] * 0.8f), (unsigned char)(col[1] * 0.8f), (unsigned char)(col[2] * 0.8f), col[3] };
+			g_gunHud.text(b, o, right, up, hSmall, col2);
+			sofmesh_t m;
+			g_gunHud.toMesh(m);
+			if (m.numindices) c.meshes.push_back(m);
+		}
+	}
+	c.draw.meshes = c.meshes.empty() ? 0 : &c.meshes[0];
+	c.draw.nummeshes = (int)c.meshes.size();
 	return &c.draw;
 }
 
@@ -3939,8 +4095,326 @@ static std::vector<soffxsound_t> g_fxSounds;
 static std::vector<soffxmodel_t> g_fxModels;
 static soffxframe_t g_fxFrame;
 
+/* ---- the wrist display: health, armour, the body hit diagram and the ready item on the
+   back of the off-hand wrist, shown while the wrist is turned toward the eyes */
+static HudMesh g_wristHud;
+static float g_hitTime[6]; /* last hit per body area (SoF's CLDAM bits): head, l arm, l leg, r arm, r leg, torso */
+static int g_lastDamageLoc;
+static void buildWrist(float time, const float *org, const float *ang, const float *vieworg)
+{
+	g_wristHud.clear();
+	static void *cv_hud, *cv_scale;
+	if (!cv_hud) { cv_hud = q2b_cvar("sof_vrhud", "1", 0); cv_scale = q2b_cvar("vr_worldscale", "26.2467", 0); }
+	if (q2b_cvar_value(cv_hud) == 0) return;
+	edict_t *e = edictOf(1);
+	if (!e || !e->inuse || !e->client) return;
+	const player_state_t *ps = (const player_state_t *)e->client;
+
+	/* remember hits by body area */
+	int loc = ps->damageLoc;
+	if (loc && loc != g_lastDamageLoc)
+		for (int b = 0; b < 6; b++) if (loc & (1 << b)) g_hitTime[b] = time;
+	g_lastDamageLoc = loc;
+
+	float m = q2b_cvar_value(cv_scale) > 0 ? q2b_cvar_value(cv_scale) : 26.2467f; /* units per metre */
+	vec3_t a, f, r, u;
+	cp3(ang, a);
+	angleVectors(a, f, r, u);
+	float c[3];
+	for (int k = 0; k < 3; k++) c[k] = org[k] - f[k] * 0.09f * m + u[k] * 0.035f * m;
+	/* only while the back of the wrist faces the eyes */
+	float v[3] = { vieworg[0] - c[0], vieworg[1] - c[1], vieworg[2] - c[2] };
+	normalize3(v);
+	float facing = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+	float fade = (facing - 0.35f) / 0.25f;
+	if (fade <= 0) return;
+	if (fade > 1) fade = 1;
+	float right[3], up[3];
+	for (int k = 0; k < 3; k++) { right[k] = f[k]; up[k] = -r[k]; c[k] += u[k] * 0.002f * m; }
+	float W = 0.105f * m, Hh = 0.07f * m;
+	unsigned char bg[4] = { 0, 0, 0, (unsigned char)(170 * fade) };
+	g_wristHud.panel(c, right, up, W * 0.5f, Hh * 0.5f, bg);
+	/* panel coordinates: x from the left edge, y from the bottom */
+	float o0[3];
+	for (int k = 0; k < 3; k++) o0[k] = c[k] - right[k] * W * 0.5f - up[k] * Hh * 0.5f + u[k] * 0.001f * m;
+	struct Box { float x, y, w, h; };
+	auto rect = [&](Box b, const unsigned char *col)
+	{
+		float cc[3];
+		for (int k = 0; k < 3; k++) cc[k] = o0[k] + right[k] * (b.x + b.w * 0.5f) + up[k] * (b.y + b.h * 0.5f);
+		g_wristHud.panel(cc, right, up, b.w * 0.5f, b.h * 0.5f, col);
+	};
+	auto text = [&](const char *t, float x, float y, float h, const unsigned char *col)
+	{
+		float oo[3];
+		for (int k = 0; k < 3; k++) oo[k] = o0[k] + right[k] * x + up[k] * y;
+		g_wristHud.text(t, oo, right, up, h, col);
+	};
+	/* SoF never fills in where the player was hit (ps.damageLoc stays 0), so the whole
+	   figure flashes when health drops; per-area hits light up if the game ever sends them */
+	static int lastHp = -1000;
+	static float hurt = -10;
+	if (lastHp != -1000 && ps->stats[SOFSTAT_HEALTH] < lastHp) hurt = time;
+	lastHp = ps->stats[SOFSTAT_HEALTH];
+	auto mix = [&](int b, unsigned char *col)
+	{
+		float t = time - g_hitTime[b], hot = g_hitTime[b] > 0 && t >= 0 && t < 2.5f ? 1 - t / 2.5f : 0;
+		float th2 = time - hurt;
+		if (th2 >= 0 && th2 < 1.5f && 1 - th2 / 1.5f > hot) hot = 1 - th2 / 1.5f;
+		col[0] = (unsigned char)(110 + 145 * hot); col[1] = (unsigned char)(130 - 100 * hot); col[2] = (unsigned char)(120 - 90 * hot);
+		col[3] = (unsigned char)(230 * fade);
+	};
+
+	/* body diagram, left side: head, torso, arms, legs */
+	float s = Hh / 10.0f, bx = 0.07f * W;
+	unsigned char col[4];
+	mix(0, col); rect({ bx + 1.6f * s, 7.6f * s, 1.4f * s, 1.4f * s }, col);       /* head */
+	mix(5, col); rect({ bx + 1.3f * s, 4.4f * s, 2.0f * s, 3.0f * s }, col);       /* torso */
+	mix(3, col); rect({ bx + 0.5f * s, 4.4f * s, 0.6f * s, 2.9f * s }, col);       /* right arm (viewer's left) */
+	mix(1, col); rect({ bx + 3.5f * s, 4.4f * s, 0.6f * s, 2.9f * s }, col);       /* left arm */
+	mix(4, col); rect({ bx + 1.3f * s, 1.0f * s, 0.9f * s, 3.2f * s }, col);       /* right leg */
+	mix(2, col); rect({ bx + 2.4f * s, 1.0f * s, 0.9f * s, 3.2f * s }, col);       /* left leg */
+
+	/* health and armour with bars, the ready item */
+	int hp = ps->stats[SOFSTAT_HEALTH], ar = ps->stats[SOFSTAT_ARMOR];
+	float tx = bx + 5.2f * s, th = 1.3f * s, barW = W - tx - 0.06f * W;
+	char buf[32];
+	unsigned char hc[4] = { 90, 230, 90, (unsigned char)(255 * fade) };
+	if (hp <= 25) { hc[0] = 255; hc[1] = 70; hc[2] = 50; }
+	snprintf(buf, sizeof(buf), "HP %d", hp < 0 ? 0 : hp);
+	text(buf, tx, 7.6f * s, th, hc);
+	unsigned char dark[4] = { 40, 40, 40, (unsigned char)(200 * fade) };
+	rect({ tx, 6.7f * s, barW, 0.5f * s }, dark);
+	float hf = hp < 0 ? 0 : hp > 100 ? 1 : hp / 100.0f;
+	if (hf > 0) rect({ tx, 6.7f * s, barW * hf, 0.5f * s }, hc);
+	unsigned char ac[4] = { 90, 160, 255, (unsigned char)(255 * fade) };
+	snprintf(buf, sizeof(buf), "AR %d", ar < 0 ? 0 : ar);
+	text(buf, tx, 4.6f * s, th, ac);
+	rect({ tx, 3.7f * s, barW, 0.5f * s }, dark);
+	float af = ar <= 0 ? 0 : ar > 100 ? 1 : ar / 100.0f;
+	if (af > 0) rect({ tx, 3.7f * s, barW * af, 0.5f * s }, ac);
+	static const char *items[] = { "", "FLASH", "C4", "GOGGLES", "MINE", "MEDKIT", "GRENADE", "FLAG" };
+	int it = ps->stats[SOFSTAT_INV_TYPE], cnt = ps->stats[SOFSTAT_INV_COUNT];
+	if (it > 0 && it < 8)
+	{
+		unsigned char ic[4] = { 255, 170, 40, (unsigned char)(255 * fade) };
+		snprintf(buf, sizeof(buf), "%s %d", items[it], cnt);
+		text(buf, tx, 1.2f * s, th * 0.7f, ic);
+	}
+}
+
+static bool vrHudOn(void)
+{
+	static void *cv;
+	if (!cv) cv = q2b_cvar("sof_vrhud", "1", 0);
+	return q2b_cvar_value(cv) != 0;
+}
+
+struct Subtitle { std::string text; float born; };
+static std::vector<Subtitle> g_subs;
+static float g_subNow;
+static void hudSubtitle(const char *text)
+{
+	if (!text) return;
+	/* one line per paragraph, without colour codes */
+	std::string t;
+	for (const char *p = text; *p; p++)
+	{
+		unsigned char ch = (unsigned char)*p;
+		if (ch == '\n') { if (!t.empty() && t[t.size() - 1] != ' ') t += ' '; continue; }
+		if (ch < 32 || ch > 126) continue;
+		t += (char)ch;
+	}
+	while (!t.empty() && t[t.size() - 1] == ' ') t.erase(t.size() - 1);
+	if (t.empty()) return;
+	if (!g_subs.empty() && g_subs.back().text == t && g_subNow - g_subs.back().born < 1) return;
+	Subtitle sub;
+	sub.text = t;
+	sub.born = g_subNow;
+	g_subs.push_back(sub);
+	while (g_subs.size() > 3) g_subs.erase(g_subs.begin());
+}
+
+static HudMesh g_viewHud;
+static float g_subYaw = 1e9f;
+
+/* subtitles: a few lines low in front of the player, following the head lazily */
+static void buildSubtitles(float time, const float *vieworg, const float *viewangles, float m)
+{
+	g_subNow = time;
+	for (size_t i = 0; i < g_subs.size(); )
+	{
+		float life = 4.0f + 0.05f * (float)g_subs[i].text.size();
+		if (time - g_subs[i].born > life || time < g_subs[i].born) g_subs.erase(g_subs.begin() + (long)i);
+		else i++;
+	}
+	if (g_subs.empty()) { g_subYaw = 1e9f; return; }
+	float yaw = viewangles[1];
+	if (g_subYaw > 1e8f) g_subYaw = yaw;
+	float d = yaw - g_subYaw;
+	while (d > 180) d -= 360;
+	while (d < -180) d += 360;
+	if (fabsf(d) > 25) g_subYaw += d * 0.08f;
+	vec3_t a = { 20, g_subYaw, 0 }, f, r, u;
+	angleVectors(a, f, r, u);
+	/* word-wrapped lines, newest at the bottom */
+	std::vector<std::pair<std::string, float> > lines;
+	const size_t wrap = 34;
+	for (size_t i = 0; i < g_subs.size(); i++)
+	{
+		const std::string &t = g_subs[i].text;
+		float age = time - g_subs[i].born, life = 4.0f + 0.05f * (float)t.size();
+		float alpha = age < 0.2f ? age / 0.2f : age > life - 0.6f ? (life - age) / 0.6f : 1;
+		size_t p = 0;
+		while (p < t.size())
+		{
+			size_t n = t.size() - p <= wrap ? t.size() - p : wrap;
+			if (p + n < t.size()) { size_t sp = t.rfind(' ', p + n); if (sp != std::string::npos && sp > p) n = sp - p; }
+			lines.push_back(std::make_pair(t.substr(p, n), alpha));
+			p += n;
+			while (p < t.size() && t[p] == ' ') p++;
+		}
+	}
+	while (lines.size() > 5) lines.erase(lines.begin());
+	float h = 0.016f * m, lh = h * 1.6f, dist = 1.0f * m;
+	float c[3];
+	for (int k = 0; k < 3; k++) c[k] = vieworg[k] + f[k] * dist;
+	if (getenv("SOF_HUDDEBUG"))
+	{
+		char b[200];
+		snprintf(b, sizeof(b), "[hud] subtitles at %.1f %.1f %.1f (view %.1f %.1f %.1f, f %.2f %.2f %.2f, m %.1f) %d lines\n", c[0], c[1], c[2],
+		         vieworg[0], vieworg[1], vieworg[2], f[0], f[1], f[2], m, (int)lines.size());
+		q2b_dprint(b);
+	}
+	float maxw = 0;
+	for (size_t i = 0; i < lines.size(); i++) { float w = HudMesh::advance(h) * lines[i].first.size(); if (w > maxw) maxw = w; }
+	float total = lh * lines.size();
+	unsigned char bg[4] = { 0, 0, 0, 140 };
+	g_viewHud.panel(c, r, u, maxw * 0.5f + 0.4f * h, total * 0.5f + 0.3f * h, bg);
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		float w = HudMesh::advance(h) * lines[i].first.size(), o[3];
+		float y = total * 0.5f - lh * (float)(i + 1) + (lh - h) * 0.5f;
+		for (int k = 0; k < 3; k++) o[k] = c[k] - r[k] * w * 0.5f + u[k] * y - f[k] * 0.001f * m;
+		unsigned char col[4] = { 240, 235, 210, (unsigned char)(255 * (lines[i].second < 0 ? 0 : lines[i].second)) };
+		g_viewHud.text(lines[i].first.c_str(), o, r, u, h, col);
+	}
+}
+
+/* damage: red at the edge of view on the side the hit came from (SoF's damage brackets) */
+static float g_hurtTime = -10;
+static int g_hurtDir, g_lastHealth = -1000;
+static void buildDamageEdges(float time, const float *vieworg, const float *viewangles, float m)
+{
+	edict_t *e = edictOf(1);
+	if (!e || !e->inuse || !e->client) return;
+	const player_state_t *ps = (const player_state_t *)e->client;
+	int hp = ps->stats[SOFSTAT_HEALTH];
+	if (g_lastHealth != -1000 && hp < g_lastHealth && hp > 0) { g_hurtTime = time; g_hurtDir = ps->damageDir; }
+	g_lastHealth = hp;
+	float t = time - g_hurtTime;
+	if (t < 0 || t > 0.7f) return;
+	float alpha = 1 - t / 0.7f;
+	vec3_t a, f, r, u;
+	cp3(viewangles, a);
+	angleVectors(a, f, r, u);
+	float dist = 0.5f * m, ex = 0.42f * m, ey = 0.32f * m, th = 0.12f * m;
+	unsigned char col[4] = { 200, 0, 0, (unsigned char)(140 * alpha) };
+	int dir = g_hurtDir ? g_hurtDir : 0x10;
+	float c[3];
+	auto bar = [&](float x, float y, float hw, float hh)
+	{
+		for (int k = 0; k < 3; k++) c[k] = vieworg[k] + f[k] * dist + r[k] * x + u[k] * y;
+		g_viewHud.panel(c, r, u, hw, hh, col);
+	};
+	if (dir & (0x08 | 0x10)) bar(-ex, 0, th * 0.5f, ey);   /* left */
+	if (dir & (0x04 | 0x10)) bar(ex, 0, th * 0.5f, ey);    /* right */
+	if (dir & (0x01 | 0x10)) bar(0, ey, ex, th * 0.5f);    /* top */
+	if (dir & (0x02 | 0x10)) bar(0, -ey, ex, th * 0.5f);   /* bottom */
+}
+
+/* the weapon wheel (held X): the player's weapons in a ring around where the gun hand was
+   when it opened; move the hand onto one and let go to take it out */
+extern "C" int sofinv_hasWeapon(void *client, int type);
+extern "C" void sofinv_takeOutWeapon(void *client, int type);
+static bool g_wheelOpen;
+static float g_wheelCentre[3], g_wheelAngles[3];
+static int g_wheelPick;
+static void buildWheel(int gunvalid, const float *gunorigin, const float *vieworg, const float *viewangles, float m)
+{
+	static void *cv;
+	if (!cv) cv = q2b_cvar("sof_vrwheel", "0", 0);
+	bool want = q2b_cvar_value(cv) != 0;
+	edict_t *e = edictOf(1);
+	if (!e || !e->inuse || !e->client) { g_wheelOpen = false; return; }
+	if (!want)
+	{
+		if (g_wheelOpen && g_wheelPick > 0) sofinv_takeOutWeapon(e->client, g_wheelPick);
+		g_wheelOpen = false;
+		return;
+	}
+	if (!gunvalid) return;
+	if (!g_wheelOpen)
+	{
+		g_wheelOpen = true;
+		g_wheelPick = 0;
+		cp3(gunorigin, g_wheelCentre);
+		g_wheelAngles[0] = 0; g_wheelAngles[1] = viewangles[1]; g_wheelAngles[2] = 0;
+	}
+	static const char *names[13] = { "", "KNIFE", ".44", "9MM", "MPISTOL", "M4", "SNIPER", "AUTOSHOT", "SHOTGUN", "M60", "ROCKET", "MPG", "FLAME" };
+	int owned[13], n = 0;
+	for (int t = 1; t <= 12; t++) if (sofinv_hasWeapon(e->client, t)) owned[n++] = t;
+	if (!n) return;
+	/* the wheel faces the eye */
+	float toEye[3] = { vieworg[0] - g_wheelCentre[0], vieworg[1] - g_wheelCentre[1], vieworg[2] - g_wheelCentre[2] };
+	normalize3(toEye);
+	float r[3], u[3], z[3] = { 0, 0, 1 };
+	r[0] = z[1] * toEye[2] - z[2] * toEye[1]; r[1] = z[2] * toEye[0] - z[0] * toEye[2]; r[2] = z[0] * toEye[1] - z[1] * toEye[0];
+	normalize3(r);
+	u[0] = toEye[1] * r[2] - toEye[2] * r[1]; u[1] = toEye[2] * r[0] - toEye[0] * r[2]; u[2] = toEye[0] * r[1] - toEye[1] * r[0];
+	normalize3(u);
+	float R = 0.13f * m, h = 0.016f * m;
+	/* the hand's position in the wheel's plane */
+	float hx = 0, hy = 0;
+	{
+		float d[3] = { gunorigin[0] - g_wheelCentre[0], gunorigin[1] - g_wheelCentre[1], gunorigin[2] - g_wheelCentre[2] };
+		hx = d[0] * r[0] + d[1] * r[1] + d[2] * r[2];
+		hy = d[0] * u[0] + d[1] * u[1] + d[2] * u[2];
+	}
+	g_wheelPick = 0;
+	float best = 1e9f;
+	for (int i = 0; i < n; i++)
+	{
+		float ang = 1.5708f - 6.2832f * (float)i / (float)n;
+		float x = cosf(ang) * R, y = sinf(ang) * R, dd = (hx - x) * (hx - x) + (hy - y) * (hy - y);
+		if (sqrtf(hx * hx + hy * hy) > 0.35f * R && dd < best) { best = dd; g_wheelPick = owned[i]; }
+	}
+	int cur = ((const player_state_t *)e->client)->stats[SOFSTAT_WEAPON];
+	for (int i = 0; i < n; i++)
+	{
+		float ang = 1.5708f - 6.2832f * (float)i / (float)n;
+		float c[3];
+		for (int k = 0; k < 3; k++) c[k] = g_wheelCentre[k] + r[k] * cosf(ang) * R + u[k] * sinf(ang) * R;
+		const char *nm = names[owned[i]];
+		float w = HudMesh::advance(h) * strlen(nm);
+		bool hot = owned[i] == g_wheelPick;
+		unsigned char bg[4] = { (unsigned char)(hot ? 160 : 0), (unsigned char)(hot ? 100 : 0), 0, (unsigned char)(hot ? 220 : 160) };
+		g_viewHud.panel(c, r, u, w * 0.5f + 0.5f * h, h * 0.9f, bg);
+		unsigned char col[4] = { 255, (unsigned char)(owned[i] == cur ? 220 : 170), (unsigned char)(owned[i] == cur ? 120 : 40), 255 };
+		float o[3];
+		for (int k = 0; k < 3; k++) o[k] = c[k] - r[k] * w * 0.5f - u[k] * h * 0.5f + toEye[k] * 0.002f * m;
+		g_viewHud.text(nm, o, r, u, h, col);
+	}
+	/* a dot for the hand */
+	float hc[3];
+	for (int k = 0; k < 3; k++) hc[k] = g_wheelCentre[k] + r[k] * hx + u[k] * hy + toEye[k] * 0.003f * m;
+	unsigned char dot[4] = { 255, 255, 255, 200 };
+	g_viewHud.panel(hc, r, u, 0.006f * m, 0.006f * m, dot);
+}
+
 static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const float *viewangles,
-                                       int gunvalid, const float *gunorigin, const float *gunangles, float gunscale)
+                                       int gunvalid, const float *gunorigin, const float *gunangles, float gunscale,
+                                       int offvalid, const float *offorigin, const float *offangles)
 {
 	g_gunValid = gunvalid;
 	if (gunvalid)
@@ -3971,6 +4445,33 @@ static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const f
 		m.colors = b.rgba.empty() ? 0 : &b.rgba[0];
 		m.blend = b.blend == 1 ? SOFBLEND_ADD : b.blend == 2 ? SOFBLEND_SUBTRACT : SOFBLEND_ALPHA;
 		m.nodepth = b.noDepth;
+	}
+	if (offvalid)
+	{
+		buildWrist(time, offorigin, offangles, vieworg);
+		if (!g_wristHud.idx.empty())
+		{
+			sofmesh_t wm;
+			g_wristHud.toMesh(wm);
+			g_fxMeshes.push_back(wm);
+		}
+	}
+	g_viewHud.clear();
+	if (vrHudOn())
+	{
+		static void *cv_scale;
+		if (!cv_scale) cv_scale = q2b_cvar("vr_worldscale", "26.2467", 0);
+		float m = q2b_cvar_value(cv_scale) > 0 ? q2b_cvar_value(cv_scale) : 26.2467f;
+		buildSubtitles(time, vieworg, viewangles, m);
+		buildDamageEdges(time, vieworg, viewangles, m);
+		buildWheel(gunvalid, gunorigin, vieworg, viewangles, m);
+		if (!g_viewHud.idx.empty())
+		{
+			sofmesh_t vm;
+			g_viewHud.toMesh(vm);
+			vm.nodepth = 1;
+			g_fxMeshes.push_back(vm);
+		}
 	}
 	g_fxFrame.draw.nummeshes = (int)g_fxMeshes.size();
 	g_fxFrame.draw.meshes = g_fxMeshes.empty() ? 0 : &g_fxMeshes[0];

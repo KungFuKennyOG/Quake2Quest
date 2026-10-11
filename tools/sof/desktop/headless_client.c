@@ -151,6 +151,8 @@ void R_RenderFrame(refdef_t *fd)
 					placePoint(e, ms->xyz + v * 3, w);
 					fprintf(f, "v %f %f %f\n", w[0], w[1], w[2]);
 					fprintf(f, "vt %f %f\n", ms->st ? ms->st[v * 2] : 0.0f, ms->st ? ms->st[v * 2 + 1] : 0.0f);
+					if (ms->colors)
+						fprintf(f, "#vc %d %d %d %d\n", ms->colors[v * 4], ms->colors[v * 4 + 1], ms->colors[v * 4 + 2], ms->colors[v * 4 + 3]);
 					if (ms->normal)
 					{
 						/* rotate the normal like a point, without the origin */
@@ -217,6 +219,7 @@ void IN_Update(void) { sys_frame_time = Sys_Milliseconds(); }
 void IN_Shutdown(void) {}
 void In_FlushQueue(void) {}
 vec3_t weaponangles, weaponoffset, hmdPosition;
+vec3_t flashlightangles, flashlightoffset; /* off hand: SOF_TEST_OFFHAND="ox oy oz pitch yaw roll" */
 vec2_t polarCursor;
 int segment;
 qboolean isItems, draw_item_wheel, joy_altselector_pressed;
@@ -247,6 +250,12 @@ void VR_GetMove(float *forward, float *side, float *up, float *yaw, float *pitch
 		sscanf(aim, "%f %f %f %f %f %f %f", &weaponoffset[0], &weaponoffset[1], &weaponoffset[2],
 		       &weaponangles[0], &weaponangles[1], &weaponangles[2], &h);
 		hmdPosition[1] = h;
+	}
+	{
+		const char *off = getenv("SOF_TEST_OFFHAND");
+		if (off)
+			sscanf(off, "%f %f %f %f %f %f", &flashlightoffset[0], &flashlightoffset[1], &flashlightoffset[2],
+			       &flashlightangles[0], &flashlightangles[1], &flashlightangles[2]);
 	}
 	*forward = Cvar_VariableValue("test_forward");
 	*side = 0; *up = 0;

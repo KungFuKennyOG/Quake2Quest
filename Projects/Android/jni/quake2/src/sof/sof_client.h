@@ -92,9 +92,11 @@ typedef struct
 	const soffxsound_t *sounds;
 } soffxframe_t;
 
-/* time in seconds; the view weapon pose is the one the client drew it with (gunvalid 0 = none) */
+/* time in seconds; the view weapon pose is the one the client drew it with (gunvalid 0 = none);
+   the off hand (VR left controller) pose in world space for the wrist display */
 typedef const soffxframe_t *(*sof_fxframe_t)(float time, const float *vieworg, const float *viewangles,
-                                             int gunvalid, const float *gunorigin, const float *gunangles, float gunscale);
+                                             int gunvalid, const float *gunorigin, const float *gunangles, float gunscale,
+                                             int offvalid, const float *offorigin, const float *offangles);
 
 void CL_SoF_RegisterFxHook(sof_fxframe_t fx);
 

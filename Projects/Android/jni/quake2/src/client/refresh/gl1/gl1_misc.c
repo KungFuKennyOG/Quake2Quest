@@ -97,6 +97,8 @@ R_InitParticleTexture(void)
 
 	r_notexture = R_LoadPic("***r_notexture***", (byte *)notexData,
 	                        8, 0, 8, 0, it_wall, 32);
+
+	R_InitSoFHudTexture();
 }
 
 void

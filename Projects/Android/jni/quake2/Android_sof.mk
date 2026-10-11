@@ -16,6 +16,15 @@ endif
 SOF_CXXFLAGS := -std=gnu++11 -fno-strict-aliasing -fexceptions -frtti -w -include $(SOF_SDK_DIR)/qcommon/port_compat.h
 
 # ---------------------------------------------------------------- adapter
+# sofinv: asks the game's inventory object about the player's weapons (built with the game's
+# own defines against g_local.h, kept apart from the adapter's declarations)
+include $(CLEAR_VARS)
+LOCAL_MODULE := sofinv
+LOCAL_CPPFLAGS := $(SOF_CXXFLAGS) -fvisibility=hidden -DNDEBUG -D_FINAL_ -D_SOF_ -D__GAME__ -D_RAVEN_
+LOCAL_C_INCLUDES := $(SOF_SDK_DIR)/gamecpp $(SOF_SDK_DIR)/qcommon $(SOF_SDK_DIR)/player $(SOF_SDK_DIR)/ghoul
+LOCAL_SRC_FILES := src/sof/adapter/sofinv.cpp
+include $(BUILD_STATIC_LIBRARY)
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := yquake2_game
 LOCAL_CFLAGS := -DIOAPI_NO_64 -DYQ2OSTYPE=\"Linux\" -DYQ2ARCH=\"Arm\"
@@ -34,6 +43,7 @@ LOCAL_SRC_FILES := src/sof/adapter/q2side.c \
                    $(SOF_SDK_DIR)/gamecpp/q_sh_fx.cpp
 LOCAL_LDLIBS := -ldl -llog
 LOCAL_SHARED_LIBRARIES := yquake2
+LOCAL_STATIC_LIBRARIES := sofinv
 include $(BUILD_SHARED_LIBRARY)
 
 # ---------------------------------------------------------------- SoF game module

@@ -1045,8 +1045,26 @@ CL_AddSoFEffects(void)
 		return;
 	}
 
-	fx = sof_fxframe(cl.time * 0.001f, cl.refdef.vieworg, cl.refdef.viewangles, sof_gunvalid,
-			sof_gunorigin, sof_gunangles, vr_weaponscale ? vr_weaponscale->value : 1.0f);
+	{
+		/* the off hand in the world, placed like the gun (SetWeapon6DOF without the
+		   per-weapon adjustment) */
+		extern vec3_t flashlightoffset, flashlightangles;
+		vec3_t offoff, offorigin, eye;
+
+		/* where the eyes really are: V_RenderView moves the view to the headset height
+		   after the entities are added */
+		VectorCopy(cl.refdef.vieworg, eye);
+		eye[2] -= (QUAKE_MARINE_HEIGHT * vr_worldscale->value);
+		eye[2] += ((hmdPosition[1] + vr_height_adjust->value) * vr_worldscale->value);
+
+		convertFromVRtoQ2(flashlightoffset, NULL, offoff);
+		VectorAdd(cl.refdef.vieworg, offoff, offorigin);
+		offorigin[2] -= (QUAKE_MARINE_HEIGHT * vr_worldscale->value);
+		offorigin[2] += ((hmdPosition[1] + vr_height_adjust->value) * vr_worldscale->value);
+		fx = sof_fxframe(cl.time * 0.001f, eye, cl.refdef.viewangles, sof_gunvalid,
+				sof_gunorigin, sof_gunangles, vr_weaponscale ? vr_weaponscale->value : 1.0f,
+				1, offorigin, flashlightangles);
+	}
 
 	if (!fx)
 	{

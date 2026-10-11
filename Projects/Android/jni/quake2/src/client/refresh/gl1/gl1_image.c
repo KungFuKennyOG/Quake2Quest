@@ -1373,6 +1373,10 @@ R_FreeUnusedImages(void)
 	/* never free r_notexture or particle texture */
 	r_notexture->registration_sequence = registration_sequence;
 	r_particletexture->registration_sequence = registration_sequence;
+	if (r_sofhudtexture)
+	{
+		r_sofhudtexture->registration_sequence = registration_sequence;
+	}
 
 	for (i = 0, image = gltextures; i < numgltextures; i++, image++)
 	{

@@ -7,8 +7,59 @@
  */
 #include "header/local.h"
 #include "../../../sof/sof_client.h"
+#include "../../../sof/sof_hudfont.h"
 
 #define SOF_CLAMP1(x) ((x) > 1.0f ? 1.0f : (x))
+
+image_t *r_sofhudtexture;
+
+/* the VR HUD's dot-matrix font (sof_hudfont.h): one 32 x 32 cell per character, dots of
+   3 x 3 texels on a 4 texel pitch with a soft edge, and a solid white cell */
+void
+R_InitSoFHudTexture(void)
+{
+	static byte data[SOFHUD_TEX_H][SOFHUD_TEX_W][4];
+	int c, row, col, x, y;
+
+	memset(data, 0, sizeof(data));
+	for (y = 0; y < SOFHUD_TEX_H; y++)
+	{
+		for (x = 0; x < SOFHUD_TEX_W; x++)
+		{
+			data[y][x][0] = data[y][x][1] = data[y][x][2] = 255;
+		}
+	}
+	for (c = 0; c < SOFHUD_COUNT; c++)
+	{
+		int cx = (c % 16) * SOFHUD_CELL + SOFHUD_GLYPH_X, cy = (c / 16) * SOFHUD_CELL + SOFHUD_GLYPH_Y;
+		for (row = 0; row < 7; row++)
+		{
+			for (col = 0; col < 5; col++)
+			{
+				if (!(sofhud_font[c][row] & (0x10 >> col)))
+				{
+					continue;
+				}
+				for (y = 0; y < 4; y++)
+				{
+					for (x = 0; x < 4; x++)
+					{
+						/* lit 3 x 3, the fourth row/column a faint gap */
+						data[cy + row * 4 + y][cx + col * 4 + x][3] = (x < 3 && y < 3) ? 255 : 60;
+					}
+				}
+			}
+		}
+	}
+	for (y = 0; y < SOFHUD_CELL; y++)
+	{
+		for (x = 0; x < SOFHUD_CELL; x++)
+		{
+			data[(SOFHUD_WHITE / 16) * SOFHUD_CELL + y][(SOFHUD_WHITE % 16) * SOFHUD_CELL + x][3] = 255;
+		}
+	}
+	r_sofhudtexture = R_LoadPic((char *)SOFHUD_TEXTURE, (byte *)data, SOFHUD_TEX_W, 0, SOFHUD_TEX_H, 0, it_sprite, 32);
+}
 
 static image_t *
 SoF_SkinImage(const char *name)
@@ -18,6 +69,11 @@ SoF_SkinImage(const char *name)
 	if (!name || !name[0])
 	{
 		return r_notexture;
+	}
+
+	if (!strcmp(name, SOFHUD_TEXTURE))
+	{
+		return r_sofhudtexture ? r_sofhudtexture : r_notexture;
 	}
 
 	img = R_FindImage((char *)name, it_skin);
