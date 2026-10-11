@@ -718,8 +718,13 @@ public:
 	bool GetOnOff() { return on; }
 	void SetSpeed(GhoulSpeed s) { speed = s; }
 	GhoulSpeed GetSpeed() { return speed; }
+	/* SOF_GHOUL_GORELOG=1: log the calls the gore code makes (part on/off, wound skins, bolt-ons) */
+	static bool goreLog() { static const char *g = getenv("SOF_GHOUL_GORELOG"); return g && *g; }
+	std::string partName(GhoulID p) const { char b[256]; obj->GetPartName(p, b); return b; }
 	void SetPartOnOff(GhoulID Part, bool OnOff)
 	{
+		if (goreLog() && Part && GetPartOnOff(Part) != OnOff)
+			dprintf("[gore] %s %p part %s %s\n", obj->objectDir.c_str(), (void *)this, partName(Part).c_str(), OnOff ? "ON" : "off");
 		if (!Part) return;
 		if (partOff.size() < Part) partOff.resize(Part, false);
 		partOff[Part - 1] = !OnOff;
@@ -733,7 +738,16 @@ public:
 	{
 		partOff.assign(obj->partNames.size(), !OnOff);
 	}
-	void SetFrameOverride(GhoulID Mat, GhoulID Skin, GhoulID Part) { overrides[std::make_pair((int)Mat, (int)Part)] = Skin; }
+	void SetFrameOverride(GhoulID Mat, GhoulID Skin, GhoulID Part)
+	{
+		if (goreLog())
+		{
+			char m[256], k[256];
+			obj->GetMaterialName(Mat, m); obj->GetSkinName(Skin, k);
+			dprintf("[gore] %s %p override mat %s skin %s part %s\n", obj->objectDir.c_str(), (void *)this, m, k[0] ? k : "(none)", Part ? partName(Part).c_str() : "(all)");
+		}
+		overrides[std::make_pair((int)Mat, (int)Part)] = Skin;
+	}
 	GhoulID GetFrameOverride(GhoulID Mat, GhoulID Part, TexChannel)
 	{
 		std::map<std::pair<int, int>, GhoulID>::iterator it = overrides.find(std::make_pair((int)Mat, (int)Part));
@@ -823,6 +837,11 @@ public:
 		c->myBolt = BoltedBolt;
 		Child ch; ch.inst = c; ch.bolt = B;
 		children.push_back(ch);
+		if (goreLog())
+		{
+			char bb[256]; c->obj->GetPartName(BoltedBolt, bb);
+			dprintf("[gore] %s %p bolt %s <- %s (%s) %p\n", obj->objectDir.c_str(), (void *)this, partName(B).c_str(), c->obj->objectDir.c_str(), bb, (void *)c);
+		}
 	}
 	void SetMyBolt(GhoulID B) { myBolt = B; }
 	GhoulID GetMyBolt() const { return myBolt; }
@@ -970,13 +989,13 @@ public:
 		}
 	}
 
-	int RayTrace(float Time, const Vect3 &start, const Vect3 &dir, HitRecord *Hits, int MaxHits)
+	/* every hit on this instance and its bolt-ons; parts that are off are skipped */
+	void rayAll(float Time, const Vect3 &start, const Vect3 &dir, std::vector<HitRecord> &out)
 	{
-		if (!on || MaxHits <= 0) return 0;
+		if (!on) return;
 		std::vector<float> v;
 		std::vector<int> parts;
 		worldTris(Time, v, parts);
-		int n = 0;
 		Vect3 d = dir;
 		for (size_t t = 0; t < parts.size(); t++)
 		{
@@ -1004,15 +1023,21 @@ public:
 			if (nrm[0] * d[0] + nrm[1] * d[1] + nrm[2] * d[2] > 0) nrm *= -1.0f;
 			h.Normal = nrm;
 			h.ContactPoint = Vect3(start[0] + d[0] * dist, start[1] + d[1] * dist, start[2] + d[2] * dist);
-			/* keep the hits sorted by distance */
-			int pos = n < MaxHits ? n : MaxHits - 1;
-			if (n >= MaxHits && dist >= Hits[MaxHits - 1].Distance) continue;
-			while (pos > 0 && Hits[pos - 1].Distance > dist) { Hits[pos] = Hits[pos - 1]; pos--; }
-			Hits[pos] = h;
-			if (n < MaxHits) n++;
+			out.push_back(h);
 		}
-		for (size_t i = 0; i < children.size() && n < MaxHits; i++)
-			n += children[i].inst->RayTrace(Time, start, dir, Hits + n, MaxHits - n);
+		for (size_t i = 0; i < children.size(); i++)
+			children[i].inst->rayAll(Time, start, dir, out);
+	}
+	/* hits sorted nearest first across the instance and its bolt-ons: the gore code walks
+	   them in order (first bolt-on hit can be shot off, last hit on the body is the exit wound) */
+	int RayTrace(float Time, const Vect3 &start, const Vect3 &dir, HitRecord *Hits, int MaxHits)
+	{
+		if (!on || MaxHits <= 0) return 0;
+		std::vector<HitRecord> all;
+		rayAll(Time, start, dir, all);
+		std::stable_sort(all.begin(), all.end(), [](const HitRecord &x, const HitRecord &y) { return x.Distance < y.Distance; });
+		int n = (int)all.size() < MaxHits ? (int)all.size() : MaxHits;
+		for (int i = 0; i < n; i++) Hits[i] = all[(size_t)i];
 		return n;
 	}
 	int BoxTrace(float Time, const Matrix4 &, const Vect3 &start, const Vect3 &end, const Vect3 &, const Vect3 &, HitRecord *Hits, int MaxHits)

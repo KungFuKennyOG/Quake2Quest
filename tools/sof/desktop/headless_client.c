@@ -263,3 +263,51 @@ void getVROrigins(vec3_t o, vec3_t a, vec3_t h)
 }
 float getFOV(void) { return 90.0f; }
 void SinCos(float radians, float *sine, float *cosine) { *sine = sinf(radians); *cosine = cosf(radians); }
+
+/* ---- main loop ----
+ * Replaces backends/unix/main.c (in this port Qcommon_Init returns and the VR surface drives
+ * frames). Runs the engine in real time at ~90 fps; RUN_MS=<ms> quits after that long. */
+#include <sys/stat.h>
+#include <unistd.h>
+#include <time.h>
+extern char datadir[];
+void registerHandler(void);
+void Qcommon_BeginFrame(int usec);
+void Qcommon_Frame(int eye);
+void Qcommon_EndFrame(int msec);
+int main(int argc, char **argv)
+{
+	int i, start, last, runms;
+	const char *rm = getenv("RUN_MS");
+	runms = rm ? atoi(rm) : 0;
+	registerHandler();
+	for (i = 0; i < argc - 1; i++)
+		if (!strcmp(argv[i], "-datadir") && !realpath(argv[i + 1], datadir))
+		{
+			printf("-datadir %s could not be found\n", argv[i + 1]);
+			return 1;
+		}
+	setenv("LC_ALL", "C", 1);
+	Qcommon_Init(argc, argv);
+	start = last = Sys_Milliseconds();
+	for (;;)
+	{
+		struct timespec ts = { 0, 11 * 1000 * 1000 };
+		int now, dt;
+		nanosleep(&ts, NULL);
+		now = Sys_Milliseconds();
+		dt = now - last;
+		last = now;
+		Qcommon_BeginFrame(dt * 1000);
+		Qcommon_Frame(0);
+		Qcommon_EndFrame(dt * 1000);
+		if (runms && now - start >= runms)
+		{
+			Com_Printf("[headless] RUN_MS %d reached, quitting\n", runms);
+			Cbuf_AddText("quit\n");
+			Cbuf_Execute();
+			break;
+		}
+	}
+	return 0;
+}

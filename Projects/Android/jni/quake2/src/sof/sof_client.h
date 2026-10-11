@@ -73,9 +73,19 @@ typedef struct
 	int local;                 /* follows the player (view weapon) */
 } soffxsound_t;
 
+/* a client-side GHOUL model (debris chunks): drawn and lit like an entity */
+typedef struct
+{
+	float origin[3];
+	float angles[3];
+	sofdraw_t draw;            /* in the model's own space */
+} soffxmodel_t;
+
 typedef struct
 {
 	sofdraw_t draw;            /* world-space quads, one mesh per texture/blend batch */
+	int nummodels;
+	const soffxmodel_t *models;
 	int numlights;
 	const soffxlight_t *lights;
 	int numsounds;

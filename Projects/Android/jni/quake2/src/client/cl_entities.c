@@ -1062,6 +1062,24 @@ CL_AddSoFEffects(void)
 		V_AddEntity(&ent);
 	}
 
+	for (i = 0; i < fx->nummodels; i++)
+	{
+		const soffxmodel_t *m = &fx->models[i];
+		entity_t ent = {0};
+
+		if (!m->draw.nummeshes)
+		{
+			continue;
+		}
+
+		ent.sofdraw = &m->draw;
+		VectorCopy(m->origin, ent.origin);
+		VectorCopy(m->origin, ent.oldorigin);
+		VectorCopy(m->angles, ent.angles);
+		ent.alpha = 1.0f;
+		V_AddEntity(&ent);
+	}
+
 	for (i = 0; i < fx->numlights; i++)
 	{
 		const soffxlight_t *l = &fx->lights[i];

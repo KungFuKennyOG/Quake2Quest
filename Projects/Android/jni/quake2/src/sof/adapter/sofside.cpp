@@ -49,6 +49,7 @@
 
 static void registerClientHooks(void);
 static void clearDrawCache(void);
+static void clearDebris(void);
 static void fxRegister(void);
 static void fxUnregister(void);
 extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
@@ -1015,6 +1016,7 @@ extern "C" void sofb_shutdown(void)
 	fxUnregister();
 	if (Pmove_SetSoFHeights) Pmove_SetSoFHeights(0);
 	clearDrawCache();
+	clearDebris();
 	if (sge) sge->Shutdown();
 	sge = 0;
 	Ghoul_Shutdown();
@@ -1027,6 +1029,7 @@ extern "C" void sofb_spawnentities(const char *mapname, const char *entities, co
 	Ghoul_SetLevelName(mapname);
 	g_effects.clear();
 	sfx::Clear();
+	clearDebris();
 	g_ghoulModelIndex = q2b_modelindex("#sofghoul");
 	refreshAllCvars();
 	sge->SpawnEntities((char *)mapname, (char *)entities, (char *)spawnpoint);
@@ -1284,17 +1287,12 @@ struct DrawCache
 static std::map<int, DrawCache> g_drawCache;
 static void clearDrawCache(void) { g_drawCache.clear(); }
 
-static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
+static const sofdraw_t *buildDrawAt(int key, IGhoulInst *inst, float time)
 {
 	if (!inst) return 0;
 	DrawCache &c = g_drawCache[key];
 	c.surfs.clear();
-	/* The client draws between the last two server frames (cl.lerpfrac); pose the models
-	   at that same moment so animation is smooth and in step with entity movement.
-	   g_frame * 0.1 is the time of the newest server frame. */
-	if (lerpfrac < 0) lerpfrac = 0; else if (lerpfrac > 1) lerpfrac = 1;
-	g_drawLerp = lerpfrac;
-	Ghoul_BuildDrawList(inst, ((float)g_frame - 1.0f + lerpfrac) * 0.1f, c.surfs);
+	Ghoul_BuildDrawList(inst, time, c.surfs);
 	c.meshes.resize(c.surfs.size());
 	for (size_t i = 0; i < c.surfs.size(); i++)
 	{
@@ -1316,6 +1314,16 @@ static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
 	c.draw.meshes = c.meshes.empty() ? 0 : &c.meshes[0];
 	c.draw.hasscope = 0;
 	return &c.draw;
+}
+
+static const sofdraw_t *buildDraw(int key, IGhoulInst *inst, float lerpfrac)
+{
+	/* The client draws between the last two server frames (cl.lerpfrac); pose the models
+	   at that same moment so animation is smooth and in step with entity movement.
+	   g_frame * 0.1 is the time of the newest server frame. */
+	if (lerpfrac < 0) lerpfrac = 0; else if (lerpfrac > 1) lerpfrac = 1;
+	g_drawLerp = lerpfrac;
+	return buildDrawAt(key, inst, ((float)g_frame - 1.0f + lerpfrac) * 0.1f);
 }
 
 static const sofdraw_t *hookEntityDraw(int num, float lerpfrac)
@@ -2233,25 +2241,13 @@ static void impactStone(const Impact &im, const float *dir, int size)
 }
 
 /* TE_WALLDAMAGE: bullet hole, impact sound and the surface's dust / sparks / splash */
-static void wallDamage(MsgReader &r, bool severe)
+/* what a bullet does to a surface: impact sound, a mark (decal sprite, 0 none) and the
+   surface's own reaction (dust, chips, sparks, splash...) */
+static void showImpact(const Impact &im, const float *dir, int decal, float fsize, int reactSize)
 {
-	Impact im;
-	if (!readImpact(r, im)) return;
-	float dir[3];
-	readDirExp(r, dir);
-	int size = r.byte(), markType = r.byte(), debris = r.byte();
-	(void)debris;
-	if (getenv("SOF_DEBUG"))
-	{
-		char b[200];
-		snprintf(b, sizeof(b), "[sof fx] wall damage at %.0f %.0f %.0f surf %d flags %x size %d mark %d debris %d\n",
-		         im.pos[0], im.pos[1], im.pos[2], im.surf, im.surfFlags, size, markType, debris);
-		q2b_dprint(b);
-	}
-	if (r.bad || im.surf < 0 || im.surf >= SOFSURF_NUM) return;
+	if (im.surf < 0 || im.surf >= SOFSURF_NUM) return;
 	if (im.surfFlags & 0x84) return; /* sky / no-draw */
 	const SurfImpact &si = g_surfImpact[im.surf];
-	float fsize = severe ? 6.0f : (float)size;
 
 	/* impact sound */
 	if ((fsize > 1.5f || fsize == 0) && im.surf != SOFSURF_BLOOD)
@@ -2264,8 +2260,7 @@ static void wallDamage(MsgReader &r, bool severe)
 	}
 
 	/* bullet hole */
-	int decal = markType == 1 ? si.decal : markType == 2 ? 34 : 0;
-	if (decal && markType == 1)
+	if (decal && fsize > 0)
 	{
 		if (fsize > 3) fsize = 3;
 		float half = fsize * 0.6f + frandr(0, 0.1f);
@@ -2275,16 +2270,484 @@ static void wallDamage(MsgReader &r, bool severe)
 
 	switch (si.handler)
 	{
-		case IH_PUFF: impactPuff(im, dir, size, 0); break;
-		case IH_STONE: impactStone(im, dir, size); break;
+		case IH_PUFF: impactPuff(im, dir, reactSize, 0); break;
+		case IH_STONE: impactStone(im, dir, reactSize); break;
 		case IH_EFFECT: sfx::StartAt(si.effect, im.pos, im.normal); break;
 		case IH_GLASS:
-			impactPuff(im, dir, (size > 2) + 1, 2);
+			impactPuff(im, dir, (reactSize > 2) + 1, 2);
 			sfx::PlaySound(clientSound(84), im.pos, 0, 0.6f, 1);
 			break;
 		case IH_SOUND: sfx::PlaySound(clientSound(39), im.pos, 0, 0.6f, 1); break;
 		default: break;
 	}
+}
+
+static void wallDamage(MsgReader &r, bool severe)
+{
+	Impact im;
+	if (!readImpact(r, im)) return;
+	float dir[3];
+	readDirExp(r, dir);
+	int size = r.byte(), markType = r.byte(), debris = r.byte();
+	(void)debris;
+	if (getenv("SOF_DEBUG"))
+	{
+		char b[200];
+		snprintf(b, sizeof(b), "[sof fx] wall damage at %.0f %.0f %.0f normal %.2f %.2f %.2f surf %d flags %x size %d mark %d debris %d\n",
+		         im.pos[0], im.pos[1], im.pos[2], im.normal[0], im.normal[1], im.normal[2], im.surf, im.surfFlags, size, markType, debris);
+		q2b_dprint(b);
+	}
+	if (r.bad || im.surf < 0 || im.surf >= SOFSURF_NUM) return;
+	int decal = markType == 1 ? g_surfImpact[im.surf].decal : 0;
+	showImpact(im, dir, decal, severe ? 6.0f : (float)size, size);
+}
+
+/* TE_SPAS: the shotgun's ten pellets are traced on the client: each that hits leaves a
+   small hole (the first a big one) and the surface's dust */
+static void spas(MsgReader &r)
+{
+	float start[3], fwd[3];
+	r.pos(start);
+	r.pos(fwd);
+	if (r.bad) return;
+	for (int k = 0; k < 3; k++) fwd[k] *= 0.03125f;
+	for (int i = 0; i < 10; i++)
+	{
+		float d[3] = { fwd[0] + frandr(-0.15f, 0.15f), fwd[1] + frandr(-0.15f, 0.15f), fwd[2] + frandr(-0.08f, 0.08f) };
+		float len = frandr(256, 640), end[3];
+		for (int k = 0; k < 3; k++) end[k] = start[k] + d[k] * len;
+		q2b_trace_t t;
+		q2b_trace(start, 0, 0, end, -1, 1 /* CONTENTS_SOLID */, &t);
+		if (getenv("SOF_DEBUG"))
+		{
+			char b[200];
+			snprintf(b, sizeof(b), "[sof fx] spas pellet %d frac %.2f start %d end %.0f %.0f %.0f surf %d\n", i, t.fraction,
+			         t.startsolid, t.endpos[0], t.endpos[1], t.endpos[2], (int)(((unsigned)t.surfflags) >> 24));
+			q2b_dprint(b);
+		}
+		if (t.fraction >= 1 || t.startsolid) continue;
+		Impact im;
+		cp3(t.endpos, im.pos);
+		cp3(t.normal, im.normal);
+		im.surf = (int)(((unsigned)t.surfflags) >> 24);
+		im.surfFlags = t.surfflags;
+		float size = i == 0 ? 4.0f : frandr(0.5f, 1.5f);
+		showImpact(im, fwd, 13 /* bhole2 */, size, (int)frandr(2, 4));
+	}
+}
+
+/* decals go on the world (and on brush models of one kind), like SoF's decal code */
+static bool decalSurfaceOk(const Impact &im) { return im.surf >= 0 && !(im.surfFlags & 0x84); }
+
+/* TE_BLOODSPRAY: blood thrown onto the wall behind someone who was shot. SoF: one of the
+   three blood globs (sprites 1-3), dark red 80-160, alpha 175-250, 8-16 units across */
+static void bloodSpray(MsgReader &r)
+{
+	Impact im;
+	if (!readImpact(r, im) || r.bad || !decalSurfaceOk(im)) return;
+	int sprite = 1 + rand() % 3;
+	unsigned char c[4] = { (unsigned char)(80 + rand() % 81), 0, 0, (unsigned char)(175 + rand() % 76) };
+	sfx::Decal(sfx::SpriteName(sprite), im.pos, im.normal, frandr(8, 16), c);
+}
+
+static int irandr(int a, int b) { return a + rand() % (b - a + 1); }
+
+/* TE_ORANGE_SPARKS / TE_BLUE_SPARKS / TE_BARREL_SPARKS: an electric crackle, a flash with a
+   short light and fourteen sparks falling away from the surface */
+static void sparks(MsgReader &r, int type)
+{
+	float p[3], dir[3];
+	r.pos(p);
+	r.pos(dir); /* the adapter sends directions as three floats */
+	if (r.bad) return;
+	bool blue = type == TE_BLUE_SPARKS;
+	char snd[64];
+	snprintf(snd, sizeof(snd), "Ambient/Gen/Electric/spark%d.wav", (rand() & 1) + 1);
+	sfx::PlaySound(snd, p, 0, 1, 1);
+
+	sfx::Raw f;
+	f.tex = sfx::SpriteName(16); /* flare */
+	f.life = 0.5f;
+	f.blend = 1;
+	for (int k = 0; k < 3; k++) f.pos[k] = p[k] + dir[k];
+	f.size0 = f.size1 = 20;
+	f.grow0 = f.grow1 = -40;
+	f.rot = frandr(0, 6.28f);
+	f.rotVel = frandr(-18.84f, 18.84f);
+	if (blue) { f.rgba[0] = irandr(120, 170); f.rgba[1] = irandr(150, 200); f.rgba[2] = irandr(220, 250); f.rgba[3] = 250; }
+	else { f.rgba[0] = irandr(200, 250); f.rgba[1] = irandr(200, 250); f.rgba[2] = irandr(200, 250); f.rgba[3] = 250; }
+	sfx::SpawnRaw(f);
+	static const unsigned char lightBlue[3] = { 130, 128, 160 }, lightOrange[3] = { 157, 160, 128 };
+	sfx::SpawnLight(f.pos, 128, blue ? lightBlue : lightOrange, 0.5f);
+
+	for (int i = 1; i < 15; i++)
+	{
+		sfx::Raw s;
+		s.tex = sfx::SpriteName(blue ? 15 : 10); /* sparkpartblue / sparkpart */
+		s.life = 1.2f;
+		s.blend = 1;
+		for (int k = 0; k < 3; k++)
+		{
+			s.pos[k] = (float)(rand() & 3) + p[k] - 1.0f;
+			s.vel[k] = (float)irandr(-32, 32) + (float)irandr(32, 160) * (frandr(-0.1f, 0.1f) + dir[k]);
+		}
+		s.acc[2] = -300;
+		s.size0 = s.size1 = frandr(0.5f, 1.5f);
+		s.grow0 = s.grow1 = -s.size0 * 0.8333f;
+		s.rgba[0] = irandr(200, 250); s.rgba[1] = irandr(200, 250); s.rgba[2] = irandr(200, 250); s.rgba[3] = 250;
+		sfx::SpawnRaw(s);
+	}
+}
+
+/* where the client views from (for sounds placed relative to the player) */
+static float g_fxViewOrg[3];
+
+/* TE_WHIZBULLET: a near miss cracks past the player's head (sent to that player only) */
+static void whizBullet(MsgReader &r)
+{
+	int len = r.byte();
+	float off[3], dir[3];
+	r.pos(off);
+	r.pos(dir);
+	r.byte(); r.byte();
+	if (r.bad) return;
+	float p[3];
+	for (int k = 0; k < 3; k++) p[k] = g_fxViewOrg[k] + off[k] * 0.001f * (float)len;
+	const char *snd = clientSound(48 + (rand() & 3));
+	if (snd) sfx::PlaySound(snd, p, 0, 1, 1);
+}
+
+/* TE_RICOCHET: a ricochet whine */
+static void ricochet(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	if (r.bad) return;
+	const char *snd = clientSound(34 + rand() % 3);
+	if (snd) sfx::PlaySound(snd, p, 0, 1, 1);
+}
+
+/* TE_WALLSTRIKE: something (a knife, a thrown weapon) strikes a wall: the surface's
+   impact sound and a strike */
+static void wallStrike(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int surf = r.byte();
+	if (r.bad || surf >= SOFSURF_NUM) return;
+	const char *a = clientSound(g_surfImpact[surf].sound == 44 ? 79 + rand() % 3 : g_surfImpact[surf].sound), *b = clientSound(101);
+	if (a) sfx::PlaySound(a, p, 0, 1, 1);
+	if (b) sfx::PlaySound(b, p, 0, 1, 1);
+}
+
+/* TE_WALLSPARKS: a bright flash and eight blue-white streaks */
+static void wallSparks(MsgReader &r)
+{
+	float p[3], dir[3];
+	r.pos(p);
+	r.pos(dir);
+	r.byte();
+	if (r.bad) return;
+	const char *snd = clientSound(69);
+	if (snd) sfx::PlaySound(snd, p, 0, 0.6f, 1);
+	sfx::Raw f;
+	f.tex = sfx::SpriteName(16);
+	f.life = 0.2f;
+	f.blend = 1;
+	cp3(p, f.pos);
+	f.size0 = f.size1 = 5;
+	f.grow0 = f.grow1 = -25;
+	f.rot = frandr(0, 6.28f);
+	f.rotVel = frandr(-18.84f, 18.84f);
+	f.rgba[0] = irandr(120, 170); f.rgba[1] = irandr(150, 200); f.rgba[2] = irandr(220, 250); f.rgba[3] = 250;
+	sfx::SpawnRaw(f);
+	for (int i = 0; i < 8; i++)
+	{
+		float d[3];
+		for (int k = 0; k < 3; k++) d[k] = frandr(-0.25f, 0.25f) * 600 + dir[k];
+		sfx::Raw l;
+		l.tex = sfx::SpriteName(14); /* lightning */
+		l.life = 0.2f;
+		l.blend = 1;
+		l.line = true;
+		cp3(p, l.pos);
+		for (int k = 0; k < 3; k++) { l.end[k] = p[k] + d[k] * 0.025f; l.vel[k] = d[k]; l.endVel[k] = d[k] * 1.5f; }
+		l.size0 = l.size1 = 1;
+		l.grow0 = l.grow1 = -3;
+		l.rgba[0] = 100; l.rgba[1] = 100; l.rgba[2] = 250; l.rgba[3] = 250;
+		l.alphaRate = -250 * 5.0f;
+		sfx::SpawnRaw(l);
+	}
+}
+
+/* ---- debris (TE_DEBRIS): SoF's client throws GHOUL chunk models that tumble, bounce off
+   the world and then lie where they land. cl_max_debris (128) are kept, the newest
+   fx_maxdebrisonscreen (16) are shown and older ones go away. Flesh debris is gibs. */
+struct DebrisModel { const char *dir, *file; int parts; };
+static const DebrisModel g_debrisModels[18] =
+{
+	{ "objects/generic/chunks_brick", "brick", 3 },
+	{ "objects/generic/chunks_glass", "glass_sm", 3 }, { "objects/generic/chunks_glass", "glass_med", 3 },
+	{ "objects/generic/chunks_glass", "glass_lrg", 3 },
+	{ "objects/generic/chunks_metal", "metal_sm", 4 }, { "objects/generic/chunks_metal", "metal_med", 4 },
+	{ "objects/generic/chunks_metal", "metal_lg", 4 },
+	{ "objects/generic/chunks_rock", "rock_sm", 4 }, { "objects/generic/chunks_rock", "rock_med", 4 },
+	{ "objects/generic/chunks_rock", "rock_lg", 4 }, { "objects/generic/chunks_rock", "rock_tiny", 4 },
+	{ "objects/generic/chunks_wall", "wall_sm", 4 }, { "objects/generic/chunks_wall", "wall_med", 4 },
+	{ "objects/generic/chunks_wall", "wall_lrg", 4 }, { "objects/generic/chunks_wall", "wall_tiny", 4 },
+	{ "objects/generic/chunks_wood", "wood_sm", 3 }, { "objects/generic/chunks_wood", "wood_med", 3 },
+	{ "objects/generic/chunks_wood", "wood_large", 3 },
+};
+/* part names of each model's pieces, in model order (one is shown per chunk) */
+static const char *const g_debrisParts[] =
+{
+	"CHUNK_1", "CHUNK_2", "CHUNK_3",
+	"GLASS01", "GLASS02", "GLASS03", "GLASS01", "GLASS02", "GLASS03", "GLASS01", "GLASS02", "GLASS03",
+	"METAL1", "METAL2", "METAL3", "METAL4", "METAL1", "METAL2", "METAL3", "METAL4", "METAL1", "METAL2", "METAL3", "METAL4",
+	"ROCK1", "ROCK2", "ROCK3", "ROCK4", "ROCK1", "ROCK2", "ROCK3", "ROCK4", "ROCK1", "ROCK2", "ROCK3", "ROCK4",
+	"ROCK1", "ROCK2", "ROCK3", "ROCK4",
+	"_LITTLECHUNK", "_SMALLCHUNK", "_MEDIUMCHUNK", "_LARGECHUNK", "_LITTLECHUNK", "_SMALLCHUNK", "_MEDIUMCHUNK", "_LARGECHUNK",
+	"_LITTLECHUNK", "_SMALLCHUNK", "_MEDIUMCHUNK", "_LARGECHUNK", "_LITTLECHUNK", "_SMALLCHUNK", "_MEDIUMCHUNK", "_LARGECHUNK",
+	"WOOD1", "WOOD2", "WOOD3", "WOOD4", "WOOD1", "WOOD2", "WOOD3", "WOOD4", "WOOD1", "WOOD2", "WOOD3", "WOOD4",
+};
+/* debris material (the game's MAT_* numbers): model material, skin and model */
+struct DebrisMat { const char *mat, *skin; int model; };
+static const DebrisMat g_debrisMats[35] =
+{
+	{ "", "", 0 },
+	{ "Brick", "brwn_lt", 0 }, { "Brick", "brwn_dk", 0 }, { "Brick", "brwn_lt", 0 }, { "Brick", "grey_lt", 0 },
+	{ "Brick", "grey_dk", 0 }, { "Brick", "red", 0 },
+	{ "Glass", "glass", 1 },
+	{ "Metal", "light", 4 }, { "Metal", "dark", 4 }, { "Metal", "rusty", 4 }, { "Metal", "shiny", 4 },
+	{ "Rock", "brwn_lt", 7 }, { "Rock", "brwn_lt", 7 }, { "Rock", "brwn_dk", 7 }, { "Rock", "grey_dk", 7 }, { "Rock", "grey_dk", 7 },
+	{ "Wood", "brwn_lt", 15 }, { "Wood", "brwn_dk", 15 }, { "Wood", "grey_dk", 15 }, { "Wood", "grey_lt", 15 },
+	{ "Wall", "black", 11 }, { "Wall", "brown", 11 }, { "Wall", "dbrown", 11 }, { "Wall", "lbrown", 11 },
+	{ "Wall", "grey", 11 }, { "Wall", "dgrey", 11 }, { "Wall", "lgrey", 11 }, { "Wall", "green", 11 },
+	{ "Wall", "orange_cone", 11 }, { "Wall", "red", 11 }, { "Wall", "white", 11 },
+	{ "Rock", "flesh", 7 },
+	{ "Wall", "straw", 11 },
+	{ "Rock", "snow", 7 },
+};
+enum { DEBRIS_MAT_FLESH = 32 };
+
+struct Chunk
+{
+	IGhoulInst *inst;
+	float pos[3], vel[3], acc[3], ang[3], avel[3];
+	int bounce;      /* 0 none, else index into g_bounceBox */
+	bool settling;   /* still moving (SoF's think: tips over flat as it slows) */
+};
+/* trace box per bounce type; SoF bounces everything with elasticity 0.7 */
+static const float g_bounceBox[9] = { 0, 0, 0, 0, 0, 0, 0, 5, 10 };
+static std::vector<Chunk> g_chunks;   /* oldest first */
+static IGhoulObj *g_debrisObj[18];
+static float g_debrisTime = -1;
+
+static void killChunk(Chunk &c) { if (c.inst) c.inst->Destroy(); c.inst = 0; }
+static void clearDebris(void)
+{
+	for (size_t i = 0; i < g_chunks.size(); i++) killChunk(g_chunks[i]);
+	g_chunks.clear();
+	for (int i = 0; i < 18; i++) g_debrisObj[i] = 0; /* owned by the client GHOUL */
+	g_debrisTime = -1;
+}
+
+static IGhoulObj *debrisObject(int model)
+{
+	if (model < 0 || model >= 18) return 0;
+	if (!g_debrisObj[model])
+	{
+		IGhoul *g = Ghoul_Get(true, false);
+		if (!g) return 0;
+		IGhoulObj *o = g->NewObj();
+		char path[128];
+		snprintf(path, sizeof(path), "ghoul/%s/%s.ghl", g_debrisModels[model].dir, g_debrisModels[model].file);
+		o->RegisterSequence(path);
+		o->RegisterEverything(true);
+		g_debrisObj[model] = o;
+	}
+	return g_debrisObj[model];
+}
+
+/* a little grey dust where every fifth chunk starts (not for gibs) */
+static void debrisDust(const float *p)
+{
+	sfx::Raw d;
+	d.tex = sfx::SpriteName(0);
+	d.life = 1.2f;
+	cp3(p, d.pos);
+	d.vel[2] = 30;
+	d.acc[2] = 100;
+	d.size0 = d.size1 = 10;
+	d.rgba[0] = d.rgba[1] = d.rgba[2] = 170; d.rgba[3] = 200;
+	d.alphaRate = -200 * 1.6667f;
+	d.rot = (float)(rand() % 628) * 0.01f;
+	d.rotVel = (float)(rand() % 628) * 0.01f;
+	sfx::SpawnRaw(d);
+}
+
+static void throwDebris(MsgReader &r)
+{
+	float org[3], dir[3];
+	r.pos(org);
+	r.pos(dir);
+	int num = r.byte(), scale = r.byte(), mat = r.byte();
+	int xm = r.byte(), ym = r.byte(), zm = r.byte(), surf = r.byte();
+	if (r.bad) return;
+	if (mat < 0 || mat >= 35 || !g_debrisMats[mat].mat[0]) mat = 8;
+	const DebrisMat &dm = g_debrisMats[mat];
+	int model = (mat < 7 || mat > 34) ? dm.model : dm.model - 1 + scale;
+	if (model < 0 || model >= 18) model = dm.model;
+	IGhoulObj *obj = debrisObject(model);
+	int firstPart = 0;
+	for (int m = 0; m < model; m++) firstPart += g_debrisModels[m].parts;
+	GhoulID gmat = obj ? obj->FindMaterial(dm.mat) : 0;
+	GhoulID gskin = gmat ? obj->FindSkin(gmat, dm.skin) : 0;
+	int bounce = 6;
+	if (mat >= 12 && mat <= 16) bounce = scale == 2 ? 7 : scale == 3 ? 8 : 6;
+
+	for (int i = 0; i < num; i++)
+	{
+		Chunk c;
+		memset(&c, 0, sizeof(c));
+		if (surf == 35 || (surf == 37 && !(dir[0] || dir[1] || dir[2])))
+		{
+			c.vel[0] = (float)irandr(-100, 100); c.vel[1] = (float)irandr(-100, 100); c.vel[2] = (float)irandr(-10, 100);
+			c.acc[2] = -400;
+		}
+		else if (surf == 37)
+		{
+			float s = frandr(50, 100);
+			for (int k = 0; k < 3; k++) c.vel[k] = (dir[k] + frandr(-0.05f, 0.05f)) * s;
+			c.vel[2] += frandr(100, 300);
+			c.acc[2] = -400;
+		}
+		else
+		{
+			for (int k = 0; k < 3; k++) c.vel[k] = (float)irandr(-300, 300);
+			c.acc[2] = -800;
+		}
+		for (int k = 0; k < 3; k++) c.avel[k] = (float)irandr(-900, 900);
+		c.pos[0] = org[0] + (float)irandr(-xm, xm);
+		c.pos[1] = org[1] + (float)irandr(-ym, ym);
+		c.pos[2] = org[2] + (float)irandr(-zm, zm);
+		c.bounce = bounce;
+		c.settling = true;
+		if (i % 5 == 0 && mat != DEBRIS_MAT_FLESH) debrisDust(c.pos);
+		if (obj)
+		{
+			c.inst = obj->NewInst();
+			if (gmat && gskin) c.inst->SetFrameOverride(gmat, gskin, 0);
+			c.inst->SetAllPartsOnOff(false);
+			GhoulID part = obj->FindPart(g_debrisParts[firstPart + rand() % g_debrisModels[model].parts]);
+			if (part) c.inst->SetPartOnOff(part, true);
+		}
+		g_chunks.push_back(c);
+	}
+	while (g_chunks.size() > 128) { killChunk(g_chunks.front()); g_chunks.erase(g_chunks.begin()); }
+
+	/* the landing sound of the material */
+	if (!gmat || !gskin) return;
+	int snd; float vol = 0.9f;
+	if (surf == 37 || surf == 38) { snd = scale == 3 ? 82 : scale == 2 ? 83 : 84; vol = 0.6f; }
+	else if (surf >= 17 && surf <= 24) snd = 86;
+	else if (surf >= 14 && surf <= 16) snd = 87;
+	else if (surf == 28 || surf == 42 || (surf >= 29 && surf <= 32)) snd = 85;
+	else if (surf == 35) snd = 45 + rand() % 3;
+	else snd = 86;
+	if (clientSound(snd)) sfx::PlaySound(clientSound(snd), org, 0, vol, 1);
+}
+
+/* move the chunks: gravity, bounce (elasticity 0.7, stop below 30 units/s), tumble */
+static void runDebris(float time)
+{
+	if (g_debrisTime < 0 || time < g_debrisTime) g_debrisTime = time;
+	float dt = time - g_debrisTime;
+	g_debrisTime = time;
+	if (dt > 0.1f) dt = 0.1f;
+	/* only the newest 16 stay */
+	while (g_chunks.size() > 16) { killChunk(g_chunks.front()); g_chunks.erase(g_chunks.begin()); }
+	for (size_t i = 0; i < g_chunks.size(); )
+	{
+		Chunk &c = g_chunks[i];
+		bool dead = false, moving = c.vel[0] || c.vel[1] || c.vel[2] || c.acc[2];
+		if (moving && dt > 0)
+		{
+			for (int k = 0; k < 3; k++) c.vel[k] += c.acc[k] * dt;
+			float end[3];
+			for (int k = 0; k < 3; k++) end[k] = c.pos[k] + c.vel[k] * dt;
+			float b = g_bounceBox[c.bounce < 9 ? c.bounce : 0];
+			float mins[3] = { -b, -b, -b }, maxs[3] = { b, b, b };
+			q2b_trace_t t;
+			q2b_trace(c.pos, mins, maxs, end, -1, 1 /* CONTENTS_SOLID */, &t);
+			if (t.fraction <= 0.99f)
+			{
+				if (((unsigned)t.surfflags & 0x84) && t.fraction < 1) { dead = true; }
+				else
+				{
+					cp3(t.endpos, c.pos);
+					float e = -0.7f, d = 0;
+					for (int k = 0; k < 3; k++) d += t.normal[k] * e * c.vel[k];
+					d *= 1.8f;
+					for (int k = 0; k < 3; k++) c.vel[k] = t.normal[k] * d - e * c.vel[k];
+					if (fabsf(c.vel[0]) < 30 && fabsf(c.vel[1]) < 30 && fabsf(c.vel[2]) < 30)
+						c.vel[0] = c.vel[1] = c.vel[2] = 0;
+					for (int k = 0; k < 3; k++) c.avel[k] *= 0.9f;
+					if (!c.vel[0] && !c.vel[1] && !c.vel[2])
+					{
+						c.acc[2] = 0;
+						c.avel[0] = c.avel[1] = c.avel[2] = 0;
+					}
+				}
+			}
+			else cp3(end, c.pos);
+		}
+		for (int k = 0; k < 3; k++) c.ang[k] += c.avel[k] * dt;
+		/* SoF's chunk think: below 80 units/s it tips over flat */
+		if (c.settling && !dead)
+		{
+			float sp = sqrtf(c.vel[0] * c.vel[0] + c.vel[1] * c.vel[1] + c.vel[2] * c.vel[2]);
+			if (sp <= 80)
+			{
+				float f = sp * 0.0125f;
+				if (f < 0.1f)
+				{
+					c.ang[0] = c.ang[2] = 0;
+					c.vel[0] = c.vel[1] = c.vel[2] = 0;
+					c.avel[0] = c.avel[1] = c.avel[2] = 0;
+					c.settling = false;
+				}
+				else { c.ang[0] *= f; c.ang[2] *= f; }
+			}
+		}
+		if (dead) { killChunk(c); g_chunks.erase(g_chunks.begin() + (long)i); continue; }
+		i++;
+	}
+}
+
+/* TE_BLOODPOOL / TE_SCORCHMARK / TE_OOZE / TE_PIPELEFT / TE_PUDDLE: a mark on the floor
+   up to 256 units below a point (SoF's FX_MakeDecalBelow) */
+static void decalBelow(MsgReader &r, int type)
+{
+	float p[3], end[3];
+	r.pos(p);
+	r.lng(); /* lifetime: SoF's client keeps these marks */
+	if (r.bad) return;
+	end[0] = p[0]; end[1] = p[1]; end[2] = p[2] - 256;
+	q2b_trace_t t;
+	q2b_trace(p, 0, 0, end, -1, 1 /* CONTENTS_SOLID */, &t);
+	if (t.fraction >= 1) return;
+	int sprite; float size; unsigned char c[4];
+	switch (type)
+	{
+		case TE_BLOODPOOL: sprite = 4; size = 2; c[0] = 100; c[1] = 0; c[2] = 0; c[3] = 250; break;
+		case TE_SCORCHMARK: sprite = 26; size = 6; c[0] = 255; c[1] = 250; c[2] = 250; c[3] = 255; break;
+		case TE_PIPELEFT: sprite = 32; size = 2; c[0] = 255; c[1] = 250; c[2] = 250; c[3] = 255; break;
+		case TE_PUDDLE: sprite = 56; size = 2; c[0] = 170; c[1] = 190; c[2] = 250; c[3] = 200; break;
+		default: return; /* TE_OOZE: SoF's client draws nothing */
+	}
+	if ((unsigned)t.surfflags & 0x84) return;
+	sfx::Decal(sfx::SpriteName(sprite), t.endpos, t.normal, size, c);
 }
 
 /* ---- entity events (footsteps, landing, bullet cracks): SoF's client plays these for
@@ -2399,6 +2862,16 @@ static bool parseTempEnt(MsgReader &r)
 	{
 		case TE_WALLDAMAGE: wallDamage(r, false); break;
 		case TE_WALLSEVEREDAMAGE: wallDamage(r, true); break;
+		case TE_BLOODSPRAY: bloodSpray(r); break;
+		case TE_ORANGE_SPARKS: case TE_BLUE_SPARKS: case TE_BARREL_SPARKS: sparks(r, type); break;
+		case TE_DEBRIS: throwDebris(r); break;
+		case TE_SPAS: spas(r); break;
+		case TE_WHIZBULLET: whizBullet(r); break;
+		case TE_RICOCHET: ricochet(r); break;
+		case TE_WALLSTRIKE: wallStrike(r); break;
+		case TE_WALLSPARKS: wallSparks(r); break;
+		case TE_BLOODPOOL: case TE_SCORCHMARK: case TE_OOZE: case TE_PIPELEFT: case TE_PUDDLE:
+			decalBelow(r, type); break;
 		default: break; /* not decoded yet */
 	}
 	return false; /* one temp entity per message */
@@ -2617,6 +3090,7 @@ static sfx::Output g_fxOut;
 static std::vector<sofmesh_t> g_fxMeshes;
 static std::vector<soffxlight_t> g_fxLights;
 static std::vector<soffxsound_t> g_fxSounds;
+static std::vector<soffxmodel_t> g_fxModels;
 static soffxframe_t g_fxFrame;
 
 static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const float *viewangles,
@@ -2630,6 +3104,7 @@ static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const f
 		g_gunScale = gunscale > 0 ? gunscale : 1;
 	}
 	vec3_t f, r, u, va;
+	cp3(vieworg, g_fxViewOrg);
 	cp3(viewangles, va);
 	angleVectors(va, f, r, u);
 	sfx::Run(time, vieworg, r, u, g_fxOut);
@@ -2653,6 +3128,21 @@ static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const f
 	}
 	g_fxFrame.draw.nummeshes = (int)g_fxMeshes.size();
 	g_fxFrame.draw.meshes = g_fxMeshes.empty() ? 0 : &g_fxMeshes[0];
+
+	/* debris chunks: client-side GHOUL models (keys below the view weapons' -clients) */
+	runDebris(time);
+	g_fxModels.resize(g_chunks.size());
+	for (size_t i = 0; i < g_chunks.size(); i++)
+	{
+		soffxmodel_t &m = g_fxModels[i];
+		const Chunk &c = g_chunks[i];
+		cp3(c.pos, m.origin);
+		cp3(c.ang, m.angles);
+		const sofdraw_t *d = c.inst ? buildDrawAt(-1000 - (int)i, c.inst, time) : 0;
+		if (d) m.draw = *d; else memset(&m.draw, 0, sizeof(m.draw));
+	}
+	g_fxFrame.nummodels = (int)g_fxModels.size();
+	g_fxFrame.models = g_fxModels.empty() ? 0 : &g_fxModels[0];
 
 	g_fxLights.resize(g_fxOut.lights.size());
 	for (size_t i = 0; i < g_fxOut.lights.size(); i++)
@@ -2704,5 +3194,6 @@ static void fxUnregister(void)
 	if (CL_SoF_RegisterFxHook) CL_SoF_RegisterFxHook(0);
 	Ghoul_SetNoteHook(0);
 	sfx::Clear();
+	clearDebris();
 }
 

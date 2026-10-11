@@ -114,13 +114,17 @@ struct Raw
 	int blend;                  /* 0 alpha, 1 additive, 2 subtractive */
 	bool oriented;              /* lies in the plane of normal instead of facing the camera */
 	float normal[3];
-	Raw() : life(1), size0(1), size1(1), grow0(0), grow1(0), rot(0), rotVel(0), alphaRate(0), blend(0), oriented(false)
+	bool line;                  /* a streak from pos to end (size0 = half width) */
+	float end[3], endVel[3];
+	Raw() : life(1), size0(1), size1(1), grow0(0), grow1(0), rot(0), rotVel(0), alphaRate(0), blend(0), oriented(false), line(false)
 	{
-		for (int i = 0; i < 3; i++) pos[i] = vel[i] = acc[i] = normal[i] = 0;
+		for (int i = 0; i < 3; i++) pos[i] = vel[i] = acc[i] = normal[i] = end[i] = endVel[i] = 0;
 		rgba[0] = rgba[1] = rgba[2] = rgba[3] = 255;
 	}
 };
 void SpawnRaw(const Raw &r);
+/* a dynamic light for a while (temp entities: spark flashes, explosions) */
+void SpawnLight(const float *org, float radius, const unsigned char rgb[3], float life);
 /* a mark on a surface (bullet hole, scorch): oriented, long lived, oldest recycled first */
 void Decal(const char *tex, const float *pos, const float *normal, float halfSize, const unsigned char rgba[4]);
 void PlaySound(const char *name, const float *org, int ent, float volume, float attenuation);

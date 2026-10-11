@@ -803,8 +803,9 @@ static Particle rawToParticle(const Raw &r)
 {
 	Particle p;
 	memset(&p, 0, sizeof(p));
-	p.type = r.oriented ? PT_ORIENTED : PT_SPRITE;
+	p.type = r.line ? PT_LINE : r.oriented ? PT_ORIENTED : PT_SPRITE;
 	vcopy(r.pos, p.pos); vcopy(r.vel, p.vel); vcopy(r.acc, p.acc); vcopy(r.normal, p.axis);
+	vcopy(r.end, p.end); vcopy(r.endVel, p.endVel);
 	p.size0 = r.size0; p.size1 = r.size1; p.grow0 = r.grow0; p.grow1 = r.grow1;
 	p.rot = r.rot; p.rotVel = r.rotVel;
 	p.rgb[0] = r.rgba[0]; p.rgb[1] = r.rgba[1]; p.rgb[2] = r.rgba[2];
@@ -818,6 +819,16 @@ static Particle rawToParticle(const Raw &r)
 	p.tex = intern(r.tex);
 	p.effect = -1;
 	return p;
+}
+
+void SpawnLight(const float *org, float radius, const unsigned char rgb[3], float life)
+{
+	TimedLight t;
+	vcopy(org, t.l.org);
+	t.radius0 = t.l.radius = radius;
+	for (int k = 0; k < 3; k++) t.l.rgb[k] = rgb[k] / 255.0f;
+	t.die = g_time + (life > 0 ? life : 0.1f);
+	g_timedLights.push_back(t);
 }
 
 void SpawnRaw(const Raw &r)
