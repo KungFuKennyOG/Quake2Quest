@@ -2779,6 +2779,34 @@ static void addEmitter(int kind, const float *pos, float freqMs, float jitter)
 }
 static void fireEmitter(const ExpEmitter &e, float now)
 {
+	if (e.kind == 5)
+	{
+		/* MPG blast: a column of smoke from the ground */
+		float p[3] = { e.pos[0] + frandr(-10, 10), e.pos[1] + frandr(-10, 10), e.pos[2] };
+		float vel[3] = { 0, 0, 50 }, acc[3] = { 0, 0, 400 };
+		int c = irandr(120, 250);
+		spr((rand() & 1) ? 16 : 0, 500, 1, p, 30, c, c, c, irandr(0, 6), frandr(0, 6.28f), vel, acc, frandr(-1, 1), -30, 0);
+		return;
+	}
+	if (e.kind == 3 || e.kind == 4)
+	{
+		float frac = 1 - (now - e.born) / 0.5f;
+		if (frac <= 0.5f) return;
+		float size = (frac + 1) * 16;
+		int n = irandr(3, 6);
+		for (int i = 0; i < n; i++)
+		{
+			float p[3] = { e.pos[0], e.pos[1], e.pos[2] + frandr(12, 16) };
+			float d[3] = { frandr(-100, 100), frandr(-100, 100), frandr(-40, 80) };
+			normalize3(d);
+			float vel[3], acc[3];
+			for (int k = 0; k < 3; k++) { vel[k] = d[k] * 600; acc[k] = vel[k] * -2; }
+			acc[2] += 300;
+			if (e.kind == 3) { int c = irandr(150, 250); spr(0, 500, 0, p, size, c, c, c, 130, randRot(), vel, acc, randRot(), size * 2, -260); }
+			else spr(0, 500, 1, p, size, 250, 250, 250, 150, randRot(), vel, acc, randRot(), size * 2, -300);
+		}
+		return;
+	}
 	float frac = 1 - (now - e.born) / 1.5f;
 	if (e.kind == 2)
 	{
@@ -2819,7 +2847,7 @@ static void addFireChunk(int kind, const float *pos, const float *vel, float acc
 	FireChunk f;
 	cp3(pos, f.pos); cp3(vel, f.vel); cp3(acc, f.acc);
 	f.die = g_fxNow + lifeMs * 0.001f;
-	f.interval = kind == 0 ? 0.075f : 0.05f;
+	f.interval = kind == 1 ? 0.05f : 0.075f;
 	f.next = g_fxNow + f.interval;
 	f.size0 = f.size1 = size;
 	f.grow = grow;
@@ -2838,7 +2866,13 @@ static void fireTrail(const FireChunk &f)
 		float acc[3] = { 0, 0, 50 };
 		spr(52, 1000, 2, f.pos, f.size0 * sc, 255, 255, 255, 250, frandr(0, 6.28f), 0, acc, frandr(-3, 3), 20, -250);
 	}
-	else spr(47, 500, 1, f.pos, f.size0, r, g, b, 250, frandr(0, 6.28f), vel, 0, frandr(-3, 3), -8, -500);
+	else if (f.kind == 1) spr(47, 500, 1, f.pos, f.size0, r, g, b, 250, frandr(0, 6.28f), vel, 0, frandr(-3, 3), -8, -500);
+	else
+	{
+		float sc = frandr(0.85f, 1.15f);
+		spr(irandr(51, 53), 1000, 1, f.pos, f.size0 * sc * 2, irandr(200, 255), 255, irandr(225, 255), 255, frandr(0, 6.28f), 0, 0,
+		    frandr(-3, 3), -4, -255);
+	}
 }
 
 static void clearExplosions(void) { g_expEmitters.clear(); g_fireChunks.clear(); }
@@ -3027,6 +3061,95 @@ static void c4Explode(MsgReader &r)
 		g_chunks.push_back(c);
 	}
 	while (g_chunks.size() > 128) { killChunk(g_chunks.front()); g_chunks.erase(g_chunks.begin()); }
+}
+
+/* TE_WHITEBLAST: the microwave gun's blast - white fire, streaks, smoke and smoke columns
+   rising from the ground around it */
+static void whiteBlast(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	if (r.bad) return;
+	for (int i = irandr(3, 4); i > 0; i--)
+	{
+		float v[3] = { frandr(-200, 200), frandr(-200, 200), frandr(0, 300) };
+		addFireChunk(2, p, v, -300, (float)irandr(1000, 1200), 12, frandr(-10, -8), frandr(-255, -175));
+	}
+	for (int i = irandr(4, 5); i > 0; i--)
+	{
+		float v[3] = { frandr(-200, 200), frandr(-200, 200), frandr(0, 400) };
+		addFireChunk(1, p, v, -300, (float)irandr(1500, 2000), 8, -4, -250);
+	}
+	for (int i = 0; i < 3; i++)
+	{
+		float v[3] = { frandr(-100, 100), frandr(-100, 100), frandr(0, 60) };
+		blastSparks(p, v, (float)irandr(500, 1000));
+	}
+	float last[3];
+	cp3(p, last);
+	for (int i = irandr(5, 6); i > 0; i--)
+	{
+		float d[3] = { frandr(-6, 6), frandr(-6, 6), frandr(0, 6) };
+		sfx::Raw l;
+		l.tex = sfx::SpriteName(55); l.life = (float)irandr(400, 500) * 0.001f; l.blend = 1; l.line = true;
+		cp3(p, l.pos);
+		for (int k = 0; k < 3; k++) { l.end[k] = p[k] + d[k]; l.vel[k] = d[k] * 20; l.endVel[k] = d[k] * 40; last[k] = l.end[k]; }
+		l.size0 = l.size1 = 2;
+		l.rgba[0] = l.rgba[1] = l.rgba[2] = l.rgba[3] = 250;
+		l.alphaRate = -250 / l.life;
+		sfx::SpawnRaw(l);
+	}
+	addEmitter(3, last, 20, 0);
+	addEmitter(4, last, 20, 0);
+	addEmitter(3, last, 20, 0);
+	for (int i = 0; i < 4; i++)
+	{
+		float a[3] = { last[0], last[1], last[2] + 64 }, b[3] = { a[0] + frandr(-128, 128), a[1] + frandr(-128, 128), a[2] - 128 };
+		q2b_trace_t t;
+		q2b_trace(a, 0, 0, b, -1, 1, &t);
+		if (t.fraction >= 1) continue;
+		float g[3];
+		for (int k = 0; k < 3; k++) g[k] = a[k] * 0.1f + t.endpos[k] * 0.9f;
+		addEmitter(5, g, 50, 0);
+	}
+}
+
+/* TE_SKY_LIGHTNING: one to three bolts across the sky, far from the player */
+static void skyBolt(const float *a, const float *b, int segs, float fork, int depth)
+{
+	if (segs <= 0 || depth > 24) return;
+	float p[3];
+	if (segs != 1) for (int k = 0; k < 3; k++) p[k] = b[k] / segs + a[k] * (segs - 1) / segs;
+	else cp3(b, p);
+	for (int k = 0; k < 3; k++) p[k] += frandr(-90, 90);
+	sfx::Raw l;
+	l.tex = sfx::SpriteName(7); l.life = 0.5f; l.blend = 1; l.line = true;
+	cp3(a, l.pos);
+	for (int k = 0; k < 3; k++) l.end[k] = (p[k] - a[k]) * 1.1f + a[k];
+	l.size0 = l.size1 = 20;
+	l.rgba[0] = l.rgba[1] = l.rgba[2] = l.rgba[3] = 250;
+	l.alphaRate = -500;
+	sfx::SpawnRaw(l);
+	if (frandr(0, 1) < fork)
+	{
+		float f[3];
+		for (int k = 0; k < 3; k++) f[k] = b[k] + frandr(-80, 80) * segs;
+		skyBolt(p, f, irandr(1, segs > 2 ? segs / 2 : 1), 0, depth + 1);
+	}
+	skyBolt(p, b, segs - 1, fork, depth + 1);
+}
+static void skyLightning(void)
+{
+	int n = irandr(1, 3);
+	for (int i = 0; i < n; i++)
+	{
+		float a[3], b[3];
+		a[0] = g_fxViewOrg[0] + frandr(1000, 4000) * ((rand() & 1) ? 1 : -1);
+		a[1] = g_fxViewOrg[1] + frandr(1000, 4000) * ((rand() & 1) ? 1 : -1);
+		a[2] = g_fxViewOrg[2] + frandr(2800, 4000);
+		b[0] = a[0]; b[1] = a[1]; b[2] = g_fxViewOrg[2] + frandr(-1200, -500);
+		skyBolt(a, b, 10, frandr(0.6f, 1.0f) - (float)(i + 1) * 0.2f, 0);
+	}
 }
 
 /* TE_SMOKE_PUFF: one puff of coloured smoke rising */
@@ -3539,6 +3662,8 @@ static bool parseTempEnt(MsgReader &r)
 		case TE_COINS: gumballs(r, true); break;
 		case TE_SODACANS: sodaCans(r); break;
 		case TE_PAPERCLOUD: paperCloud(r); break;
+		case TE_WHITEBLAST: whiteBlast(r); break;
+		case TE_SKY_LIGHTNING: skyLightning(); break;
 		case TE_BLOODPOOL: case TE_SCORCHMARK: case TE_OOZE: case TE_PIPELEFT: case TE_PUDDLE:
 			decalBelow(r, type); break;
 		default: break; /* not decoded yet */
