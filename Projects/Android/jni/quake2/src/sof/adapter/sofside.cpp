@@ -2486,7 +2486,7 @@ static void wallSparks(MsgReader &r)
    the world and then lie where they land. cl_max_debris (128) are kept, the newest
    fx_maxdebrisonscreen (16) are shown and older ones go away. Flesh debris is gibs. */
 struct DebrisModel { const char *dir, *file; int parts; };
-static const DebrisModel g_debrisModels[18] =
+static const DebrisModel g_debrisModels[23] =
 {
 	{ "objects/generic/chunks_brick", "brick", 3 },
 	{ "objects/generic/chunks_glass", "glass_sm", 3 }, { "objects/generic/chunks_glass", "glass_med", 3 },
@@ -2499,6 +2499,8 @@ static const DebrisModel g_debrisModels[18] =
 	{ "objects/generic/chunks_wall", "wall_lrg", 4 }, { "objects/generic/chunks_wall", "wall_tiny", 4 },
 	{ "objects/generic/chunks_wood", "wood_sm", 3 }, { "objects/generic/chunks_wood", "wood_med", 3 },
 	{ "objects/generic/chunks_wood", "wood_large", 3 },
+	{ "items/projectiles", "shell", 0 }, { "effects/explosion", "explode80", 0 }, { "effects/explosion", "explode20", 0 },
+	{ "objects/generic/soda_can", "can", 0 }, { "objects/generic/paper_blowing", "paper", 0 },
 };
 /* part names of each model's pieces, in model order (one is shown per chunk) */
 static const char *const g_debrisParts[] =
@@ -2539,10 +2541,22 @@ struct Chunk
 	int bounce;      /* 0 none, else index into g_bounceBox */
 	bool settling;   /* still moving (SoF's think: tips over flat as it slows) */
 };
-/* trace box per bounce type; SoF bounces everything with elasticity 0.7 */
-static const float g_bounceBox[9] = { 0, 0, 0, 0, 0, 0, 0, 5, 10 };
+/* SoF's bounce types: trace box and elasticity */
+struct BounceType { float mins[3], maxs[3], elasticity; };
+static const BounceType g_bounce[9] =
+{
+	{ { 0, 0, 0 }, { 0, 0, 0 }, 0 },
+	{ { 0, 0, 0 }, { 0, 0, 0 }, 0.7f },
+	{ { -2, -2, -2 }, { 2, 2, 2 }, 0.7f },
+	{ { -10, -10, -10 }, { 10, 10, 10 }, 0.7f },
+	{ { 0, 0, 0 }, { 0, 0, 0 }, 0.95f },
+	{ { -4, -2, -3 }, { 4, 2, 3 }, 0.7f },
+	{ { 0, 0, 0 }, { 0, 0, 0 }, 0.7f },
+	{ { -5, -5, -5 }, { 5, 5, 5 }, 0.7f },
+	{ { -10, -10, -10 }, { 10, 10, 10 }, 0.7f },
+};
 static std::vector<Chunk> g_chunks;   /* oldest first */
-static IGhoulObj *g_debrisObj[18];
+static IGhoulObj *g_debrisObj[23];
 static float g_debrisTime = -1;
 
 static void killChunk(Chunk &c) { if (c.inst) c.inst->Destroy(); c.inst = 0; }
@@ -2550,13 +2564,13 @@ static void clearDebris(void)
 {
 	for (size_t i = 0; i < g_chunks.size(); i++) killChunk(g_chunks[i]);
 	g_chunks.clear();
-	for (int i = 0; i < 18; i++) g_debrisObj[i] = 0; /* owned by the client GHOUL */
+	for (int i = 0; i < 23; i++) g_debrisObj[i] = 0; /* owned by the client GHOUL */
 	g_debrisTime = -1;
 }
 
 static IGhoulObj *debrisObject(int model)
 {
-	if (model < 0 || model >= 18) return 0;
+	if (model < 0 || model >= 23) return 0;
 	if (!g_debrisObj[model])
 	{
 		IGhoul *g = Ghoul_Get(true, false);
@@ -2679,17 +2693,16 @@ static void runDebris(float time)
 			for (int k = 0; k < 3; k++) c.vel[k] += c.acc[k] * dt;
 			float end[3];
 			for (int k = 0; k < 3; k++) end[k] = c.pos[k] + c.vel[k] * dt;
-			float b = g_bounceBox[c.bounce < 9 ? c.bounce : 0];
-			float mins[3] = { -b, -b, -b }, maxs[3] = { b, b, b };
+			const BounceType &bt = g_bounce[c.bounce >= 0 && c.bounce < 9 ? c.bounce : 0];
 			q2b_trace_t t;
-			q2b_trace(c.pos, mins, maxs, end, -1, 1 /* CONTENTS_SOLID */, &t);
-			if (t.fraction <= 0.99f)
+			q2b_trace(c.pos, bt.mins, bt.maxs, end, -1, 1 /* CONTENTS_SOLID */, &t);
+			if (c.bounce && t.fraction <= 0.99f)
 			{
 				if (((unsigned)t.surfflags & 0x84) && t.fraction < 1) { dead = true; }
 				else
 				{
 					cp3(t.endpos, c.pos);
-					float e = -0.7f, d = 0;
+					float e = -bt.elasticity, d = 0;
 					for (int k = 0; k < 3; k++) d += t.normal[k] * e * c.vel[k];
 					d *= 1.8f;
 					for (int k = 0; k < 3; k++) c.vel[k] = t.normal[k] * d - e * c.vel[k];
@@ -3057,6 +3070,309 @@ static void waterGlob(MsgReader &r)
 	sfx::SpawnRaw(d);
 }
 
+/* a whole client model thrown as debris (soda cans, paper) */
+static void throwModel(int model, const float *pos, const float *ang, const float *vel, float accZ, const float *avel, int bounce)
+{
+	IGhoulObj *obj = debrisObject(model);
+	if (!obj) return;
+	Chunk c;
+	memset(&c, 0, sizeof(c));
+	cp3(pos, c.pos); cp3(vel, c.vel); cp3(avel, c.avel);
+	if (ang) cp3(ang, c.ang);
+	c.acc[2] = accZ;
+	c.bounce = bounce;
+	c.settling = true;
+	c.inst = obj->NewInst();
+	char seq[160];
+	snprintf(seq, sizeof(seq), "ghoul/%s/%s.ghl", g_debrisModels[model].dir, g_debrisModels[model].file);
+	GhoulID id = obj->FindSequence(seq);
+	if (id) c.inst->Play(id, g_fxNow, 0, true, IGhoulInst::Loop, false, false);
+	g_chunks.push_back(c);
+	while (g_chunks.size() > 128) { killChunk(g_chunks.front()); g_chunks.erase(g_chunks.begin()); }
+}
+
+/* small bouncing bits sprayed out along a direction (coins, gumballs) */
+static void bouncingBits(const float *p, const float *dir, int minSpeed, int maxSpeed, float accZ, bool colours)
+{
+	int n = irandr(5, 11);
+	for (int i = 1; i < n; i++)
+	{
+		sfx::Raw b;
+		b.tex = sfx::SpriteName(10);
+		b.life = 1.2f;
+		for (int k = 0; k < 3; k++)
+		{
+			b.pos[k] = (float)(rand() & 3) + p[k] - 1;
+			b.vel[k] = (float)irandr(-32, 32) + (float)irandr(minSpeed, maxSpeed) * (frandr(-0.1f, 0.1f) + dir[k]);
+		}
+		b.acc[2] = accZ;
+		b.size0 = b.size1 = 1;
+		if (colours) { b.rgba[0] = irandr(0, 250); b.rgba[1] = irandr(0, 250); b.rgba[2] = irandr(0, 250); }
+		else { b.rgba[0] = 100; b.rgba[1] = 100; b.rgba[2] = 120; }
+		b.rgba[3] = 250;
+		sfx::SpawnRaw(b);
+	}
+}
+
+/* a jagged electric bolt from a to b, in segments of about seglen units */
+static void lightningBolt(const float *a, const float *b, int seglen, bool forks)
+{
+	float d[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] };
+	float len = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+	int n = (int)(len / (float)seglen);
+	if (n < 2) n = 2;
+	if (n > 200) n = 200;
+	float step[3] = { d[0] / n, d[1] / n, d[2] / n }, dn[3] = { d[0], d[1], d[2] };
+	normalize3(dn);
+	float up[3] = { 0, 0, 1 }, r[3], u[3];
+	if (fabsf(dn[2]) > 0.9f) { up[0] = 1; up[2] = 0; }
+	r[0] = dn[1] * up[2] - dn[2] * up[1]; r[1] = dn[2] * up[0] - dn[0] * up[2]; r[2] = dn[0] * up[1] - dn[1] * up[0];
+	normalize3(r);
+	u[0] = r[1] * dn[2] - r[2] * dn[1]; u[1] = r[2] * dn[0] - r[0] * dn[2]; u[2] = r[0] * dn[1] - r[1] * dn[0];
+	int jit = (int)(seglen * 1.6f); if (jit < 1) jit = 1;
+	float straight[3], prev[3], next[3];
+	cp3(a, straight); cp3(a, prev);
+	for (int k = 0; k < 3; k++) next[k] = a[k] + step[k];
+	float j1 = (float)(rand() % jit - jit / 2), j2 = (float)(rand() % jit - jit / 2);
+	for (int k = 0; k < 3; k++) next[k] += r[k] * j1 + u[k] * j2;
+	float width = seglen * 0.14f;
+	for (int i = 0; i < n - 1; i++)
+	{
+		sfx::Raw l;
+		l.tex = sfx::SpriteName(7); l.life = 0.2f; l.blend = 1; l.line = true;
+		cp3(prev, l.pos); cp3(next, l.end);
+		l.size0 = l.size1 = width;
+		l.rgba[0] = l.rgba[1] = l.rgba[2] = l.rgba[3] = 250;
+		l.alphaRate = -500;
+		sfx::SpawnRaw(l);
+		if (forks && rand() % 5 == 0)
+		{
+			sfx::Raw f = l;
+			f.life = 0.5f;
+			for (int k = 0; k < 3; k++) f.end[k] = next[k] + frandr(-(float)seglen, (float)seglen);
+			f.alphaRate = 0;
+			sfx::SpawnRaw(f);
+		}
+		cp3(next, prev);
+		for (int k = 0; k < 3; k++) { straight[k] += step[k]; next[k] += step[k]; }
+		j1 = (float)(rand() % jit - jit / 2); j2 = (float)(rand() % jit - jit / 2);
+		for (int k = 0; k < 3; k++) next[k] += r[k] * j1 + u[k] * j2;
+		for (int k = 0; k < 3; k++)
+		{
+			prev[k] -= (next[k] - prev[k]) * 0.06f;
+			next[k] = straight[k] * 0.3f + next[k] * 0.7f;
+		}
+		if (i == n - 3) cp3(b, next);
+	}
+}
+
+/* TE_ELECTRIC_ARC: a short bolt along a direction */
+static void electricArc(MsgReader &r)
+{
+	float p[3], dir[3], e[3];
+	r.pos(p);
+	int len = r.byte();
+	r.pos(dir);
+	if (r.bad) return;
+	for (int k = 0; k < 3; k++) e[k] = p[k] + dir[k] * (float)len;
+	lightningBolt(p, e, rand() % 3 + 3, false);
+}
+
+/* TE_WATER_SHOCK: electricity in water - a blue flash and bolts to nearby surfaces */
+static void waterShock(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	if (r.bad) return;
+	spr(16, 500, 1, p, 20, irandr(120, 170), irandr(150, 200), irandr(220, 250), 250, frandr(0, 6.28f), 0, 0,
+	    frandr(-18.84f, 18.84f), -40, 0);
+	static const unsigned char lc[3] = { 128, 128, 160 };
+	sfx::SpawnLight(p, 128, lc, 0.5f);
+	for (int i = 0; i < 12; i++)
+	{
+		float e[3] = { p[0] + frandr(-256, 256), p[1] + frandr(-256, 256), p[2] + frandr(-256, 0) };
+		q2b_trace_t t;
+		q2b_trace(p, 0, 0, e, -1, 1, &t);
+		if (t.fraction <= 0.2f) continue;
+		lightningBolt(p, t.endpos, 1 + (int)(t.fraction * 4), true);
+		if (t.fraction < 0.9f)
+			spr(16, 500, 1, t.endpos, 10, irandr(120, 170), irandr(150, 200), irandr(220, 250), 250, frandr(0, 6.28f), 0, 0,
+			    frandr(-18.84f, 18.84f), -20, 0);
+	}
+}
+
+/* TE_FLASHPACK: a blinding white flash (one flare lying on the floor) and its light */
+static void flashpack(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	if (r.bad) return;
+	float n[3] = { 0, 0, 1 }, e[3] = { p[0], p[1], p[2] - 16 };
+	q2b_trace_t t;
+	q2b_trace(p, 0, 0, e, -1, 1, &t);
+	if (t.fraction <= 0.99f) cp3(t.normal, n);
+	spr(16, 500, 1, p, 360, 250, 250, 250, 250, frandr(0, 6.28f), 0, 0, frandr(-1, 1), -640, 0);
+	sfx::Raw flat;
+	flat.tex = sfx::SpriteName(16); flat.life = 0.5f; flat.blend = 1; cp3(p, flat.pos);
+	flat.size0 = flat.size1 = 360; flat.grow0 = flat.grow1 = -640;
+	flat.rgba[0] = flat.rgba[1] = flat.rgba[2] = flat.rgba[3] = 250;
+	flat.rot = frandr(0, 6.28f); flat.rotVel = frandr(-1, 1);
+	flat.oriented = true; cp3(n, flat.normal);
+	sfx::SpawnRaw(flat);
+	for (int i = 0; i < 15; i++)
+	{
+		float v[3] = { frandr(-200, 200), frandr(-200, 200), frandr(-200, 200) };
+		spr(16, 500, 1, p, 32, 250, 250, 250, 250, frandr(0, 6.28f), v, 0, frandr(-1, 1), -64, 0);
+	}
+	static const unsigned char lc[3] = { 230, 230, 230 };
+	sfx::SpawnLight(p, 192, lc, 0.5f);
+	if (clientSound(54)) sfx::PlaySound(clientSound(54), p, 0, 0.6f, 1);
+}
+
+/* TE_NEURALPULSE: a small expanding shock ring lying flat */
+static void neuralPulse(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	if (r.bad) return;
+	p[2] += 4;
+	sfx::Raw s;
+	s.tex = sfx::SpriteName(21); s.life = 0.2f; s.blend = 1; cp3(p, s.pos);
+	s.size0 = s.size1 = 6; s.grow0 = s.grow1 = 320;
+	s.rgba[0] = s.rgba[1] = s.rgba[2] = s.rgba[3] = 250;
+	s.alphaRate = -250 * 5.0f;
+	s.rot = frandr(0, 6.28f); s.rotVel = frandr(-1, 1);
+	s.oriented = true; s.normal[2] = 1;
+	sfx::SpawnRaw(s);
+}
+
+/* TE_MAKERING: a shock ring lying flat, shrinking as it fades */
+static void makeRing(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int size = r.shrt();
+	if (r.bad) return;
+	sfx::Raw s;
+	s.tex = sfx::SpriteName(22); s.life = 0.3f; s.blend = 1; cp3(p, s.pos);
+	s.size0 = s.size1 = (float)size; s.grow0 = s.grow1 = -(float)size * 0.6667f;
+	s.rgba[0] = s.rgba[1] = s.rgba[2] = s.rgba[3] = 250;
+	s.alphaRate = -833.33f;
+	s.rotVel = 7;
+	s.oriented = true; s.normal[2] = 1;
+	sfx::SpawnRaw(s);
+}
+
+/* TE_UNDERWATER_BULLET: a trail of bubbles, one every sixteen units */
+static void underwaterBullet(MsgReader &r)
+{
+	float a[3], b[3];
+	r.pos(a);
+	r.pos(b);
+	if (r.bad) return;
+	float d[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] };
+	int n = (int)(sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) * 0.0625f);
+	if (n <= 0) return;
+	if (n > 128) n = 128;
+	float p[3];
+	cp3(a, p);
+	for (int i = 0; i < n; i++)
+	{
+		float s = frandr(0.6f, 1.2f), v[3] = { frandr(-30, 30), frandr(-30, 30), frandr(-30, 30) }, acc[3] = { 0, 0, 75 };
+		spr(31, 600, 0, p, s, 250, 250, 250, 250, 0, v, acc, 0, 0, -250 * 1.6667f);
+		for (int k = 0; k < 3; k++) p[k] += d[k] / n;
+	}
+}
+
+/* TE_SMOKE_BURST: twelve puffs of dark smoke */
+static void smokeBurst(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int size = r.byte();
+	if (r.bad) return;
+	for (int i = 0; i < 12; i++)
+	{
+		float v[3] = { frandr(-60, 60), frandr(-60, 60), frandr(-60, 60) }, acc[3] = { 0, 0, 100 };
+		spr(0, 800, 2, p, 8, 250, 250, 250, 160, frandr(0, 3.14159f), v, acc, frandr(-1, 1), (float)size * 1.25f, 0);
+	}
+}
+
+/* TE_DUSTBITS: dirt falling from the ceiling, bigger and fainter bits falling faster */
+static void dustBits(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int n = r.shrt();
+	if (r.bad || n <= 0) return;
+	if (n > 20) n = 20;
+	float accZ = -100;
+	for (int i = 0; i < n; i++)
+	{
+		float size = (float)(5 + 2 * i), acc[3] = { 0, 0, accZ };
+		spr(9, 1000, 0, p, size, 250, 250, 250, 100 - 10 * i, frandr(-3.14159f, 3.14159f), 0, acc, 0, size, -100.0f + (float)(10 * i));
+		accZ -= 40;
+	}
+}
+
+static void playAt(MsgReader &r, int snd)
+{
+	float p[3];
+	r.pos(p);
+	if (!r.bad && clientSound(snd)) sfx::PlaySound(clientSound(snd), p, 0, 1, 1);
+}
+
+/* TE_GUMBALLS / TE_COINS: a burst of bouncing bits from a broken machine / phone */
+static void gumballs(MsgReader &r, bool coins)
+{
+	float p[3], dir[3];
+	r.pos(p);
+	r.pos(dir);
+	if (r.bad) return;
+	if (coins) bouncingBits(p, dir, 32, 160, -800, false);
+	else bouncingBits(p, dir, 32, 50, -200, true);
+}
+
+/* TE_SODACANS: cans thrown out of a machine */
+static void sodaCans(MsgReader &r)
+{
+	float p[3], dir[3];
+	r.pos(p);
+	r.pos(dir);
+	int speed = r.shrt() & 0xff, n = r.shrt() & 0xff;
+	if (r.bad) return;
+	if (!n) n = irandr(1, 4);
+	for (int i = 0; i < n; i++)
+	{
+		float v[3], av[3] = { 0, (float)irandr(-900, 900), 0 };
+		for (int k = 0; k < 3; k++) v[k] = (float)irandr(-32, 32) + frandr(0.32f, 1.6f) * (frandr(-0.1f, 0.1f) + dir[k]) * (float)speed;
+		throwModel(21, p, 0, v, -300, av, 5);
+	}
+}
+
+/* TE_PAPERCLOUD: sheets of paper thrown up (at most every 0.3 s) */
+static void paperCloud(MsgReader &r)
+{
+	static float last = -1;
+	float p[3];
+	r.pos(p);
+	int n = r.shrt();
+	if (r.bad) return;
+	if (last >= 0 && g_fxNow < last + 0.3f && g_fxNow >= last) return;
+	last = g_fxNow;
+	if (n <= 0) n = irandr(5, 10);
+	if (n > 16) n = 16;
+	for (int i = 0; i < n; i++)
+	{
+		float yaw = frandr(0, 359), rad = frandr(0, 70);
+		float ang[3] = { frandr(40, 60), yaw, 0 };
+		float v[3] = { cosf(yaw * (float)(M_PI / 180)) * rad, sinf(yaw * (float)(M_PI / 180)) * rad, frandr(180, 240) };
+		float pos[3] = { p[0] + frandr(-4, 4), p[1] + frandr(-4, 4), p[2] + frandr(1, 5) };
+		float av[3] = { -100, 0, 0 };
+		throwModel(22, pos, ang, v, -800, av, 1);
+	}
+}
+
 /* TE_BLOODPOOL / TE_SCORCHMARK / TE_OOZE / TE_PIPELEFT / TE_PUDDLE: a mark on the floor
    up to 256 units below a point (SoF's FX_MakeDecalBelow) */
 static void decalBelow(MsgReader &r, int type)
@@ -3209,6 +3525,20 @@ static bool parseTempEnt(MsgReader &r)
 		case TE_SMOKE_PUFF: smokePuff(r); break;
 		case TE_BARREL_EXPLODE: barrelExplode(r); break;
 		case TE_WATER_GLOB: waterGlob(r); break;
+		case TE_ELECTRIC_ARC: electricArc(r); break;
+		case TE_WATER_SHOCK: waterShock(r); break;
+		case TE_FLASHPACK: flashpack(r); break;
+		case TE_NEURALPULSE: neuralPulse(r); break;
+		case TE_MAKERING: makeRing(r); break;
+		case TE_UNDERWATER_BULLET: underwaterBullet(r); break;
+		case TE_SMOKE_BURST: smokeBurst(r); break;
+		case TE_DUSTBITS: dustBits(r); break;
+		case TE_PHONEHIT: playAt(r, 92); break;
+		case TE_TRASHCANHIT: playAt(r, 93); break;
+		case TE_GUMBALLS: gumballs(r, false); break;
+		case TE_COINS: gumballs(r, true); break;
+		case TE_SODACANS: sodaCans(r); break;
+		case TE_PAPERCLOUD: paperCloud(r); break;
 		case TE_BLOODPOOL: case TE_SCORCHMARK: case TE_OOZE: case TE_PIPELEFT: case TE_PUDDLE:
 			decalBelow(r, type); break;
 		default: break; /* not decoded yet */
