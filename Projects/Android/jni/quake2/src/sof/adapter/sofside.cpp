@@ -50,6 +50,7 @@
 static void registerClientHooks(void);
 static void clearDrawCache(void);
 static void clearDebris(void);
+static void clearExplosions(void);
 static void fxRegister(void);
 static void fxUnregister(void);
 extern "C" void Pmove_SetSoFHeights(int sof) __attribute__((weak));
@@ -1030,6 +1031,7 @@ extern "C" void sofb_spawnentities(const char *mapname, const char *entities, co
 	g_effects.clear();
 	sfx::Clear();
 	clearDebris();
+	clearExplosions();
 	g_ghoulModelIndex = q2b_modelindex("#sofghoul");
 	refreshAllCvars();
 	sge->SpawnEntities((char *)mapname, (char *)entities, (char *)spawnpoint);
@@ -2581,6 +2583,7 @@ static void debrisDust(const float *p)
 	d.size0 = d.size1 = 10;
 	d.rgba[0] = d.rgba[1] = d.rgba[2] = 170; d.rgba[3] = 200;
 	d.alphaRate = -200 * 1.6667f;
+	d.grow0 = d.grow1 = 0.6f;
 	d.rot = (float)(rand() % 628) * 0.01f;
 	d.rotVel = (float)(rand() % 628) * 0.01f;
 	sfx::SpawnRaw(d);
@@ -2723,6 +2726,335 @@ static void runDebris(float time)
 		if (dead) { killChunk(c); g_chunks.erase(g_chunks.begin() + (long)i); continue; }
 		i++;
 	}
+}
+
+/* ---- explosions. SoF builds them from sprites: a big flare, fireballs flying out, and
+   short-lived emitters that throw smoke and fire a moment later; C4 and vehicles add
+   flaming chunks that leave fire and smoke trails. */
+static float g_fxNow; /* the effects clock (seconds), as of the last effects frame */
+
+static void spr(int sprite, float lifeMs, int blend, const float *pos, float size, int r, int g, int b, int a,
+                float rot, const float *vel, const float *acc, float rotVel, float grow, float alphaRate)
+{
+	sfx::Raw p;
+	p.tex = sfx::SpriteName(sprite);
+	p.life = lifeMs * 0.001f;
+	p.blend = blend;
+	cp3(pos, p.pos);
+	if (vel) cp3(vel, p.vel);
+	if (acc) cp3(acc, p.acc);
+	p.size0 = p.size1 = size;
+	p.rgba[0] = (unsigned char)r; p.rgba[1] = (unsigned char)g; p.rgba[2] = (unsigned char)b; p.rgba[3] = (unsigned char)a;
+	p.rot = rot; p.rotVel = rotVel;
+	p.grow0 = p.grow1 = grow;
+	p.alphaRate = alphaRate;
+	sfx::SpawnRaw(p);
+}
+static float randRot(void) { return (float)(rand() % 628) * 0.01f; }
+
+/* explosion emitters: each fires once, a few hundredths of a second after the blast */
+struct ExpEmitter { float when, born; int kind; float pos[3]; };
+static std::vector<ExpEmitter> g_expEmitters;
+static void addEmitter(int kind, const float *pos, float freqMs, float jitter)
+{
+	ExpEmitter e;
+	e.kind = kind;
+	e.born = g_fxNow;
+	e.when = g_fxNow + freqMs * 0.001f * frandr(1 - jitter, 1 + jitter);
+	cp3(pos, e.pos);
+	g_expEmitters.push_back(e);
+}
+static void fireEmitter(const ExpEmitter &e, float now)
+{
+	float frac = 1 - (now - e.born) / 1.5f;
+	if (e.kind == 2)
+	{
+		/* a puff of dark smoke rising */
+		float off[3], p[3], vel[3], acc[3] = { 0, 0, 800 };
+		for (int k = 0; k < 3; k++) { off[k] = frandr(-20, 20); vel[k] = frandr(-160, 160); p[k] = e.pos[k] + off[k]; }
+		spr(0, 1000, 2, p, 30, 250, 250, 250, 150, randRot(), vel, acc, randRot(), 30, -150);
+		return;
+	}
+	if (frac < 0.5f) return;
+	float size = (frac + 1) * 32;
+	int n = irandr(3, 6);
+	for (int i = 0; i < n; i++)
+	{
+		float p[3] = { e.pos[0], e.pos[1], e.pos[2] + frandr(12, 16) };
+		float d[3] = { frandr(-100, 100), frandr(-100, 100), frandr(-40, 80) };
+		normalize3(d);
+		float sp = e.kind == 0 ? frandr(1000, 1500) : frandr(400, 800);
+		float vel[3], acc[3];
+		for (int k = 0; k < 3; k++) { vel[k] = d[k] * sp; acc[k] = vel[k] * -2; }
+		acc[2] += 300;
+		if (e.kind == 0)
+		{
+			int c = irandr(150, 250);
+			spr(28, 500, 0, p, size, c, c, c, 130, randRot(), vel, acc, randRot(), size * 2, -260);
+		}
+		else spr(28, 500, 1, p, size, 250, 250, 250, 150, randRot(), vel, acc, randRot(), size * 2, -300);
+	}
+}
+
+/* flaming chunks with fire and smoke trails (C4, vehicles) */
+struct FireChunk { float pos[3], vel[3], acc[3], die, next, interval, size0, size1, grow; int kind; };
+static std::vector<FireChunk> g_fireChunks;
+static void addFireChunk(int kind, const float *pos, const float *vel, float accZ, float lifeMs, float size, float grow, float alphaRate)
+{
+	float acc[3] = { 0, 0, accZ };
+	spr(10, lifeMs, 1, pos, size, 255, 255, 255, 255, frandr(0, 6.28f), vel, acc, frandr(-3, 3), grow, alphaRate);
+	FireChunk f;
+	cp3(pos, f.pos); cp3(vel, f.vel); cp3(acc, f.acc);
+	f.die = g_fxNow + lifeMs * 0.001f;
+	f.interval = kind == 0 ? 0.075f : 0.05f;
+	f.next = g_fxNow + f.interval;
+	f.size0 = f.size1 = size;
+	f.grow = grow;
+	f.kind = kind;
+	g_fireChunks.push_back(f);
+}
+static void fireTrail(const FireChunk &f)
+{
+	int r = irandr(180, 250), g = irandr(r - 80, r), b = irandr(g - 80, g);
+	float vel[3];
+	for (int k = 0; k < 3; k++) vel[k] = f.vel[k] * 0.1f;
+	if (f.kind == 0)
+	{
+		float sc = frandr(0.85f, 1.15f);
+		spr(irandr(49, 50), 500, 1, f.pos, f.size0 * sc * 2, r, g, b, 250, frandr(0, 6.28f), vel, 0, frandr(-3, 3), -8, -500);
+		float acc[3] = { 0, 0, 50 };
+		spr(52, 1000, 2, f.pos, f.size0 * sc, 255, 255, 255, 250, frandr(0, 6.28f), 0, acc, frandr(-3, 3), 20, -250);
+	}
+	else spr(47, 500, 1, f.pos, f.size0, r, g, b, 250, frandr(0, 6.28f), vel, 0, frandr(-3, 3), -8, -500);
+}
+
+static void clearExplosions(void) { g_expEmitters.clear(); g_fireChunks.clear(); }
+
+static void runExplosions(float time)
+{
+	float dt = time - g_fxNow;
+	if (dt < 0 || dt > 0.1f) dt = dt < 0 ? 0 : 0.1f;
+	g_fxNow = time;
+	for (size_t i = 0; i < g_expEmitters.size(); )
+	{
+		if (time >= g_expEmitters[i].when) { ExpEmitter e = g_expEmitters[i]; g_expEmitters.erase(g_expEmitters.begin() + (long)i); fireEmitter(e, time); }
+		else i++;
+	}
+	for (size_t i = 0; i < g_fireChunks.size(); )
+	{
+		FireChunk &f = g_fireChunks[i];
+		for (int k = 0; k < 3; k++) { f.vel[k] += f.acc[k] * dt; f.pos[k] += f.vel[k] * dt; }
+		f.size0 += f.grow * dt;
+		if (time >= f.die || f.size0 <= 0) { g_fireChunks.erase(g_fireChunks.begin() + (long)i); continue; }
+		if (time >= f.next) { fireTrail(f); f.next = time + f.interval; }
+		i++;
+	}
+}
+
+/* the blast itself: two big flares (one lying flat), eight fireballs, three emitters */
+static void blastCore(const float *p, int flashAlpha, float flashAlphaRate)
+{
+	spr(16, 500, 1, p, 360, 250, 250, 250, flashAlpha, frandr(0, 6.28f), 0, 0, frandr(-1, 1), -640, flashAlphaRate);
+	sfx::Raw flat;
+	flat.tex = sfx::SpriteName(16); flat.life = 0.5f; flat.blend = 1; cp3(p, flat.pos);
+	flat.size0 = flat.size1 = 360; flat.grow0 = flat.grow1 = -640;
+	flat.rgba[0] = flat.rgba[1] = flat.rgba[2] = 250; flat.rgba[3] = (unsigned char)flashAlpha;
+	flat.alphaRate = flashAlphaRate;
+	flat.rot = frandr(0, 6.28f); flat.rotVel = frandr(-1, 1);
+	flat.oriented = true; flat.normal[2] = 1;
+	sfx::SpawnRaw(flat);
+	for (int i = 0; i < 8; i++)
+	{
+		float v[3] = { frandr(-100, 100), frandr(-100, 100), frandr(-100, 100) };
+		spr(28, 500, 1, p, 20, 250, 250, 250, 150, randRot(), v, 0, randRot(), 40, -300);
+	}
+	addEmitter(0, p, 70, 0.5f);
+	addEmitter(0, p, 70, 0.5f);
+	addEmitter(1, p, 40, 0.5f);
+	addEmitter(2, p, 30, 0);
+}
+
+/* TE_EXPLOSION */
+static void explosion(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	r.byte(); /* size: unused by SoF's client */
+	if (r.bad) return;
+	blastCore(p, 250, 0);
+	if (clientSound(58)) sfx::PlaySound(clientSound(58), p, 0, 1, 1);
+}
+
+/* TE_LITTLEEXPLOSION / TE_MEDIUMEXPLOSION / TE_LARGEEXPLOSION: a flare and eight
+   fireballs scaled by size (percent); the sound when asked (large: 2 = sound only) */
+static void sizedExplosion(MsgReader &r, int type)
+{
+	float p[3];
+	r.pos(p);
+	float s = (float)r.byte() * 0.01f;
+	int snd = r.byte();
+	if (r.bad) return;
+	if (!(type == TE_LARGEEXPLOSION && snd == 2))
+	{
+		spr(16, 300, 1, p, s * 30, 250, 250, 250, 100, frandr(0, 6.28f), 0, 0, frandr(-1, 1), s * -33.333f, -333.33f);
+		for (int i = 0; i < 8; i++)
+		{
+			float v[3] = { frandr(-s * 50, s * 50), frandr(-s * 50, s * 50), frandr(-s * 50, s * 50) };
+			spr(28, 500, 1, p, s * 20, 250, 250, 250, 150, frandr(0, 6.28f), v, 0, frandr(-1, 1), s * -33.333f, -300);
+		}
+	}
+	int idx = type == TE_LITTLEEXPLOSION ? 91 : type == TE_MEDIUMEXPLOSION ? 90 : 89;
+	if (snd && clientSound(idx)) sfx::PlaySound(clientSound(idx), p, 0, 1, 1);
+}
+
+/* sparks of burning fuel thrown out of a blast */
+static void blastSparks(const float *p, const float *vel, float lifeMs)
+{
+	int r = irandr(230, 250), g = irandr(r - 30, r), b = irandr(g - 30, g);
+	spr(48, lifeMs, 1, p, 6, r, g, b, 250, frandr(0, 6.28f), vel, 0, frandr(-3, 3), 30 / (lifeMs * 0.001f), -250 / (lifeMs * 0.001f));
+}
+
+/* TE_VEHICLEEXPLOSION: flaming chunks, fuel sparks and streaks, then a full blast */
+static void vehicleExplosion(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int size = r.byte();
+	if (r.bad) return;
+	int n = (size >> 6) + 2;
+	for (int i = 0; i < (size >> 5); i++)
+	{
+		float v[3] = { frandr(-300, 300), frandr(-300, 300), frandr(0, 450) };
+		addFireChunk(0, p, v, -450, (float)irandr(1000, 1200), 24, frandr(-20, -10), frandr(-255, -175));
+	}
+	for (int i = 0; i < n; i++)
+	{
+		float v[3] = { frandr(-300, 300), frandr(-300, 300), frandr(0, 600) };
+		addFireChunk(1, p, v, -450, (float)irandr(1500, 2000), 12, -6, -255);
+	}
+	for (int i = 0; i < n; i++)
+	{
+		float v[3] = { frandr(-100, 100), frandr(-100, 100), frandr(-100, 100) };
+		blastSparks(p, v, (float)irandr(400, 600));
+	}
+	for (int i = (size >> 5) + 4; i > 0; i--)
+	{
+		float d[3] = { frandr(-8, 8), frandr(-8, 8), frandr(-8, 8) };
+		sfx::Raw l;
+		l.tex = sfx::SpriteName(54); l.life = 0.6f; l.blend = 1; l.line = true;
+		cp3(p, l.pos);
+		for (int k = 0; k < 3; k++) { l.end[k] = p[k] + d[k]; l.vel[k] = d[k] * 20; l.endVel[k] = d[k] * 40; }
+		l.size0 = l.size1 = 2;
+		l.rgba[0] = l.rgba[1] = l.rgba[2] = l.rgba[3] = 250;
+		l.alphaRate = -250 / 0.6f;
+		sfx::SpawnRaw(l);
+	}
+	blastCore(p, 100, -200);
+	if (clientSound(58)) sfx::PlaySound(clientSound(58), p, 0, 1, 1);
+}
+
+/* TE_C4EXPLODE: a scorch mark, flaming chunks and fuel thrown off the surface, rubble */
+static void c4Explode(MsgReader &r)
+{
+	Impact im;
+	if (!readImpact(r, im) || r.bad) return;
+	if (decalSurfaceOk(im))
+	{
+		unsigned char c[4] = { 230, 230, 230, 230 };
+		sfx::Decal(sfx::SpriteName(26), im.pos, im.normal, frandr(32, 36), c);
+	}
+	/* the surface frame: normal, and two directions along it */
+	float n[3], a[3], b[3];
+	cp3(im.normal, n);
+	if (!n[0] && !n[1] && !n[2]) n[2] = 1;
+	float up[3] = { 0, 0, 1 };
+	if (fabsf(n[2]) > 0.9f) { up[0] = 1; up[2] = 0; }
+	a[0] = up[1] * n[2] - up[2] * n[1]; a[1] = up[2] * n[0] - up[0] * n[2]; a[2] = up[0] * n[1] - up[1] * n[0];
+	normalize3(a);
+	b[0] = n[1] * a[2] - n[2] * a[1]; b[1] = n[2] * a[0] - n[0] * a[2]; b[2] = n[0] * a[1] - n[1] * a[0];
+	for (int i = irandr(3, 4); i > 0; i--)
+	{
+		float sa = frandr(-300, 300), sb = frandr(-300, 300), sn = frandr(0, 450), v[3];
+		for (int k = 0; k < 3; k++) v[k] = a[k] * sa + b[k] * sb + n[k] * sn;
+		addFireChunk(0, im.pos, v, -600, (float)irandr(600, 800), 12, frandr(-14, -11), frandr(-255, -175));
+	}
+	for (int i = irandr(2, 3); i > 0; i--)
+	{
+		float sa = frandr(-300, 300), sb = frandr(-300, 300), sn = frandr(0, 600), v[3];
+		for (int k = 0; k < 3; k++) v[k] = a[k] * sa + b[k] * sb + n[k] * sn;
+		addFireChunk(1, im.pos, v, -600, (float)irandr(800, 1000), 8, -7.5f, -255);
+	}
+	for (int i = 0; i < 3; i++)
+	{
+		float sa = frandr(-100, 100), sb = frandr(-100, 100), sn = frandr(0, 100), v[3];
+		for (int k = 0; k < 3; k++) v[k] = a[k] * sa + b[k] * sb + n[k] * sn;
+		blastSparks(im.pos, v, (float)irandr(300, 400));
+	}
+	/* ten pieces of grey rubble */
+	IGhoulObj *obj = debrisObject(7);
+	GhoulID gmat = obj ? obj->FindMaterial("Rock") : 0, gskin = gmat ? obj->FindSkin(gmat, "grey_dk") : 0;
+	for (int i = 0; i < 10; i++)
+	{
+		Chunk c;
+		memset(&c, 0, sizeof(c));
+		c.vel[0] = (float)irandr(-300, 300); c.vel[1] = (float)irandr(-300, 300); c.vel[2] = (float)irandr(600, 2000);
+		c.acc[2] = -1600;
+		for (int k = 0; k < 3; k++) c.avel[k] = (float)irandr(-900, 900);
+		cp3(im.pos, c.pos);
+		c.bounce = 6;
+		c.settling = true;
+		if (obj)
+		{
+			c.inst = obj->NewInst();
+			if (gmat && gskin) c.inst->SetFrameOverride(gmat, gskin, 0);
+			c.inst->SetAllPartsOnOff(false);
+			GhoulID part = obj->FindPart(g_debrisParts[24 + rand() % 4]);
+			if (part) c.inst->SetPartOnOff(part, true);
+		}
+		g_chunks.push_back(c);
+	}
+	while (g_chunks.size() > 128) { killChunk(g_chunks.front()); g_chunks.erase(g_chunks.begin()); }
+}
+
+/* TE_SMOKE_PUFF: one puff of coloured smoke rising */
+static void smokePuff(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int cr = r.byte(), cg = r.byte(), cb = r.byte(), ca = r.byte();
+	if (r.bad) return;
+	float vel[3] = { 0, 0, 30 }, acc[3] = { 0, 0, 100 };
+	spr(0, 1200, 0, p, 10, cr, cg, cb, ca, randRot(), vel, acc, randRot(), 0.6f, -(float)ca * 1.6667f);
+}
+
+/* TE_BARREL_EXPLODE: a flash of fire and a short light */
+static void barrelExplode(MsgReader &r)
+{
+	Impact im;
+	if (!readImpact(r, im) || r.bad) return;
+	static const unsigned char lc[3] = { 160, 160, 128 };
+	sfx::SpawnLight(im.pos, 128, lc, 0.15f);
+	spr(25, 165, 1, im.pos, 10, irandr(120, 170), irandr(70, 130), irandr(70, 130), 255, frandr(0, 6.28f), 0, 0,
+	    frandr(-18.84f, 18.84f), 600, -133.33f);
+}
+
+/* TE_WATER_GLOB: a drop of liquid (12-bit colour) falling */
+static void waterGlob(MsgReader &r)
+{
+	float p[3];
+	r.pos(p);
+	int col = r.shrt() & 0xffff, size = r.byte();
+	if (r.bad) return;
+	sfx::Raw d;
+	d.tex = sfx::SpriteName(17);
+	d.life = 2;
+	cp3(p, d.pos);
+	d.acc[2] = -800;
+	d.size0 = size * 1.5f; d.size1 = (float)size;
+	d.rgba[0] = (unsigned char)(((col >> 8) & 15) * 15); d.rgba[1] = (unsigned char)(((col >> 4) & 15) * 15);
+	d.rgba[2] = (unsigned char)((col & 15) * 15); d.rgba[3] = 250;
+	d.rot = 3.14159f;
+	sfx::SpawnRaw(d);
 }
 
 /* TE_BLOODPOOL / TE_SCORCHMARK / TE_OOZE / TE_PIPELEFT / TE_PUDDLE: a mark on the floor
@@ -2870,6 +3202,13 @@ static bool parseTempEnt(MsgReader &r)
 		case TE_RICOCHET: ricochet(r); break;
 		case TE_WALLSTRIKE: wallStrike(r); break;
 		case TE_WALLSPARKS: wallSparks(r); break;
+		case TE_EXPLOSION: explosion(r); break;
+		case TE_LITTLEEXPLOSION: case TE_MEDIUMEXPLOSION: case TE_LARGEEXPLOSION: sizedExplosion(r, type); break;
+		case TE_VEHICLEEXPLOSION: vehicleExplosion(r); break;
+		case TE_C4EXPLODE: c4Explode(r); break;
+		case TE_SMOKE_PUFF: smokePuff(r); break;
+		case TE_BARREL_EXPLODE: barrelExplode(r); break;
+		case TE_WATER_GLOB: waterGlob(r); break;
 		case TE_BLOODPOOL: case TE_SCORCHMARK: case TE_OOZE: case TE_PIPELEFT: case TE_PUDDLE:
 			decalBelow(r, type); break;
 		default: break; /* not decoded yet */
@@ -3086,6 +3425,58 @@ static void fxNoteHook(IGhoulInst *inst, const char *token, const char *data)
 	}
 }
 
+/* SOF_TESTTE="type type ...": desktop testing - every two seconds play the next of these
+   temp entities 96 units in front of the view, with typical parameters */
+static void testTempEnts(float time, const float *vieworg, const float *fwd)
+{
+	static const char *list = getenv("SOF_TESTTE");
+	static float next = 0;
+	static int idx = 0;
+	if (!list || time < 3 || time < next) return;
+	next = time + 2;
+	int types[32], n = 0;
+	for (const char *c = list; *c && n < 32; )
+	{
+		char *e;
+		long v = strtol(c, &e, 10);
+		if (e == c) break;
+		types[n++] = (int)v;
+		c = e;
+	}
+	if (!n) return;
+	int type = types[idx++ % n];
+	float p[3], dn[3] = { 0, 0, -1 }, up[3] = { 0, 0, 1000 };
+	for (int k = 0; k < 3; k++) p[k] = vieworg[k] + fwd[k] * 96;
+	std::vector<unsigned char> m;
+	m.push_back((unsigned char)SOF_SVC_TEMP_ENTITY);
+	m.push_back((unsigned char)type);
+	struct W { std::vector<unsigned char> &m; void b(int v) { m.push_back((unsigned char)v); } void s(int v) { short x = (short)v; m.insert(m.end(), (unsigned char *)&x, (unsigned char *)&x + 2); }
+	           void l(int v) { m.insert(m.end(), (unsigned char *)&v, (unsigned char *)&v + 4); } void f3(const float *v) { m.insert(m.end(), (const unsigned char *)v, (const unsigned char *)v + 12); } } w = { m };
+	switch (type)
+	{
+		case TE_EXPLOSION: case TE_VEHICLEEXPLOSION: w.f3(p); w.b(128); break;
+		case TE_LITTLEEXPLOSION: case TE_MEDIUMEXPLOSION: case TE_LARGEEXPLOSION: w.f3(p); w.b(100); w.b(1); break;
+		case TE_C4EXPLODE: case TE_BARREL_EXPLODE: case TE_BLOODSPRAY:
+		{
+			/* a point on the floor below */
+			q2b_trace_t t; float e[3] = { p[0], p[1], p[2] - 512 };
+			q2b_trace(p, 0, 0, e, -1, 1, &t);
+			float nn[3] = { t.normal[0] * 1000, t.normal[1] * 1000, t.normal[2] * 1000 };
+			w.b(RI_WORLD); w.f3(t.endpos); w.f3(nn);
+			break;
+		}
+		case TE_DEBRIS: w.f3(p); w.f3(dn); w.b(8); w.b(2); w.b(type == TE_DEBRIS ? 32 : 1); w.b(4); w.b(4); w.b(4); w.b(35); break;
+		case TE_ORANGE_SPARKS: case TE_BLUE_SPARKS: case TE_WALLSPARKS: w.f3(p); w.f3(dn); if (type == TE_WALLSPARKS) w.b(4); break;
+		case TE_SMOKE_PUFF: w.f3(p); w.b(200); w.b(200); w.b(200); w.b(200); break;
+		default: w.f3(p); w.f3(up); w.b(4); w.b(4); break;
+	}
+	(void)up;
+	if (getenv("SOF_DEBUG")) { char b[80]; snprintf(b, sizeof(b), "[sof fx] test temp entity %d\n", type); q2b_dprint(b); }
+	MsgReader r(m);
+	r.byte();
+	parseTempEnt(r);
+}
+
 static sfx::Output g_fxOut;
 static std::vector<sofmesh_t> g_fxMeshes;
 static std::vector<soffxlight_t> g_fxLights;
@@ -3131,6 +3522,8 @@ static const soffxframe_t *hookFxFrame(float time, const float *vieworg, const f
 
 	/* debris chunks: client-side GHOUL models (keys below the view weapons' -clients) */
 	runDebris(time);
+	runExplosions(time);
+	testTempEnts(time, vieworg, f);
 	g_fxModels.resize(g_chunks.size());
 	for (size_t i = 0; i < g_chunks.size(); i++)
 	{
@@ -3195,5 +3588,6 @@ static void fxUnregister(void)
 	Ghoul_SetNoteHook(0);
 	sfx::Clear();
 	clearDebris();
+	clearExplosions();
 }
 
