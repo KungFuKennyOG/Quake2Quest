@@ -27,7 +27,7 @@ server/sv_world.c backends/unix/network.c backends/unix/signalhandler.c
 backends/unix/system.c backends/unix/shared/hunk.c"
 CF=(-c -g -O1 -w -fno-omit-frame-pointer $SAN -DIOAPI_NO_64 -DYQUAKE2 -DSOF_BUILD
     '-DBASEDIRNAME="SoFQuest"' '-DYQ2OSTYPE="Linux"' '-DYQ2ARCH="x86_64"'
-    -I"$HERE/shim" -I"$Q/quake2" -I"$S" -I"$Q/Quake2VR")
+    -I"$HERE/shim" -I"$Q/quake2" -I"$S" -I"$Q/Quake2VR" -idirafter "$Q/SupportLibs/gl4es/include")
 pids=()
 for f in $FILES; do
 	gcc "${CF[@]}" -o "$T/$(echo $f | tr / _ | sed 's/\.c$/.o/')" "$S/$f" & pids+=($!)
@@ -35,6 +35,6 @@ done
 gcc "${CF[@]}" -o "$T/headless_client.o" "$HERE/headless_client.c" & pids+=($!)
 gcc "${CF[@]}" -o "$T/matrixlib.o" "$Q/Quake2VR/matrixlib.c" & pids+=($!)
 for p in "${pids[@]}"; do wait $p; done
-gcc $SAN -rdynamic -o "$OUT" "$T"/*.o -lm -ldl -lpthread
+gcc $SAN -rdynamic -o "$OUT" "$T"/*.o -lm -ldl -lpthread /lib/x86_64-linux-gnu/libEGL.so.1
 [ -n "$OBJDIR" ] || rm -rf "$T"
 echo built "$OUT"

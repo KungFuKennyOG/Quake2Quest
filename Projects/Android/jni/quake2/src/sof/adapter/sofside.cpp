@@ -1438,6 +1438,27 @@ static const sofdraw_t *hookEntityDraw(int num, float lerpfrac)
  * other animations still move the gun in the hand. */
 static void cp3(const float *a, float *b);
 static void normalize3(float *v);
+static void angleVectors(const float *angles, float *forward, float *right, float *up);
+
+/* the view weapon's last placement in the world (hookFxFrame) and the eyes */
+static int g_gunValid;
+static float g_gunOrigin[3], g_gunAngles[3], g_gunScale = 1;
+static float g_fxViewOrg[3];
+
+/* a world point or direction into the view weapon's model space: the inverse of the
+   renderer's placement (entToWorld: model x forward, y left, z up, roll turned the
+   other way, vr_weaponscale, and the left-handed mirror) */
+static void gunWorldToModel(const float *w, bool point, bool lefthand, float *p)
+{
+	float a[3] = { g_gunAngles[0], g_gunAngles[1], -g_gunAngles[2] }, f[3], r[3], u[3], d[3];
+	angleVectors(a, f, r, u);
+	for (int k = 0; k < 3; k++) d[k] = point ? (w[k] - g_gunOrigin[k]) / g_gunScale : w[k];
+	p[0] = d[0] * f[0] + d[1] * f[1] + d[2] * f[2];
+	p[1] = -(d[0] * r[0] + d[1] * r[1] + d[2] * r[2]);
+	p[2] = d[0] * u[0] + d[1] * u[1] + d[2] * u[2];
+	if (lefthand) p[1] = -p[1];
+}
+
 struct GunFit
 {
 	bool valid;
@@ -2037,7 +2058,9 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 	}
 	c.meshes.resize(out);
 
-	/* the ammo counter on top of the gun, just above the hand, tilted toward the eye */
+	/* the ammo counter: a small panel standing on the gun over the hand (beside a rifle
+	   scope's eyepiece), turned to face the eyes and kept upright in the world, so it reads
+	   from wherever the gun is held */
 	g_gunHud.clear();
 	{
 		static void *cv_hud, *cv_hand, *cv_ws;
@@ -2047,8 +2070,10 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 		if (q2b_cvar_value(cv_hud) != 0 && clipMax > 0)
 		{
 			float ws = q2b_cvar_value(cv_ws) > 0 ? q2b_cvar_value(cv_ws) : 1, H = 4.3f / ws;
-			/* the top of the gun above the hand, and where that top surface ends at the back */
-			float top = -1e9f, rear = 1e9f;
+			bool lefthand = q2b_cvar_value(cv_hand) == 1;
+			/* the top of the gun over the hand (slide, receiver), and how far back it runs
+			   before the hand (not out along a rifle's stock) */
+			float top = -1e9f, back = 1e9f;
 			for (int pass = 0; pass < 2; pass++)
 				for (size_t i = 0; i < c.surfs.size(); i++)
 				{
@@ -2057,31 +2082,97 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 					for (size_t k = 0; k + 2 < x.size(); k += 3)
 					{
 						if (fabsf(x[k + 1]) > H) continue;
-						if (pass == 0) { if (fabsf(x[k]) < 1.5f * H && x[k + 2] > top) top = x[k + 2]; }
-						else if (x[k + 2] > top - 0.35f * H && x[k] < rear) rear = x[k];
+						if (pass == 0) { if (fabsf(x[k]) < 1.2f * H && x[k + 2] > top) top = x[k + 2]; }
+						else if (x[k + 2] > top - 0.35f * H && x[k] > -1.0f * H && x[k] < back) back = x[k];
 					}
 				}
-			if (top < -1e8f) { top = H; rear = -0.5f * H; }
-			float right[3] = { 0, q2b_cvar_value(cv_hand) == 1 ? 1.0f : -1.0f, 0 };
-			/* lying on the back of the top, tilted 35 degrees toward the eye */
-			float up[3] = { 0.82f, 0, 0.57f }, n[3] = { -0.57f, 0, 0.82f };
+			if (top < -1e8f) { top = H; back = -0.5f * H; }
+			if (back > 0.5f * H) back = 0.5f * H;
+			/* measured on the idle pose and held through the other animations (a raise or
+			   reload swings the parts about, and the counter should stay put on the gun) */
+			{
+				typedef std::pair<float, float> TB;
+				static std::map<std::pair<const void *, std::string>, TB> rest; /* (model, idle) -> as first seen */
+				static std::map<const void *, TB> last;                         /* model -> the idle in use */
+				if (idle)
+				{
+					std::pair<const void *, std::string> key(obj, seq);
+					std::map<std::pair<const void *, std::string>, TB>::iterator it = rest.find(key);
+					if (it == rest.end()) it = rest.insert(std::make_pair(key, TB(top, back))).first;
+					last[obj] = it->second;
+				}
+				std::map<const void *, TB>::iterator it = last.find(obj);
+				if (it != last.end()) { top = it->second.first; back = it->second.second; }
+			}
+			static const bool hudDebug = getenv("SOF_HUDDEBUG") != 0;
+			if (hudDebug)
+			{
+				static int n;
+				if (n++ % 50 == 0)
+				{
+					std::string topPart;
+					for (size_t i = 0; i < c.surfs.size(); i++)
+					{
+						if (!keep[i]) continue;
+						const std::vector<float> &x = c.surfs[i].xyz;
+						for (size_t k = 0; k + 2 < x.size(); k += 3)
+							if (x[k + 2] == top && fabsf(x[k]) < 1.2f * H && fabsf(x[k + 1]) <= H) topPart = c.surfs[i].part;
+					}
+					char dbg[256];
+					snprintf(dbg, sizeof(dbg), "[hud] gun %s: H %.2f top %.2f (%s) back %.2f hand z %.2f..%.2f\n", c.surfs[0].objectDir.c_str(), H, top,
+					         topPart.c_str(), back, rhLo, rhHi);
+					q2b_dprint(dbg);
+				}
+			}
+			float anchor[3] = { back + 0.15f * H, 0, top + 0.08f * H };
+
 			float hBig = 0.16f * H, hSmall = 0.10f * H;
 			char a[16], b[16];
 			snprintf(a, sizeof(a), "%d", clip);
 			snprintf(b, sizeof(b), "/%d", spare);
 			float wBig = HudMesh::advance(hBig) * strlen(a), wSmall = HudMesh::advance(hSmall) * strlen(b), w = wBig + wSmall;
-			float hh = hBig * 0.5f + 0.06f * H;
-			float centre[3] = { rear + up[0] * hh + 0.05f * H, 0, top + up[2] * hh + 0.03f * H };
-			/* a rifle scope's eyepiece is there: beside the scope instead, on the off-hand side */
+			float hh = hBig * 0.5f + 0.06f * H, hw = w * 0.5f + 0.08f * H;
+
+			/* facing the eyes, upright in the world */
+			float n[3] = { -0.57f, 0, 0.82f }, up[3] = { 0.82f, 0, 0.57f }, right[3];
+			if (g_gunValid)
+			{
+				static const float worldUp[3] = { 0, 0, 1 };
+				float eye[3], wu[3];
+				gunWorldToModel(g_fxViewOrg, true, lefthand, eye);
+				gunWorldToModel(worldUp, false, lefthand, wu);
+				for (int k = 0; k < 3; k++) n[k] = eye[k] - anchor[k];
+				normalize3(n);
+				float dn = wu[0] * n[0] + wu[1] * n[1] + wu[2] * n[2];
+				for (int k = 0; k < 3; k++) up[k] = wu[k] - n[k] * dn;
+				if (up[0] * up[0] + up[1] * up[1] + up[2] * up[2] < 0.01f)
+				{
+					/* looking straight down on it: the barrel is "up" */
+					float dx = n[0];
+					up[0] = 1 - n[0] * dx; up[1] = -n[1] * dx; up[2] = -n[2] * dx;
+				}
+				normalize3(up);
+			}
+			/* right = up x n, mirrored back for the left-handed (mirrored) model */
+			right[0] = up[1] * n[2] - up[2] * n[1];
+			right[1] = up[2] * n[0] - up[0] * n[2];
+			right[2] = up[0] * n[1] - up[1] * n[0];
+			if (lefthand) for (int k = 0; k < 3; k++) right[k] = -right[k];
+
+			float centre[3];
 			if (c.draw.hasscope)
 			{
+				/* the eyepiece is where the counter would be: beside the scope, off-hand side */
 				float sr = c.draw.scope[3];
-				centre[0] = c.draw.scope[0] + up[0] * hh + 0.1f * H;
+				centre[0] = c.draw.scope[0] + 0.1f * H;
+				centre[1] = c.draw.scope[1] + sr * 1.3f + hw;
 				centre[2] = c.draw.scope[2] - sr * 0.3f;
-				for (int k = 0; k < 3; k++) centre[k] -= right[k] * (sr * 1.3f + w * 0.5f + 0.1f * H);
 			}
+			else
+				for (int k = 0; k < 3; k++) centre[k] = anchor[k] + up[k] * (hh + 0.04f * H);
+
 			static const unsigned char bg[4] = { 0, 0, 0, 150 };
-			g_gunHud.panel(centre, right, up, w * 0.5f + 0.08f * H, hh, bg);
+			g_gunHud.panel(centre, right, up, hw, hh, bg);
 			bool low = clip * 4 <= clipMax, empty = clip == 0;
 			unsigned char col[4] = { 255, 170, 40, 255 };
 			if (low) { col[0] = 255; col[1] = 60; col[2] = 40; }
@@ -2094,6 +2185,7 @@ static const sofdraw_t *hookViewWeaponDraw(int client, float lerpfrac)
 			g_gunHud.text(b, o, right, up, hSmall, col2);
 			sofmesh_t m;
 			g_gunHud.toMesh(m);
+			m.nodepth = 1; /* never hidden by the gun it sits on */
 			if (m.numindices) c.meshes.push_back(m);
 		}
 	}
@@ -2558,7 +2650,6 @@ static void sparks(MsgReader &r, int type)
 }
 
 /* where the client views from (for sounds placed relative to the player) */
-static float g_fxViewOrg[3];
 
 /* TE_WHIZBULLET: a near miss cracks past the player's head (sent to that player only) */
 static void whizBullet(MsgReader &r)
@@ -3858,8 +3949,6 @@ static void angleVectors(const float *angles, float *forward, float *right, floa
 	if (right) { right[0] = -1 * sr * sp * cy + -1 * cr * -sy; right[1] = -1 * sr * sp * sy + -1 * cr * cy; right[2] = -1 * sr * cp; }
 	if (up) { up[0] = cr * sp * cy + -sr * -sy; up[1] = cr * sp * sy + -sr * cy; up[2] = cr * cp; }
 }
-static int g_gunValid;
-static float g_gunOrigin[3], g_gunAngles[3], g_gunScale = 1;
 
 static bool vrScopedRifle(edict_t *ent)
 {
@@ -4236,7 +4325,7 @@ static void hudSubtitle(const char *text)
 }
 
 static HudMesh g_viewHud;
-static float g_subYaw = 1e9f;
+static float g_subYaw = 1e9f, g_subPitch;
 
 /* subtitles: a few lines low in front of the player, following the head lazily */
 static void buildSubtitles(float time, const float *vieworg, const float *viewangles, float m)
@@ -4249,13 +4338,19 @@ static void buildSubtitles(float time, const float *vieworg, const float *viewan
 		else i++;
 	}
 	if (g_subs.empty()) { g_subYaw = 1e9f; return; }
-	float yaw = viewangles[1];
-	if (g_subYaw > 1e8f) g_subYaw = yaw;
+	/* a little below where the player looks, following the head lazily (it stays put for
+	   small head turns, and catches up with big ones) */
+	float yaw = viewangles[1], pitch = viewangles[0] + 8;
+	if (pitch < -10) pitch = -10;
+	if (pitch > 60) pitch = 60;
+	if (g_subYaw > 1e8f) { g_subYaw = yaw; g_subPitch = pitch; }
 	float d = yaw - g_subYaw;
 	while (d > 180) d -= 360;
 	while (d < -180) d += 360;
 	if (fabsf(d) > 25) g_subYaw += d * 0.08f;
-	vec3_t a = { 20, g_subYaw, 0 }, f, r, u;
+	float dp = pitch - g_subPitch;
+	if (fabsf(dp) > 25) g_subPitch += dp * 0.08f; /* a glance down at the gun leaves them be */
+	vec3_t a = { g_subPitch, g_subYaw, 0 }, f, r, u;
 	angleVectors(a, f, r, u);
 	/* word-wrapped lines, newest at the bottom */
 	std::vector<std::pair<std::string, float> > lines;
@@ -4289,7 +4384,11 @@ static void buildSubtitles(float time, const float *vieworg, const float *viewan
 	float maxw = 0;
 	for (size_t i = 0; i < lines.size(); i++) { float w = HudMesh::advance(h) * lines[i].first.size(); if (w > maxw) maxw = w; }
 	float total = lh * lines.size();
-	unsigned char bg[4] = { 0, 0, 0, 140 };
+	/* the backing fades with the text (it must never be left as an empty dark box) */
+	float maxa = 0;
+	for (size_t i = 0; i < lines.size(); i++) if (lines[i].second > maxa) maxa = lines[i].second;
+	if (maxa <= 0.01f || lines.empty()) return;
+	unsigned char bg[4] = { 0, 0, 0, (unsigned char)(140 * (maxa > 1 ? 1 : maxa)) };
 	g_viewHud.panel(c, r, u, maxw * 0.5f + 0.4f * h, total * 0.5f + 0.3f * h, bg);
 	for (size_t i = 0; i < lines.size(); i++)
 	{

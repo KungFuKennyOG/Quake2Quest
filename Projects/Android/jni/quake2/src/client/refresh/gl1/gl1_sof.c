@@ -59,6 +59,15 @@ R_InitSoFHudTexture(void)
 		}
 	}
 	r_sofhudtexture = R_LoadPic((char *)SOFHUD_TEXTURE, (byte *)data, SOFHUD_TEX_W, 0, SOFHUD_TEX_H, 0, it_sprite, 32);
+
+	/* sampled without mipmaps: HUD text is never much smaller than its texels, and the far
+	   (subtitle) text must not depend on how the driver builds the smaller levels */
+	if (r_sofhudtexture)
+	{
+		R_Bind(r_sofhudtexture->texnum);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
 }
 
 static image_t *

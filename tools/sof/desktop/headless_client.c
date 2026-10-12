@@ -18,7 +18,7 @@
  * the GL1 renderer linked against gl_stub.c> the real renderer runs on every frame
  * (nothing is drawn; run it under AddressSanitizer to catch memory errors). */
 #include <dlfcn.h>
-viddef_t viddef = { 1280, 720 };
+viddef_t viddef = { 1024, 1024 }; /* height, width: about one Quest eye */
 cvar_t *vid_renderer, *vid_gamma, *vid_fullscreen;
 refexport_t re;
 static int real_ref;
@@ -26,7 +26,89 @@ static int real_ref;
 static qboolean H_GetModeInfo(int *w, int *h, int mode) { (void)mode; *w = viddef.width; *h = viddef.height; return true; }
 static void H_MenuInit(void) {}
 static void H_WriteScreenshot(int w, int h, int c, const void *d) { (void)w; (void)h; (void)c; (void)d; }
-static qboolean H_InitGraphics(int fs, int *w, int *h) { (void)fs; *w = viddef.width; *h = viddef.height; return true; }
+/* SOF_GL=1 (with SOF_REF=<ref_gl.so from build_ref_gl.sh>): a real offscreen OpenGL context
+   (Mesa, no window) so the renderer draws; SOF_SHOT=<prefix> SOF_SHOT_FRAMES=<n,n,...> saves
+   those frames as <prefix>_<n>.ppm */
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+typedef void (*glfn_t)();
+static void (*p_glGenFramebuffers)(int, unsigned *);
+static void (*p_glBindFramebuffer)(unsigned, unsigned);
+static void (*p_glGenRenderbuffers)(int, unsigned *);
+static void (*p_glBindRenderbuffer)(unsigned, unsigned);
+static void (*p_glRenderbufferStorage)(unsigned, unsigned, int, int);
+static void (*p_glFramebufferRenderbuffer)(unsigned, unsigned, unsigned, unsigned);
+static void (*p_glReadPixels)(int, int, int, int, unsigned, unsigned, void *);
+static void (*p_glFinish)(void);
+static int gl_live;
+static void H_StartGL(void)
+{
+	typedef EGLDisplay (*gpd_t)(EGLenum, void *, const EGLint *);
+	gpd_t gpd = (gpd_t)eglGetProcAddress("eglGetPlatformDisplayEXT");
+	EGLDisplay dpy = gpd ? gpd(0x31DD /* EGL_PLATFORM_SURFACELESS_MESA */, EGL_DEFAULT_DISPLAY, NULL) : eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	EGLint maj, min, n;
+	EGLConfig cfg;
+	static const EGLint ca[] = { EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT, EGL_NONE };
+	unsigned fb, rb[2];
+	if (!dpy || !eglInitialize(dpy, &maj, &min)) Com_Error(ERR_FATAL, "SOF_GL: no EGL display");
+	eglBindAPI(EGL_OPENGL_API);
+	if (!eglChooseConfig(dpy, ca, &cfg, 1, &n) || n < 1) Com_Error(ERR_FATAL, "SOF_GL: no EGL config");
+	EGLContext ctx = eglCreateContext(dpy, cfg, EGL_NO_CONTEXT, NULL);
+	if (!ctx || !eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, ctx)) Com_Error(ERR_FATAL, "SOF_GL: no GL context");
+#define GLP(v, name) *(glfn_t *)&v = (glfn_t)eglGetProcAddress(name)
+	GLP(p_glGenFramebuffers, "glGenFramebuffers"); GLP(p_glBindFramebuffer, "glBindFramebuffer");
+	GLP(p_glGenRenderbuffers, "glGenRenderbuffers"); GLP(p_glBindRenderbuffer, "glBindRenderbuffer");
+	GLP(p_glRenderbufferStorage, "glRenderbufferStorage"); GLP(p_glFramebufferRenderbuffer, "glFramebufferRenderbuffer");
+	GLP(p_glReadPixels, "glReadPixels"); GLP(p_glFinish, "glFinish");
+	p_glGenFramebuffers(1, &fb);
+	p_glBindFramebuffer(0x8D40, fb);
+	p_glGenRenderbuffers(2, rb);
+	p_glBindRenderbuffer(0x8D41, rb[0]);
+	p_glRenderbufferStorage(0x8D41, 0x8058 /* RGBA8 */, viddef.width, viddef.height);
+	p_glFramebufferRenderbuffer(0x8D40, 0x8CE0, 0x8D41, rb[0]);
+	p_glBindRenderbuffer(0x8D41, rb[1]);
+	p_glRenderbufferStorage(0x8D41, 0x88F0 /* DEPTH24_STENCIL8 */, viddef.width, viddef.height);
+	p_glFramebufferRenderbuffer(0x8D40, 0x8D00, 0x8D41, rb[1]);
+	p_glFramebufferRenderbuffer(0x8D40, 0x8D20, 0x8D41, rb[1]);
+	gl_live = 1;
+	Com_Printf("[render] offscreen OpenGL %d.%d context, %dx%d\n", maj, min, viddef.width, viddef.height);
+}
+static void H_Shot(int frame)
+{
+	const char *pre = getenv("SOF_SHOT"), *list = getenv("SOF_SHOT_FRAMES");
+	char want[16], name[512];
+	if (!gl_live || !pre || !list) return;
+	snprintf(want, sizeof(want), ",%d,", frame);
+	snprintf(name, sizeof(name), ",%s,", list);
+	if (!strstr(name, want)) return;
+	{
+		int w = viddef.width, h = viddef.height, y;
+		unsigned char *px = malloc((size_t)w * h * 4);
+		FILE *f;
+		p_glFinish();
+		p_glReadPixels(0, 0, w, h, 0x1908, 0x1401, px);
+		snprintf(name, sizeof(name), "%s_%d.ppm", pre, frame);
+		f = fopen(name, "wb");
+		if (f)
+		{
+			fprintf(f, "P6\n%d %d\n255\n", w, h);
+			for (y = h - 1; y >= 0; y--)
+			{
+				int x;
+				for (x = 0; x < w; x++) fwrite(px + ((size_t)y * w + x) * 4, 1, 3, f);
+			}
+			fclose(f);
+			Com_Printf("[render] saved %s\n", name);
+		}
+		free(px);
+	}
+}
+static qboolean H_InitGraphics(int fs, int *w, int *h)
+{
+	(void)fs; *w = viddef.width; *h = viddef.height;
+	if (getenv("SOF_GL") && !gl_live) H_StartGL();
+	return true;
+}
 static qboolean H_GetDesktopMode(int *w, int *h) { *w = viddef.width; *h = viddef.height; return true; }
 
 void VID_Init(void)
@@ -78,7 +160,8 @@ void Draw_FadeScreen(void) { FWD(re.DrawFadeScreen()); }
 void Draw_StretchRaw(int x, int y, int w, int h, int cols, int rows, byte *data) { FWD(re.DrawStretchRaw(x, y, w, h, cols, rows, data)); }
 void R_SetPalette(const unsigned char *palette) { FWD(re.SetPalette(palette)); }
 void R_BeginFrame(float camera_separation) { FWD(re.BeginFrame(camera_separation)); }
-void R_EndFrame(void) { FWD(re.EndFrame()); }
+static int frames_rendered;
+void R_EndFrame(void) { FWD(re.EndFrame()); H_Shot(frames_rendered); }
 
 /* entity transform used by the GL renderer for GHOUL meshes (alias-model convention) */
 static void placePoint(const entity_t *e, const float *p, float *out)
@@ -93,7 +176,6 @@ static void placePoint(const entity_t *e, const float *p, float *out)
 	out[2] = e->origin[2] + p[0] * f[2] - p[1] * r[2] + p[2] * u[2];
 }
 
-static int frames_rendered;
 void R_RenderFrame(refdef_t *fd)
 {
 	const char *dump = getenv("SOF_DUMP");
@@ -129,9 +211,26 @@ void R_RenderFrame(refdef_t *fd)
 		Com_Printf("[render] frame %d: view %.0f %.0f %.0f ang %.0f %.0f, %d entities, %d ghoul (%d tris)\n", frames_rendered,
 		           fd->vieworg[0], fd->vieworg[1], fd->vieworg[2], fd->viewangles[0], fd->viewangles[1], fd->num_entities, ghouls, tris);
 
-	if (dump && frames_rendered == dumpframe)
+	/* SOF_DUMP_FRAMES=<n,n,...>: several frames, to <SOF_DUMP>_<n>.obj */
+	char dumpname[512];
+	const char *dlist = getenv("SOF_DUMP_FRAMES");
+	int dumpnow = 0;
+	if (dump && dlist)
 	{
-		FILE *f = fopen(dump, "w");
+		char want[16], all[512];
+		snprintf(want, sizeof(want), ",%d,", frames_rendered);
+		snprintf(all, sizeof(all), ",%s,", dlist);
+		dumpnow = strstr(all, want) != NULL;
+		snprintf(dumpname, sizeof(dumpname), "%s_%d.obj", dump, frames_rendered);
+	}
+	else if (dump)
+	{
+		dumpnow = frames_rendered == dumpframe;
+		snprintf(dumpname, sizeof(dumpname), "%s", dump);
+	}
+	if (dumpnow)
+	{
+		FILE *f = fopen(dumpname, "w");
 		int base = 1;
 		if (!f) return;
 		fprintf(f, "# view %f %f %f angles %f %f %f\n", fd->vieworg[0], fd->vieworg[1], fd->vieworg[2],
@@ -169,7 +268,7 @@ void R_RenderFrame(refdef_t *fd)
 			}
 		}
 		fclose(f);
-		Com_Printf("[render] dumped frame %d to %s\n", frames_rendered, dump);
+		Com_Printf("[render] dumped frame %d to %s\n", frames_rendered, dumpname);
 	}
 }
 

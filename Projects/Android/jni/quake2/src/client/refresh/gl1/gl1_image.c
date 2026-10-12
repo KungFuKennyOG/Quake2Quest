@@ -232,7 +232,7 @@ R_TextureMode(char *string)
 	/* change all the existing mipmap texture objects */
 	for (i = 0, glt = gltextures; i < numgltextures; i++, glt++)
 	{
-		if ((glt->type != it_pic) && (glt->type != it_sky))
+		if ((glt->type != it_pic) && (glt->type != it_sky) && (glt != r_sofhudtexture))
 		{
 			R_Bind(glt->texnum);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
