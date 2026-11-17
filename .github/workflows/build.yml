@@ -6,11 +6,8 @@
 # The Android package is not attached.
 name: build
 
+# SoF Quest: this branch builds the Quest APK (sof-openmerc-quest.yml); the desktop packages only by hand
 on:
-  push:
-    branches: ['**']
-    tags: ['v*']
-  pull_request:
   workflow_dispatch:
 
 permissions:

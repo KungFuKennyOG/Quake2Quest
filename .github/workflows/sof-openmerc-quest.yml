@@ -1,0 +1,69 @@
+# SoF Quest on the openMERC engine: the arm64-v8a APK (quest/build-android.sh).
+#
+# The Raven SoF SDK comes from the sof-sdk branch of this repository (sof-sdk-master.zip), or from SOF_SDK_URL
+# (secret or variable) when that is set; quest/sdk/sof-sdk-64bit.patch ports it to 64-bit and the 1.07f module
+# tables. The APK holds no game data: copy your Soldier of Fortune base folder (pak0.pak ...) to
+# Android/data/com.kungfukenny.sofquest/files/base on the headset.
+name: SoF Quest (openMERC) APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ sof-openmerc ]
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          ref: sof-sdk
+          path: sofsdk-branch
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android NDK, build tools, platform
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "ndk;26.3.11579264" "platforms;android-34" "build-tools;35.0.0" > /dev/null
+          echo "NDK=$ANDROID_HOME/ndk/26.3.11579264" >> "$GITHUB_ENV"
+          sudo apt-get install -y -qq ninja-build > /dev/null
+          pip install -q "cmake>=3.31"
+
+      - name: SoF SDK with the patch
+        env:
+          SOF_SDK_URL: ${{ secrets.SOF_SDK_URL || vars.SOF_SDK_URL }}
+        run: |
+          if [ -n "$SOF_SDK_URL" ]; then curl -fsSL "$SOF_SDK_URL" -o sofsdk.zip; else cp sofsdk-branch/sof-sdk-master.zip sofsdk.zip; fi
+          mkdir sofsdk && unzip -q sofsdk.zip -d sofsdk
+          GAME=$(find "$PWD/sofsdk" -type d -name gamecpp | head -1 | xargs dirname)
+          test -d "$GAME" || { echo "::error::no Source/Game in the SDK zip"; exit 1; }
+          (cd "$(dirname "$GAME")" && patch -p1 --forward < "$GITHUB_WORKSPACE/quest/sdk/sof-sdk-64bit.patch" > patch.log) \
+            || { grep -iE "fail|reject|can't" "$(dirname "$GAME")/patch.log" | head -20; exit 1; }
+          echo "SOF_GAME=$GAME" >> "$GITHUB_ENV"
+
+      - name: SDL 3 and OpenAL Soft
+        run: OUT=$PWD/build-quest quest/build-android.sh deps > deps.log 2>&1 || { tail -40 deps.log; exit 1; }
+
+      - name: Engine, renderer, sound
+        run: OUT=$PWD/build-quest quest/build-android.sh native
+
+      - name: SoF SDK game and player modules
+        run: OUT=$PWD/build-quest quest/build-android.sh sdk
+
+      - name: APK
+        run: OUT=$PWD/build-quest quest/build-android.sh apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoFQuest-openMERC-apk
+          path: build-quest/SoFQuest.apk
