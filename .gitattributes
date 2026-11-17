@@ -3,3 +3,6 @@
 *.bat text eol=crlf
 *.png binary
 *.ico binary
+
+# SoF Quest: the SDK patch keeps the CRLF line ends of the SDK sources it patches
+quest/sdk/*.patch -text
