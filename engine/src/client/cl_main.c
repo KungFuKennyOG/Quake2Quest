@@ -35,6 +35,7 @@
 
 #include <errno.h>
 #include "header/client.h"
+#include "vr/vr.h"
 #include "header/sof_sound.h"
 #include "header/sofclient.h" /* OpenMerc (I6h) */
 #include "input/header/input.h"
@@ -777,6 +778,9 @@ CL_Frame(int packetdelta, int renderdelta, int timedelta, qboolean packetframe, 
 
 	CL_FreecamCheck();
 
+	/* SoF Quest VR: the headset sets the rhythm; head and hands of this frame */
+	VR_FrameStart();
+
 	/* openMERC: animation transitions of the Ghoul models (seconds; 0 = the original snap between sequences) */
 	{
 		static cvar_t *ghl_blend;
@@ -960,6 +964,7 @@ CL_Init(void)
 	CL_Ghoul_Init(); /* I1c: the client Ghoul system exists before the renderer asks for it */
 	CL_Player_Init(); /* I1d: client side of the player module (SPEC-003) */
 
+	VR_Init(); /* SoF Quest: is there a headset (before the window and the renderer) */
 	VID_Init();
 
 	/* OpenMerc (I1a): SoF order - video, then the sound module, which
@@ -1017,6 +1022,7 @@ CL_Shutdown(void)
 	S_Shutdown();
 	IN_Shutdown();
 	VID_Shutdown();
+	VR_Shutdown();
 
 	CL_ClearEntities();
 	M_Free();

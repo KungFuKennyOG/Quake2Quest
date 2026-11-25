@@ -36,6 +36,7 @@
  */
 
 #include "header/client.h"
+#include "vr/vr.h"
 #include "header/sofclient.h"
 
 static float scr_con_current; /* aproaches scr_conlines at scr_conspeed */
@@ -1644,9 +1645,17 @@ SCR_SoFMode(void)
 
 qboolean MWD_Enabled(void); /* menu/m_wide.c */
 
+static void SCR_SoF_FrameVR(void);
+
 static void
 SCR_SoF_Frame(void)
 {
+	if (VR_Enabled())
+	{
+		SCR_SoF_FrameVR();
+		return;
+	}
+
 	cvar_t *overlay = Cvar_Get("scr_menuoverlay", "0", 0);
 	/* MENU-SCRATCH (owner t96 f): the wide menu over a running level shows the
 	   live game behind it, dimmed by the menu (m_wide.c MWD_DrawBackground) */
@@ -1683,6 +1692,54 @@ SCR_SoF_Frame(void)
 	R_EndFrame();
 }
 
+/* SoF Quest VR: the same frame for a headset - the 3D view once for each eye, everything 2D on the floating screen */
+static void
+SCR_SoF_FrameVR(void)
+{
+	cvar_t *overlay = Cvar_Get("scr_menuoverlay", "0", 0);
+	qboolean world = (cls.state == ca_active) && cl.refresh_prepped && !(cl.cinematictime > 0);
+	int eye;
+
+	if (!VR_DrawBegin())
+	{
+		return;
+	}
+
+	R_BeginFrame(0);
+
+	for (eye = 0; world && (eye < 2); eye++)
+	{
+		if (!VR_DrawEye(eye))
+		{
+			world = false;
+			break;
+		}
+
+		SCR_CalcVrect();
+		V_RenderView(0);
+	}
+
+	VR_DrawScreen();
+	HUD_Set2D();
+
+	if (!world)
+	{
+		R_EndWorldRenderpass();
+	}
+
+	if (!overlay->value)
+	{
+		SCR_SoF_DrawOverlays();
+		SCR_DrawConsole();
+		SCR_SoF_DrawNet();
+	}
+
+	M_Draw();
+	SCR_SoF_EndFrame();
+	R_EndFrame();
+	VR_DrawEnd(world);
+}
+
 /* one frame even while the screen is disabled (loading progress) */
 void
 SCR_UpdateScreenForce(void)
@@ -1715,7 +1772,7 @@ SCR_SoF_UpdateScreen(void)
 	}
 
 	/* a cinematic freeze of 2 or more keeps the previous image */
-	if ((cls.state == ca_active) && (CL_SoF_CurrentPS()->cinfreeze >= 2))
+	if ((cls.state == ca_active) && (CL_SoF_CurrentPS()->cinfreeze >= 2) && !VR_Enabled())
 	{
 		SCR_ClearPrints();
 		return;

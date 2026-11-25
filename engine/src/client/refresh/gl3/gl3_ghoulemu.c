@@ -296,7 +296,7 @@ EyeNormal(const float *n, float *out)
 	out[1] = q[3] * n[0] + q[4] * n[1] + q[5] * n[2];
 	out[2] = q[6] * n[0] + q[7] * n[1] + q[8] * n[2];
 
-	if (E.normalize || E.rescale)
+	/* SoF Quest VR: always (the view weapon in the hand is drawn scaled down; a no-op for unscaled models) */
 	{
 		float l = sqrtf(out[0] * out[0] + out[1] * out[1] + out[2] * out[2]);
 

@@ -826,7 +826,7 @@ GL3_DrawAliasModel(entity_t *entity)
 		origProjViewMat = gl3state.uni3DData.transProjViewMat4;
 
 		// render weapon with a different FOV (r_gunfov) so it's not distorted at high view FOV
-		hmm_mat4 projMat = GL3_SetPerspective( (r_gunfov->value < 0)?
+		hmm_mat4 projMat = GL3_SetPerspective( ((r_gunfov->value < 0) || gl3_vr_width)?
 				r_newrefdef.fov_y : r_gunfov->value );
 
 		if(gl_lefthand->value == 1.0F)

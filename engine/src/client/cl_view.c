@@ -32,6 +32,7 @@
  */
 
 #include "header/client.h"
+#include "vr/vr.h"
 #include "header/sofclient.h"
 #include "input/header/input.h"
 #include "fx/cl_fx.h" /* OpenMerc (I5) */
@@ -941,9 +942,12 @@ V_RenderView(float stereo_separation)
 		return;			// still loading
 	}
 
-	CL_Thunder_Frame();
-	CL_WarBoom_Frame();
-	CL_Rain_Frame();
+	if (!VR_SecondEye())
+	{
+		CL_Thunder_Frame();
+		CL_WarBoom_Frame();
+		CL_Rain_Frame();
+	}
 
 	if (cl_timedemo->value)
 	{
@@ -957,7 +961,8 @@ V_RenderView(float stereo_separation)
 
 	/* an invalid frame will just use the exact previous refdef
 	   we can't use the old frame if the video mode has changed, though... */
-	if (cl.frame.valid && (cl.force_refdef || !cl_paused->value))
+	/* SoF Quest VR: the scene is built once and drawn for each eye */
+	if (cl.frame.valid && (cl.force_refdef || !cl_paused->value) && !VR_SecondEye())
 	{
 		cl.force_refdef = false;
 
@@ -1058,6 +1063,8 @@ V_RenderView(float stereo_separation)
 	cl.refdef.height = scr_vrect.height;
 	cl.refdef.fov_y = CalcFov(cl.refdef.fov_x, (float)cl.refdef.width,
 				(float)cl.refdef.height);
+
+	VR_SetEyeView(); /* SoF Quest VR: this eye's place, the headset's field of view */
 
 	CLFX_RenderFrame(&cl.refdef); /* OpenMerc (I5): SPEC-002 frame with the effects */
 

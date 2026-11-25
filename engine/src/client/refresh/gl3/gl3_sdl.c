@@ -332,6 +332,8 @@ int GL3_PrepareForWindow(void)
  */
 int GL3_InitContext(void* win)
 {
+	GL3_VR_ContextLost(); /* SoF Quest VR: framebuffers of an old context */
+
 	// Coders are stupid.
 	if (win == NULL)
 	{
@@ -468,6 +470,14 @@ int GL3_InitContext(void* win)
  */
 void GL3_GetDrawableSize(int* width, int* height)
 {
+	if (gl3_vr_width > 0)
+	{
+		/* SoF Quest VR: the engine draws at the size of an eye's texture */
+		*width = gl3_vr_width;
+		*height = gl3_vr_height;
+		return;
+	}
+
 #ifdef USE_SDL3
 	SDL_GetWindowSizeInPixels(window, width, height);
 #else

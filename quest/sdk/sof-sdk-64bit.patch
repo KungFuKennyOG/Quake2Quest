@@ -1169,6 +1169,99 @@ index 6f6e247..db4f098 100644
  #include "ai_private.h"
  
  #define	STOP_EPSILON	1.0
+diff --git a/Game/gamecpp/g_player.cpp b/Game/gamecpp/g_player.cpp
+index 48ddfc6..713a2e2 100644
+--- a/Game/gamecpp/g_player.cpp
++++ b/Game/gamecpp/g_player.cpp
+@@ -10,6 +10,77 @@ bool DoWeHaveTheFlag(edict_t *ent);
+ void ShowItemUse(edict_t *ent, int itemType);//in p_body
+ void ItemDropServer(edict_t *ent,int type,int ammmoCount);
+ 
++// SoF Quest (VR): shots leave the gun in the hand. The client says where that is in the cvar vr_aim:
++// "1 muzzle.x y z  pitch yaw roll  hand.x y z" (world). For the time of the shot the player's view is the gun's.
++static cvar_t	*vr_aim_cvar;
++static vec3_t	vr_saved_ofs, vr_saved_ang;
++
++static bool VRAimBegin(edict_t &ent)
++{
++	float	v[10];
++	vec3_t	muzzle, hand, zero = {0, 0, 0};
++	trace_t	tr;
++
++	if (!ent.client || deathmatch->value)
++	{
++		return false;
++	}
++	if (!vr_aim_cvar)
++	{
++		vr_aim_cvar = gi.cvar("vr_aim", "0", 0);
++	}
++	if (!vr_aim_cvar || !vr_aim_cvar->string || sscanf(vr_aim_cvar->string, "%f %f %f %f %f %f %f %f %f %f",
++		&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]) < 10 || v[0] < 1)
++	{
++		return false;
++	}
++	if (ent.client->ps.fov > 0 && ent.client->ps.fov < 60)
++	{	// through the scope: where the eye looks
++		return false;
++	}
++	VectorSet(muzzle, v[1], v[2], v[3]);
++	VectorSet(hand, v[7], v[8], v[9]);
++	// not through a wall the muzzle was pushed into
++	gi.trace(hand, zero, zero, muzzle, &ent, MASK_SOLID, &tr);
++	if (tr.fraction < 1.0f)
++	{
++		VectorCopy(hand, muzzle);
++	}
++	VectorCopy(ent.client->ps.viewoffset, vr_saved_ofs);
++	VectorCopy(ent.client->ps.viewangles, vr_saved_ang);
++	VectorSubtract(muzzle, ent.s.origin, ent.client->ps.viewoffset);
++	VectorSet(ent.client->ps.viewangles, v[4], v[5], v[6]);
++	return true;
++}
++
++static void VRAimEnd(edict_t &ent)
++{
++	VectorCopy(vr_saved_ofs, ent.client->ps.viewoffset);
++	VectorCopy(vr_saved_ang, ent.client->ps.viewangles);
++}
++
++static void VRFireServer(sharedEdict_t &sh, edict_t &ent, inven_c &inven)
++{
++	bool vr = VRAimBegin(ent);
++
++	FireServer(sh, ent, inven);
++	if (vr)
++	{
++		VRAimEnd(ent);
++	}
++}
++
++static void VRAltfireServer(sharedEdict_t &sh, edict_t &ent, inven_c &inven)
++{
++	bool vr = VRAimBegin(ent);
++
++	AltfireServer(sh, ent, inven);
++	if (vr)
++	{
++		VRAimEnd(ent);
++	}
++}
++
+ bool flashpackUse(edict_t &ent, itemSlot_c &slot);
+ bool neuralGrenadeUse(edict_t &ent, itemSlot_c &slot);
+ bool c4use(edict_t &ent, itemSlot_c &slot);
+@@ -92,8 +163,8 @@ int *Game_InitPlayer(void)
+ 
+ 	pisv.GetGhoul=gi.GetGhoul;
+ 	pisv.levelTime=&level.time;
+-	pisv.FireHelper=&FireServer;
+-	pisv.AltfireHelper=&AltfireServer;
++	pisv.FireHelper=&VRFireServer;
++	pisv.AltfireHelper=&VRAltfireServer;
+ 	pisv.ShowReload=&ShowReload;
+ 	pisv.ShowItemUse=&ShowItemUse;
+ 	pisv.WeaponDrop=&WeaponDropServer;
 diff --git a/Game/gamecpp/g_save.cpp b/Game/gamecpp/g_save.cpp
 index 386c65b..fe6e058 100644
 --- a/Game/gamecpp/g_save.cpp
@@ -1945,6 +2038,24 @@ index 55719f5..7a5e5a8 100644
  	{
  		VectorMA(wf.fwd, gi.flrand(-.1, .1), side, oldDir);
  		VectorMA(oldDir, gi.flrand(-.05, .05), up, oldDir);
+diff --git a/Game/ghoul/ighoul.h b/Game/ghoul/ighoul.h
+index a605755..6016c58 100644
+--- a/Game/ghoul/ighoul.h
++++ b/Game/ghoul/ighoul.h
+@@ -156,10 +156,11 @@ public:
+ 		LocalInv,
+ 		EntityInv
+ 	};
+-	virtual void SetXForm(const float *m)=0;
+-	virtual void GetXForm(float *m)=0;
++	// in the order of the original (MSVC) method table: overloads are grouped, last declared first
+ 	virtual void SetXForm(const Matrix4 &m)=0;
++	virtual void SetXForm(const float *m)=0;
+ 	virtual void GetXForm(Matrix4 &m)=0;
++	virtual void GetXForm(float *m)=0;
+ 	virtual void SetOnOff(bool OnOff,float Now)=0;
+ 	virtual bool GetOnOff()=0;
+ 	virtual void SetSpeed(GhoulSpeed speed)=0;
 diff --git a/Game/ghoul/matrix4.cpp b/Game/ghoul/matrix4.cpp
 index e065337..01f10cf 100644
 --- a/Game/ghoul/matrix4.cpp
@@ -2321,112 +2432,6 @@ index d5cfcbe..df1dc21 100644
  {
  	average[0] = (mins[0] + maxs[0]) * 0.5f;
  	average[1] = (mins[1] + maxs[1]) * 0.5f;
-diff --git a/Game/qcommon/port_compat.h b/Game/qcommon/port_compat.h
-new file mode 100644
-index 0000000..25bb0f0
---- /dev/null
-+++ b/Game/qcommon/port_compat.h
-@@ -0,0 +1,100 @@
-+// port_compat.h -- portability shims for building the SoF game/player modules
-+// on non-Windows (Linux x86-64, Android ARM64) with gcc/clang.
-+// Included from gamecpp/q_shared.h (in place of <io.h>) on !_WIN32.
-+#ifndef PORT_COMPAT_H
-+#define PORT_COMPAT_H
-+
-+#ifndef _WIN32
-+
-+#include <stdint.h>
-+#include <stddef.h>
-+#include <string.h>
-+#include <strings.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <ctype.h>
-+#include <limits.h>
-+
-+// --- CRT name differences ---------------------------------------------------
-+#define stricmp		strcasecmp
-+#define strnicmp	strncasecmp
-+#define _stricmp	strcasecmp
-+#define _strnicmp	strncasecmp
-+#define strcmpi		strcasecmp
-+#define _snprintf	snprintf
-+#define _vsnprintf	vsnprintf
-+
-+static inline char *port_strlwr(char *s) { for (char *p = s; *p; ++p) *p = (char)tolower((unsigned char)*p); return s; }
-+static inline char *port_strupr(char *s) { for (char *p = s; *p; ++p) *p = (char)toupper((unsigned char)*p); return s; }
-+#define strlwr		port_strlwr
-+#define _strlwr		port_strlwr
-+#define strupr		port_strupr
-+#define _strupr		port_strupr
-+
-+// --- MSVC types/keywords ----------------------------------------------------
-+#define __int64		long long
-+#define __int32		int
-+#define __int16		short
-+#define __int8		char
-+#define __cdecl
-+#define __stdcall
-+#define __fastcall
-+#define _inline		inline
-+#define __inline	inline
-+#define __forceinline	inline
-+#define __declspec(x)
-+
-+// Exported entry points (replaces __declspec(dllexport) + .def files).
-+#define Q_DLLEXPORT	extern "C" __attribute__((visibility("default")))
-+
-+// --- Function-pointer members with a defaulted trailing argument --------------
-+// MSVC accepts `int (*fn)(int a, bool b = false);` inside a struct; ISO C++
-+// does not. port_defarg_fp<R(A...)> is layout-identical to R(*)(A...) (one
-+// pointer, standard layout, trivially copyable) and callable with either all
-+// arguments or with the last one omitted, in which case the last argument is
-+// value-initialised (0 / NULL / false -- matches every default in the SDK).
-+#ifdef __cplusplus
-+template<typename... T> struct port_pack {};
-+template<typename R, typename Last, typename... Init>
-+struct port_defarg_fp_impl
-+{
-+	typedef R (*fn_t)(Init..., Last);
-+	fn_t fn;
-+	R operator()(Init... i, Last l) const { return fn(i..., l); }
-+	R operator()(Init... i) const { return fn(i..., Last()); }
-+	operator fn_t() const { return fn; }
-+	port_defarg_fp_impl &operator=(fn_t f) { fn = f; return *this; }
-+};
-+template<typename R, typename Done, typename... Rest> struct port_defarg_split;
-+template<typename R, typename... D, typename L>
-+struct port_defarg_split<R, port_pack<D...>, L> { typedef port_defarg_fp_impl<R, L, D...> type; };
-+template<typename R, typename... D, typename H, typename N, typename... T>
-+struct port_defarg_split<R, port_pack<D...>, H, N, T...> : port_defarg_split<R, port_pack<D..., H>, N, T...> {};
-+template<typename F> struct port_defarg_sig;
-+template<typename R, typename... A> struct port_defarg_sig<R(A...)> { typedef typename port_defarg_split<R, port_pack<>, A...>::type type; };
-+template<typename F> using port_defarg_fp = typename port_defarg_sig<F>::type;
-+#endif
-+
-+#ifndef TRUE
-+#define TRUE	1
-+#endif
-+#ifndef FALSE
-+#define FALSE	0
-+#endif
-+typedef uint32_t	DWORD;		// Win32 DWORD is always 32-bit
-+
-+static inline char *port_itoa(int value, char *buf, int radix)
-+{
-+	if (radix == 10) { sprintf(buf, "%d", value); return buf; }
-+	char tmp[33]; char *t = tmp; unsigned v = (unsigned)value;
-+	do { int d = v % radix; *t++ = (char)(d < 10 ? '0' + d : 'a' + d - 10); v /= radix; } while (v);
-+	char *o = buf; while (t > tmp) *o++ = *--t; *o = 0; return buf;
-+}
-+#define itoa	port_itoa
-+#define _itoa	port_itoa
-+
-+// --- Win32 debug helpers that leaked into game code ---------------------------
-+#define OutputDebugString(s)	fputs((s), stderr)
-+
-+#endif // !_WIN32
-+#endif // PORT_COMPAT_H
 diff --git a/Game/qcommon/qfiles.h b/Game/qcommon/qfiles.h
 index 26aca6c..36fadf8 100644
 --- a/Game/qcommon/qfiles.h

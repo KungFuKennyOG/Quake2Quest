@@ -39,6 +39,7 @@
 #include "../../common/header/common.h"
 #include "../../common/header/om_version.h"
 #include "header/ref.h"
+#include "../vr/vr.h"
 
 #include <SDL3/SDL.h>
 
@@ -661,6 +662,13 @@ GLimp_InitGraphics(int fullscreen, int *pwidth, int *pheight)
 	*pheight = height;
 #endif
 
+	/* SoF Quest VR: the engine draws at the size of an eye's picture, whatever the window is */
+	if (VR_VideoSize(&width, &height))
+	{
+		*pwidth = width;
+		*pheight = height;
+	}
+
 	if (fullscreen == FULLSCREEN_EXCLUSIVE || fullscreen == FULLSCREEN_DESKTOP)
 	{
 		fs_flag = SDL_WINDOW_FULLSCREEN;
@@ -742,6 +750,7 @@ GLimp_InitGraphics(int fullscreen, int *pwidth, int *pheight)
 	/* Is the surface used? */
 	if (window)
 	{
+		VR_ContextLost();
 		re.ShutdownContext();
 		ShutdownGraphics();
 
@@ -908,6 +917,9 @@ GLimp_InitGraphics(int fullscreen, int *pwidth, int *pheight)
 		viddef.width = *pwidth;
 		viddef.height = *pheight;
 	}
+
+	VR_VideoSize(&viddef.width, &viddef.height);
+	VR_ContextReady(); /* SoF Quest VR: the headset's session on this GL context */
 
 	Com_Printf("Drawable size: %ix%i\n", viddef.width, viddef.height);
 

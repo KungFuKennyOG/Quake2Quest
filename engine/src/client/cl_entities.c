@@ -29,6 +29,7 @@
 
 #include <math.h>
 #include "header/client.h"
+#include "vr/vr.h"
 #include "header/sofclient.h" /* OpenMerc (I6h) */
 #include "header/cl_ghoul.h" /* I1c */
 
@@ -888,6 +889,7 @@ CL_AddEntities(void)
 
 		CL_Ghoul_ViewRebuild(); /* I1c: frame-record clock, previous view origin (SPEC-AMEND-006 I1c.1/2) */
 		CL_SoF_CalcViewValues();
+		VR_AdjustView(); /* SoF Quest VR: the head is the camera */
 	}
 	else
 	{

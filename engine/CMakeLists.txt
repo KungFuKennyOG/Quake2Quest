@@ -414,6 +414,8 @@ set(Client-Source
 	${CLIENT_SRC_DIR}/cl_omrec.c
 	${CLIENT_SRC_DIR}/cl_hud.c
 	${CLIENT_SRC_DIR}/cl_touch.c
+	${CLIENT_SRC_DIR}/vr/vr_main.c
+	${CLIENT_SRC_DIR}/vr/vr_sim.c
 	${CLIENT_SRC_DIR}/om_import.c
 	${CLIENT_SRC_DIR}/cl_sofscreen.c
 	${CLIENT_SRC_DIR}/cl_sofview.c
@@ -640,6 +642,7 @@ set(GL3-Source
 	${REF_SRC_DIR}/gl3/gl3_liquid.c
 	${REF_SRC_DIR}/gl3/gl3_avi.c
 	${REF_SRC_DIR}/gl3/gl3_rec.c
+	${REF_SRC_DIR}/gl3/gl3_vr.c
 	${REF_SRC_DIR}/gl3/gl3_relight.c
 	${REF_SRC_DIR}/gl3/gl3_lamps.c
 	${REF_SRC_DIR}/gl3/gl3_glass.c
@@ -729,6 +732,13 @@ elseif(ANDROID)
 	target_link_libraries(openMerc ${yquake2LinkerFlags} ${yquake2ClientLinkerFlags}
 		${yquake2SDLLinkerFlags} ${yquake2ZLibLinkerFlags} log android)
 	target_compile_definitions(openMerc PRIVATE OM_SOF_ELF_EXPORTS)
+	# SoF Quest: the headset through OpenXR (OPENXR_DIR: the unpacked openxr_loader_for_android .aar's prefab/modules)
+	if(OPENXR_DIR)
+		target_sources(openMerc PRIVATE ${CLIENT_SRC_DIR}/vr/vr_xr.c)
+		target_compile_definitions(openMerc PRIVATE OM_OPENXR)
+		target_include_directories(openMerc PRIVATE ${OPENXR_DIR}/headers/include)
+		target_link_libraries(openMerc ${OPENXR_DIR}/openxr_loader/libs/android.arm64-v8a/libopenxr_loader.so EGL)
+	endif()
 else()
 	add_executable(openMerc ${Client-Source} ${Client-SDL-Source} ${Client-Header}
 			${Platform-Specific-Source} ${Backends-Generic-Source})

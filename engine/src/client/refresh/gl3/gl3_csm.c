@@ -828,7 +828,7 @@ CreateMap(int size, int ncasc)
 		glReadBuffer(GL_NONE);
 	}
 	st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 
 	if (st != GL_FRAMEBUFFER_COMPLETE)
 	{
@@ -1401,7 +1401,7 @@ dynamic:
 	statgen = buildgen;
 
 	GL3_BindVAO(0);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	glDepthFunc(oldfunc);
 	glDepthRange(oldrange[0], oldrange[1]);
 	glPolygonOffset(0, 0);
@@ -1800,7 +1800,7 @@ GL3_CSM_Info(void)
 			}
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 		free(px);
 	}
 }

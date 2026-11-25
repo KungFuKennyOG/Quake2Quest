@@ -17,6 +17,7 @@
 
 using namespace ghoul;
 
+extern "C" void Com_Printf(const char *fmt, ...);
 extern "C" void SV_Ghoul_Init(void); // engine: the library, once per process (package I1b)
 
 namespace {
@@ -87,6 +88,82 @@ void *CLG_FindInstance(int handle)
 void CLG_GetTransform(void *instance, float m16[16])
 {
 	static_cast<IGhoulInst *>(instance)->GetTransform16(m16); // method 3
+}
+
+// SoF Quest VR: where a part (a bone) of an instance is, in the entity's space (with the instance's own transform)
+int CLG_PartOrigin(void *instance, const char *name, float time, float out[3])
+{
+	IGhoulInst *inst = static_cast<IGhoulInst *>(instance);
+	IGhoulObject *obj = inst ? inst->GetGhoulObject() : nullptr;
+	GhoulID part = obj ? obj->FindPart(name) : 0;
+	Matrix4 m;
+
+	if (!part)
+	{
+		return 0;
+	}
+
+	memset(&m, 0, sizeof(m));
+	inst->GetBoltMatrix(time, &m, part, 5 /* entity space */, false);
+	out[0] = m.m[3][0];
+	out[1] = m.m[3][1];
+	out[2] = m.m[3][2];
+	return 1;
+}
+
+// the whole matrix of a part (rows: its axes and origin in the entity's space)
+int CLG_PartMatrix(void *instance, const char *name, float time, float out[16])
+{
+	IGhoulInst *inst = static_cast<IGhoulInst *>(instance);
+	IGhoulObject *obj = inst ? inst->GetGhoulObject() : nullptr;
+	GhoulID part = obj ? obj->FindPart(name) : 0;
+	Matrix4 m;
+
+	if (!part)
+	{
+		return 0;
+	}
+
+	memset(&m, 0, sizeof(m));
+	inst->GetBoltMatrix(time, &m, part, 5 /* entity space */, false);
+	memcpy(out, m.m, sizeof(float) * 16);
+	return 1;
+}
+
+// the box of a part (with the parts under it) as posed at that time, in the entity's space
+int CLG_PartBounds(void *instance, const char *name, float time, float mins[3], float maxs[3])
+{
+	IGhoulInst *inst = static_cast<IGhoulInst *>(instance);
+	IGhoulObject *obj = inst ? inst->GetGhoulObject() : nullptr;
+	GhoulID part = obj ? obj->FindPart(name) : 0;
+
+	if (!part)
+	{
+		return 0;
+	}
+
+	mins[0] = mins[1] = mins[2] = maxs[0] = maxs[1] = maxs[2] = 0;
+	inst->GetBounds(time, nullptr, mins, maxs, part, true);
+	return (maxs[0] > mins[0]) && (maxs[1] > mins[1]) && (maxs[2] > mins[2]);
+}
+
+void CLG_ListParts(void *instance)
+{
+	IGhoulInst *inst = static_cast<IGhoulInst *>(instance);
+	IGhoulObject *obj = inst ? inst->GetGhoulObject() : nullptr;
+
+	if (!obj)
+	{
+		return;
+	}
+
+	for (int i = 1; i <= obj->NumParts(); i++)
+	{
+		char name[256] = {0};
+
+		obj->GetPartName((GhoulID)i, name);
+		Com_Printf("  part %d %s\n", i, name);
+	}
 }
 
 void CLG_SetTransform(void *instance, const float m16[16])

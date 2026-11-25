@@ -527,7 +527,7 @@ Rec_GpuBlit(void)
 
 	if (rec.msaa)
 	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, gl3_default_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, rec.fboresolve);
 		glBlitFramebuffer(0, 0, rec.w, rec.h, 0, 0, rec.w, rec.h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 		src = rec.fboresolve;
@@ -536,14 +536,14 @@ Rec_GpuBlit(void)
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, rec.fboscaled);
 	glBlitFramebuffer(0, 0, rec.w, rec.h, 0, rec.oh, rec.ow, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gl3_default_fbo);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, rec.fboscaled);
 }
 
 static void
 Rec_GpuFree(void)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 
 	if (rec.fboresolve)
 	{
@@ -587,7 +587,7 @@ Rec_GpuSetup(void)
 	{
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	glGetIntegerv(GL_SAMPLE_BUFFERS, &sb);
 	rec.msaa = sb > 0;
 
@@ -606,7 +606,7 @@ Rec_GpuSetup(void)
 		ok = glGetError() == GL_NO_ERROR;
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 
 	if (!ok)
 	{
@@ -1133,14 +1133,14 @@ GL3_Rec_Frame(void)
 	}
 	else
 	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, gl3_default_fbo);
 	}
 
 	glPixelStorei(GL_PACK_ALIGNMENT, 4);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, s->pbo);
 	glReadPixels(0, 0, rec.ow, rec.oh, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	s->fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 	s->frames = n;
 	s->seq = rec.seq++;
@@ -1167,7 +1167,7 @@ GL3_Rec_Indicator(void)
 		s = 6;
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	glEnable(GL_SCISSOR_TEST);
 	glScissor(vid.width - 2 * s, vid.height - 2 * s, s, s);
 	glClearBufferfv(GL_COLOR, 0, red);

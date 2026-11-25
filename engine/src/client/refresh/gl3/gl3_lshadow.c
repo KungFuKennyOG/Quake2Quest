@@ -1050,7 +1050,7 @@ CreateMap(int size, int nslots)
 		glReadBuffer(GL_NONE);
 	}
 	st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 
 	if (st != GL_FRAMEBUFFER_COMPLETE)
 	{
@@ -1754,7 +1754,7 @@ GL3_LShadow_Frame(void)
 
 	GL3_BindVAO(0);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	glDepthFunc(oldfunc);
 	glDepthRange(oldrange[0], oldrange[1]);
 	glPolygonOffset(0, 0);

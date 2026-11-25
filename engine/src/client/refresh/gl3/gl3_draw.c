@@ -693,9 +693,16 @@ void GL3_EndFrame(void)
 	/* the window's depth and stencil are not needed after the frame (a bandwidth saving on tiled GPUs); the window
 	   takes GL_DEPTH / GL_STENCIL, not attachment names, and its colour must not be discarded before the swap */
 	static const GLenum attachments[] = {GL_DEPTH, GL_STENCIL};
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glInvalidateFramebuffer(GL_FRAMEBUFFER, 2, attachments);
+	if (!gl3_default_fbo && !gl3_vr_noswap)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glInvalidateFramebuffer(GL_FRAMEBUFFER, 2, attachments);
+	}
 #endif
 
-	GL3_SwapWindow();
+	/* SoF Quest VR: the frame went into the headset's textures, the window shows nothing */
+	if (!gl3_vr_noswap)
+	{
+		GL3_SwapWindow();
+	}
 }

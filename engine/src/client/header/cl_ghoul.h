@@ -84,6 +84,10 @@ void CLG_Purge(void);
 void CLG_Reset(void);
 void *CLG_FindInstance(int handle);
 void CLG_GetTransform(void *instance, float m16[16]);
+int CLG_PartOrigin(void *instance, const char *name, float time, float out[3]); /* SoF Quest VR */
+void CLG_ListParts(void *instance);
+int CLG_PartMatrix(void *instance, const char *name, float time, float out[16]);
+int CLG_PartBounds(void *instance, const char *name, float time, float mins[3], float maxs[3]);
 void CLG_SetTransform(void *instance, const float m16[16]);
 void CLG_DrawMenu(void *instance, float x, float y, float time, int camerapart, int notexturestack);
 void CLG_DrawMenuLit(void *instance, float x, float y, float time, int notexturestack, float light);

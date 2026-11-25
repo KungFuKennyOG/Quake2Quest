@@ -582,6 +582,12 @@ GL3_CreateDrawCmd(void)
 extern gl3config_t gl3config;
 extern gl3state_t gl3state;
 
+/* SoF Quest VR (gl3_vr.c): what "framebuffer 0" is while a headset is drawn for */
+extern GLuint gl3_default_fbo;
+extern int gl3_vr_width, gl3_vr_height;
+extern qboolean gl3_vr_noswap;
+void GL3_VR_ContextLost(void);
+
 enum {
 	_gl3_numShaders = 1 + ((offsetof(gl3state_t, siParticle) - offsetof(gl3state_t, si2D)) / sizeof(gl3ShaderInfo_t))
 };

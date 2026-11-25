@@ -28,6 +28,7 @@
 #include <errno.h>
 
 #include "../../client/header/client.h"
+#include "../vr/vr.h"
 #include "../../client/header/keyboard.h"
 #include "../../client/header/cl_ghoul.h" /* I1c */
 
@@ -477,6 +478,7 @@ VID_ShutdownRenderer(void)
 		CL_Ghoul_RendererStopping();
 
 		/* Shut down the renderer */
+		VR_ContextLost(); /* SoF Quest VR: the session lives on this GL context */
 		re.Shutdown();
 		GLimp_ShutdownGraphics();
 		Sys_FreeLibrary(reflib_handle);
@@ -559,6 +561,7 @@ VID_LoadRenderer(void)
 	ri.Vid_RequestRestart = VID_RequestRestart;
 
 	// Exchange our export struct with the renderers import struct.
+	VR_RefLoaded(reflib_handle); /* SoF Quest VR: the renderer's headset functions, the size to draw at */
 	re = GetRefAPI(ri);
 
 	// Declare the refresher as active.

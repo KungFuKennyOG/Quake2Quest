@@ -29,6 +29,7 @@
  */
 
 #include "header/client.h"
+#include "vr/vr.h"
 #include "header/sofclient.h"
 #include "header/cl_ghoul.h"
 #include "../common/header/sof/refapi.h"
@@ -616,6 +617,23 @@ CL_Ghoul_ApplySway(void *inst, int handle)
 			t[2] * clg_vw.base[8 + j];
 	}
 
+	/* SoF Quest VR: the view weapons are made several times life size and far from the eye (the same on a monitor);
+	   in the hand they are life size */
+	{
+		float sc = VR_WeaponScale();
+
+		if (sc != 1.0f)
+		{
+			for (j = 0; j < 15; j++)
+			{
+				if ((j & 3) != 3)
+				{
+					m[j] *= sc;
+				}
+			}
+		}
+	}
+
 	CLG_SetTransform(inst, m);
 	CLG_GetTransform(inst, clg_vw.last);
 }
@@ -652,6 +670,37 @@ CL_Ghoul_AddViewWeapon(void)
 	gun.angles[0] = -cl.refdef.viewangles[0];
 	gun.angles[1] = cl.refdef.viewangles[1];
 	gun.angles[2] = -cl.refdef.viewangles[2];
+
+	/* SoF Quest VR: the gun is in the hand - the model's right hand at the controller */
+	{
+		vec3_t o, a, grip;
+		static const char *hands[] = {"_R_HIGH_RES_HAND", "_R_MEDIUM_RES_HAND", "_R_LOW_RES_HAND", "_RIGHT_HAND", NULL};
+		vec3_t mn, mx, muzzle;
+		qboolean have = false, havemuzzle;
+		int k;
+
+		/* the middle of the model's right hand, as posed now (the gun stays in the hand through every animation) */
+		for (k = 0; hands[k] && !have; k++)
+		{
+			if (CLG_PartBounds(inst, hands[k], cl.time * 0.001f, mn, mx))
+			{
+				VectorAdd(mn, mx, grip);
+				VectorScale(grip, 0.5f, grip);
+				have = true;
+			}
+		}
+
+		havemuzzle = CLG_PartOrigin(inst, "FLASH", cl.time * 0.001f, muzzle);
+
+		if (VR_Weapon(x->gun_id, x->gun_type, have ? grip : NULL, (have && havemuzzle) ? muzzle : NULL, o, a))
+		{
+			VectorCopy(o, gun.origin);
+			VectorCopy(o, gun.oldorigin);
+			gun.angles[0] = -a[0];
+			gun.angles[1] = a[1];
+			gun.angles[2] = -a[2];
+		}
+	}
 	gun.frame = x->gun_id;
 	gun.flags = CLG_VIEWWEAPON_FLAGS;
 	gun.backlerp = 1.0f - cl.lerpfrac;

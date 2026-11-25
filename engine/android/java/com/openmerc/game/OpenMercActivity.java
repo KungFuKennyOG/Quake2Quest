@@ -49,7 +49,7 @@ public class OpenMercActivity extends SDLActivity {
     @Override
     protected String[] getLibraries() {
         // the C++ runtime and OpenAL first: libmain.so, OMsnd.so and the game modules need them
-        return new String[] {"c++_shared", "SDL3", "openal", "main"};
+        return new String[] {"c++_shared", "SDL3", "openal", "openxr_loader", "main"};
     }
 
     /* vid_surfacescale (engine, glimp_sdl3.c): the window surface gets a fixed size below the panel's and the display

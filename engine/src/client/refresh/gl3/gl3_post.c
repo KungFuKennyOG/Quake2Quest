@@ -1638,7 +1638,7 @@ CreateTargets(int w, int h)
 
 	DeleteTargets();
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	glGetIntegerv(GL_SAMPLES, &samples);
 	P.samples = (samples > 1) ? samples : 0;
 	P.w = w;
@@ -1783,7 +1783,7 @@ CreateTargets(int w, int h)
 		return false;
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	return true;
 }
 
@@ -1837,7 +1837,7 @@ CreateChain(int vw, int vh)
 
 	P.chainw = vw;
 	P.chainh = vh;
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	return P.nlevels > 0;
 }
 
@@ -1988,7 +1988,7 @@ GL3_Post_BeginView(int x, int y, int w, int h)
 	{
 		GLint sb = 0;
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 		glGetIntegerv(GL_SAMPLE_BUFFERS, &sb);
 		windowsamples = sb;
 	}
@@ -2062,7 +2062,7 @@ GL3_Post_BeginView(int x, int y, int w, int h)
 		if (!CreateTargets(sw, sh))
 		{
 			DeleteTargets();
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 			P.failed = true;
 			return false;
 		}
@@ -3011,7 +3011,7 @@ TaaEnd(GLuint dst, int vx, int vy, int vw, int vh)
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 			TaaShutdown();
 			TA.tried = true;
 			R_Printf(PRINT_ALL, "r_om_taa: no framebuffer, TAA is off\n");
@@ -3122,7 +3122,7 @@ FxaaBegin(void)
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 			FxaaShutdown();
 			FA.tried = true;
 			R_Printf(PRINT_ALL, "r_om_fxaa: no framebuffer, FXAA is off\n");
@@ -3498,7 +3498,7 @@ SmaaEnd(GLuint dst, int vx, int vy, int vw, int vh)
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 			SmaaShutdown();
 			SM.tried = true;
 			R_Printf(PRINT_ALL, "r_om_postaa 2: no SMAA framebuffer, FXAA instead\n");
@@ -3852,7 +3852,7 @@ UpTarget(void)
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 			UpShutdown();
 			UP.tried = 6; /* no target: neither mode */
 			return false;
@@ -3868,7 +3868,7 @@ UpscaleEnd(void)
 {
 	float fw = (float)UP.w, fh = (float)UP.h;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 	glViewport(P.wx, P.wy, P.ww, P.wh);
 	GL3_UseProgram(UP.prog);
 	glUniform1i(UP.u_tex, 0);

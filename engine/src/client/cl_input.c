@@ -37,6 +37,7 @@
  */
 
 #include "header/client.h"
+#include "vr/vr.h"
 #include "header/sofclient.h"
 #include "input/header/input.h"
 
@@ -588,6 +589,9 @@ CL_BuildCmd(usercmd_t *cmd)
 	{
 		cmd->buttons |= BUTTON_SKIP;
 	}
+
+	/* SoF Quest VR: the head's turn, the stick, steps in the room */
+	VR_Move(cmd);
 
 	memset(&mouse_accum, 0, sizeof(mouse_accum));
 	skip_requested = false;

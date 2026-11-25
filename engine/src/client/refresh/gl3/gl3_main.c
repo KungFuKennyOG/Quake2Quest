@@ -2273,6 +2273,12 @@ GL3_SetPerspective(GLdouble fovy)
 	top = zNear * tan(fovy * M_PI / 360.0);
 	right = top * aspect;
 
+	if (gl3_vr_width && (fovy == r_newrefdef.fov_y))
+	{
+		/* SoF Quest: a headset's picture is not as wide as its pixels say */
+		right = zNear * tan(r_newrefdef.fov_x * M_PI / 360.0);
+	}
+
 	bottom = -top;
 	left = -right;
 
@@ -2376,7 +2382,7 @@ SetupGL(void)
 				Com_Printf("GL3 SetupGL(): WARNING: FBO is not complete, status = 0x%x\n", fbState);
 				gl3state.ppFBtexWidth = -1; // to try again next frame; TODO: maybe give up?
 				gl3state.ppFBObound = false;
-				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo);
 			}
 		}
 
@@ -2976,7 +2982,7 @@ GL3_RenderFrame(refdef_t *fd)
 	qboolean usedFBO = gl3state.ppFBObound; // if it was/is used this frame
 	if(usedFBO)
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0); // now render to default framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, gl3_default_fbo); // now render to default framebuffer
 		gl3state.ppFBObound = false;
 	}
 	GL3_SetGL2D();

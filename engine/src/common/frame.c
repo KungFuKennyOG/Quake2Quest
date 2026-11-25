@@ -774,6 +774,19 @@ Qcommon_Frame(int usec)
 		}
 	}
 
+#ifndef DEDICATED_ONLY
+	/* SoF Quest VR: the headset paces the frames (the wait is in VR_FrameStart); every frame is drawn and sent */
+	{
+		qboolean VR_Enabled(void);
+
+		if (VR_Enabled())
+		{
+			renderframe = true;
+			packetframe = true;
+		}
+	}
+#endif
+
 	// Dedicated server terminal console.
 	do {
 		s = Sys_ConsoleInput();
