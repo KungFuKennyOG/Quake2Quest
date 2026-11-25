@@ -2432,6 +2432,112 @@ index d5cfcbe..df1dc21 100644
  {
  	average[0] = (mins[0] + maxs[0]) * 0.5f;
  	average[1] = (mins[1] + maxs[1]) * 0.5f;
+diff --git a/Game/qcommon/port_compat.h b/Game/qcommon/port_compat.h
+new file mode 100644
+index 0000000..25bb0f0
+--- /dev/null
++++ b/Game/qcommon/port_compat.h
+@@ -0,0 +1,100 @@
++// port_compat.h -- portability shims for building the SoF game/player modules
++// on non-Windows (Linux x86-64, Android ARM64) with gcc/clang.
++// Included from gamecpp/q_shared.h (in place of <io.h>) on !_WIN32.
++#ifndef PORT_COMPAT_H
++#define PORT_COMPAT_H
++
++#ifndef _WIN32
++
++#include <stdint.h>
++#include <stddef.h>
++#include <string.h>
++#include <strings.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <ctype.h>
++#include <limits.h>
++
++// --- CRT name differences ---------------------------------------------------
++#define stricmp		strcasecmp
++#define strnicmp	strncasecmp
++#define _stricmp	strcasecmp
++#define _strnicmp	strncasecmp
++#define strcmpi		strcasecmp
++#define _snprintf	snprintf
++#define _vsnprintf	vsnprintf
++
++static inline char *port_strlwr(char *s) { for (char *p = s; *p; ++p) *p = (char)tolower((unsigned char)*p); return s; }
++static inline char *port_strupr(char *s) { for (char *p = s; *p; ++p) *p = (char)toupper((unsigned char)*p); return s; }
++#define strlwr		port_strlwr
++#define _strlwr		port_strlwr
++#define strupr		port_strupr
++#define _strupr		port_strupr
++
++// --- MSVC types/keywords ----------------------------------------------------
++#define __int64		long long
++#define __int32		int
++#define __int16		short
++#define __int8		char
++#define __cdecl
++#define __stdcall
++#define __fastcall
++#define _inline		inline
++#define __inline	inline
++#define __forceinline	inline
++#define __declspec(x)
++
++// Exported entry points (replaces __declspec(dllexport) + .def files).
++#define Q_DLLEXPORT	extern "C" __attribute__((visibility("default")))
++
++// --- Function-pointer members with a defaulted trailing argument --------------
++// MSVC accepts `int (*fn)(int a, bool b = false);` inside a struct; ISO C++
++// does not. port_defarg_fp<R(A...)> is layout-identical to R(*)(A...) (one
++// pointer, standard layout, trivially copyable) and callable with either all
++// arguments or with the last one omitted, in which case the last argument is
++// value-initialised (0 / NULL / false -- matches every default in the SDK).
++#ifdef __cplusplus
++template<typename... T> struct port_pack {};
++template<typename R, typename Last, typename... Init>
++struct port_defarg_fp_impl
++{
++	typedef R (*fn_t)(Init..., Last);
++	fn_t fn;
++	R operator()(Init... i, Last l) const { return fn(i..., l); }
++	R operator()(Init... i) const { return fn(i..., Last()); }
++	operator fn_t() const { return fn; }
++	port_defarg_fp_impl &operator=(fn_t f) { fn = f; return *this; }
++};
++template<typename R, typename Done, typename... Rest> struct port_defarg_split;
++template<typename R, typename... D, typename L>
++struct port_defarg_split<R, port_pack<D...>, L> { typedef port_defarg_fp_impl<R, L, D...> type; };
++template<typename R, typename... D, typename H, typename N, typename... T>
++struct port_defarg_split<R, port_pack<D...>, H, N, T...> : port_defarg_split<R, port_pack<D..., H>, N, T...> {};
++template<typename F> struct port_defarg_sig;
++template<typename R, typename... A> struct port_defarg_sig<R(A...)> { typedef typename port_defarg_split<R, port_pack<>, A...>::type type; };
++template<typename F> using port_defarg_fp = typename port_defarg_sig<F>::type;
++#endif
++
++#ifndef TRUE
++#define TRUE	1
++#endif
++#ifndef FALSE
++#define FALSE	0
++#endif
++typedef uint32_t	DWORD;		// Win32 DWORD is always 32-bit
++
++static inline char *port_itoa(int value, char *buf, int radix)
++{
++	if (radix == 10) { sprintf(buf, "%d", value); return buf; }
++	char tmp[33]; char *t = tmp; unsigned v = (unsigned)value;
++	do { int d = v % radix; *t++ = (char)(d < 10 ? '0' + d : 'a' + d - 10); v /= radix; } while (v);
++	char *o = buf; while (t > tmp) *o++ = *--t; *o = 0; return buf;
++}
++#define itoa	port_itoa
++#define _itoa	port_itoa
++
++// --- Win32 debug helpers that leaked into game code ---------------------------
++#define OutputDebugString(s)	fputs((s), stderr)
++
++#endif // !_WIN32
++#endif // PORT_COMPAT_H
 diff --git a/Game/qcommon/qfiles.h b/Game/qcommon/qfiles.h
 index 26aca6c..36fadf8 100644
 --- a/Game/qcommon/qfiles.h
